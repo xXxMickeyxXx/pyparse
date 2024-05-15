@@ -378,7 +378,3 @@ def get_http_request(raw_request):
 
 if __name__ == "__main__":
     pass
-
-
-if __name__ == "__main__":
-    pass
