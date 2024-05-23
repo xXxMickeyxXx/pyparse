@@ -1,0 +1,113 @@
+_____EXAMPLE GRAMMAR_____
+
+	E → E * B
+	E → E + B
+	E → B
+	B → 0
+	B → 1
+
+
+SYMBOLS:
+
+	• E
+	• B
+	• 0
+	• 1
+	• *
+	• +
+
+
+AUGMENTED GRAMMAR (for to generate LR(0) items):
+
+	E → .E * B
+	E → .E + B
+	E → .B
+	B → .0
+	B → .1
+
+
+STATES:
+
+	I0:
+
+		S -> .E
+		E → .E * B
+		E → .E + B
+		E → .B
+		B → .0
+		B → .1
+
+	S1:
+
+		S -> E.
+
+	S2:
+
+		E -> E. * B
+
+	S3:
+
+		E -> E. + B
+
+	S4:
+
+		E -> B.
+
+	S5:
+
+		B -> 0.
+
+	S6:
+
+		B -> 1.
+
+	S7:
+
+		E -> E * .B
+		B -> .0
+		B -> .1
+
+	S8:
+
+		E -> E + .B
+		B -> .0
+		B -> .1
+
+	S9:
+
+		E -> E * B.
+
+	S10:
+
+		E -> E + B.
+
+
+TRANSITIONS:
+
+	T1 - from S0:
+
+		IE -> S1
+		IB -> S4
+		I0 -> S5
+		I1 -> S6
+
+	T2 - from S1:
+
+		None (ACCEPT)
+
+	T3 - from S2:
+
+		I* -> S7
+
+	T4 - from S3:
+
+		I+ -> S8
+
+	T5 - from S7:
+
+		IB -> S9
+
+	T6 - from S8:
+
+		IB -> S10
+		
