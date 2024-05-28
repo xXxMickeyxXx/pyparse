@@ -17,5 +17,10 @@ class TokenError(PyParseError):
 	"""Token Error"""
 
 
+@use_docstring
+class TimeOutError(PyParseError):
+    """Time Out Error"""
+
+
 if __name__ == "__main__":
 	pass
