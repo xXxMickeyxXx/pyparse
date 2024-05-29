@@ -1,5 +1,5 @@
 from .parser import Parser
-from .parse import Parse
+from .parse_context import Parse, ParseContextManager
 from .parsers import ShiftReduceParser
 from .grammar import Grammar
 from .lexer import Tokenizer

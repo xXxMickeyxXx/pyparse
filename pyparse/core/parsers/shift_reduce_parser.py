@@ -1,39 +1,5 @@
 from ...library import PyChannel
 from ...cons import ParserAction
-# from ...utils import generate_id
-
-
-# class ParserStateManager:
-
-# 	def __init__(self, manager_id=None):
-# 		self._manager_id = manager_id or generate_id()
-# 		self._current_state = None
-# 		self._actions = {}
-
-# 	@property
-# 	def manager_id(self):
-# 		return self._manager_id
-
-# 	def update_state(self, state):
-# 		self._current_state = state
-
-# 	def register_action(self, state, input, action):
-# 		self._actions[state][input] = action
-
-# 	def select_action(self, state, input):
-# 		_retval = None
-# 		_state = self._actions.get(state, None)
-# 		if _state is not None:
-# 			_retval = _state.get(input, None)
-# 		return _retval
-
-# 	def update(self, parser):
-# 		_state = self._actions.get(self._current_state, None)
-# 		if _state is not None:
-# 			_action = _state.get(parser.current_input, None)
-# 			if _action:
-# 				return _action(parser)
-# 		return None
 
 
 class ShiftReduceParser:
@@ -57,7 +23,6 @@ class ShiftReduceParser:
 		self._tokens = None
 		self._get_grammar = None
 		self._handlers = None
-		# self._state_manager = state_manager or ParserStateManager()
 
 	@property
 	def grammar(self):

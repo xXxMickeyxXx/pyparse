@@ -1,6 +1,6 @@
 import string
 
-from ..core import Parser, ShiftReduceParser, Tokenizer, Grammar
+from ..core import Parser, Parse, ShiftReduceParser, ParseContextManager, Tokenizer, Grammar
 from ..cons import ParserAction
 from ..utils import apply_color, underline_text, bold_text, center_text
 
@@ -63,11 +63,12 @@ def dict_grammar_factory():
 	_dict_grammar.add_rule("dict", ["OPENING_BRACE", "dict_objects", "CLOSING_BRACE"])
 	_dict_grammar.add_rule("dict_objects", ["dict_objects", "dict_object"])
 	_dict_grammar.add_rule("dict_objects", ["dict_object", "COMMA", "dict_object"])
+	_dict_grammar.add_rule("dict_objects", ["dict_object"])
 	_dict_grammar.add_rule("dict_object", ["key_pair"])
-	_dict_grammar.add_rule("key_pair", ["key", "COLON", "value"])
-	_dict_grammar.add_rule("key", ["quotation", "WORD", "quotation"])
-	_dict_grammar.add_rule("value", ["quotation", "WORD", "quotation"])
-	_dict_grammar.add_rule("value", ["dict"])
+	_dict_grammar.add_rule("key_pair", ["key_part", "COLON", "key_part"])
+	# _dict_grammar.add_rule("key", ["quotation", "WORD", "quotation"])
+	_dict_grammar.add_rule("key_part", ["quotation", "WORD", "quotation"])
+	# _dict_grammar.add_rule("value", ["dict"])
 	_dict_grammar.add_rule("quotation", ["SINGLE_QUOTE"])
 	_dict_grammar.add_rule("quotation", ["DOUBLE_QUOTE"])
 	return _dict_grammar
@@ -100,6 +101,7 @@ class DictObject:
 
 
 def _reduce_handler(rule, matched_tokens):
+	# _current_key_part
 	print()
 	print(f"--------------------------------------------------")
 	print(underline_text(bold_text(apply_color(214, f"REDUCING BY RULE"))), end="")
@@ -172,7 +174,7 @@ def parse_dict(dict_input):
 	for i in _parse_tokens:
 		print(f"• \t{i}")
 	print()
-	_shift_reduce_parser = ShiftReduceParser(grammar=_dict_grammar, end_match="dict_object")
+	_shift_reduce_parser = ShiftReduceParser(grammar=_dict_grammar, end_match="dict")
 	register_dict_actions(_shift_reduce_parser)
 	_parser = Parser(parser_imp=_shift_reduce_parser)    
 	_dict_object = _parser.parse(_parse_tokens)
@@ -195,13 +197,18 @@ def parse_dict(dict_input):
 def _dict_json_parsing_main():
 	TEST_INPUT_1 = "{'hello': 'moto', \"goodbye\": \"you\"}"
 	TEST_INPUT_2 = "{'hello_123': 'moto_456'}"
+	# TEST_INPUT_3 = input(">>: ")
 	print()
 	parse_dict(TEST_INPUT_1)
 	print()
 	print(bold_text(f"--------------------------------------------------"))
 	print()
-	parse_dict(TEST_INPUT_1)
+	parse_dict(TEST_INPUT_2)
 	print()
+	print(bold_text(f"--------------------------------------------------"))
+	print()
+	# parse_dict(TEST_INPUT_3)
+	# print()
 
 
 def _dict_tokenizer_testing():
