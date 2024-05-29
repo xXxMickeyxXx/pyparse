@@ -22,9 +22,7 @@ class DictTokenizer(Tokenizer):
 			# TODO: create and raise custom error here
 			raise RuntimeError("unable to tokenize as an input has not yet been specified")
 
-		while True:
-			if self.peek() is None:
-				break
+		while self.can_consume:
 
 			char = self.consume()
 
@@ -51,16 +49,20 @@ class DictTokenizer(Tokenizer):
 			self.add_token(_next_token)
 		return self.tokens
 
-	@staticmethod
-	def _consume_words(tokenizer):
-		if tokenizer.can_consume:
-			return tokenizer.peek() in tokenizer._words
+	def _consume_words(self, _):
+		_peek = self.peek()
+		# if _peek and _peek in self._words:
+			# if 
+		if self.can_consume:
+			return _peek in self._words or _peek in ".,!@#$%^&*()_;:-"
 		return False
 
 
 def dict_grammar_factory():
-	_dict_grammar = Grammar(grammar_id="DICT_GRAMMAR")  # TODO: create a 'HTTP_GRAMMAR' enum
+	_dict_grammar = Grammar(grammar_id="DICT_GRAMMAR")
+	_dict_grammar.add_rule("dict", ["dict", "CLOSING_BRACE"])
 	_dict_grammar.add_rule("dict", ["OPENING_BRACE", "dict_objects", "CLOSING_BRACE"])
+	_dict_grammar.add_rule("dict", ["dict_objects"])
 	_dict_grammar.add_rule("dict_objects", ["dict_objects", "dict_object"])
 	_dict_grammar.add_rule("dict_objects", ["dict_object", "COMMA", "dict_object"])
 	_dict_grammar.add_rule("dict_objects", ["dict_object"])
@@ -196,8 +198,8 @@ def parse_dict(dict_input):
 
 def _dict_json_parsing_main():
 	TEST_INPUT_1 = "{'hello': 'moto', \"goodbye\": \"you\"}"
-	TEST_INPUT_2 = "{'hello_123': 'moto_456'}"
-	# TEST_INPUT_3 = input(">>: ")
+	TEST_INPUT_2 = "{'hel-lo_123': 'moto_;:45,6', 'shitklasd;jfl;kasdjf': 'fuck'}"
+	# TEST_INPUT_4 = input(">>: ")
 	print()
 	parse_dict(TEST_INPUT_1)
 	print()
