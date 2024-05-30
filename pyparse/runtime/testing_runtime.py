@@ -1,6 +1,14 @@
 import string
 
-from ..core import Parser, Parse, ShiftReduceParser, ParseContextManager, Tokenizer, Grammar
+from ..core import (
+	Parser,
+	Parse,
+	ShiftReduceParser,
+	ParseContextManager,
+	Tokenizer,
+	Grammar,
+	Node,
+	Nodes)
 from ..cons import ParserAction
 from ..utils import apply_color, underline_text, bold_text, center_text
 
@@ -9,12 +17,9 @@ class DictTokenizer(Tokenizer):
 
 	_words = {"_", *set(string.ascii_lowercase + string.ascii_uppercase), *{str(i) for i in range (10)}}
 
-	def test_input(self, input=None):
-		return True if input is None else self.expect(input, consume=True)
-
 	def consume_ws(self):
 		if self.current_char is not None:
-			while self.peek() != None and self._current_char.isspace():
+			while self.peek() != None and self.current_char.isspace() or self.current_char in {"\r\n", "\r", "\n", "\t"}:
 				yield self.consume()
 
 	def tokenize(self):
@@ -22,12 +27,17 @@ class DictTokenizer(Tokenizer):
 			# TODO: create and raise custom error here
 			raise RuntimeError("unable to tokenize as an input has not yet been specified")
 
+		_do_key = True
 		while self.can_consume:
 
 			char = self.consume()
 
 			if char == " ":
 				# _next_token = ("WS", char)
+				self.consume_ws()
+				continue
+			elif char in {"\n", "\r", "\r\n", "\t"}:
+				self.consume_ws()
 				continue
 			elif char == "{":
 				_next_token = ("OPENING_BRACE", char)
@@ -42,35 +52,38 @@ class DictTokenizer(Tokenizer):
 			elif char == ",":
 				_next_token = ("COMMA", char)
 			elif char in self._words:
-				_tmp = char
-				_tmp += self.consume_until(self._consume_words)
-				_next_token = ("WORD", _tmp)
+				if _do_key:
+					_tmp = char
+					_tmp += self.consume_until(self._consume_words)
+					_next_token = ("KEY", _tmp)
+					_do_key = False
+				else:
+					_tmp = char
+					_tmp += self.consume_until(self._consume_words)
+					_next_token = ("VALUE", _tmp)
+					_do_key = True
 
 			self.add_token(_next_token)
 		return self.tokens
 
 	def _consume_words(self, _):
 		_peek = self.peek()
-		# if _peek and _peek in self._words:
-			# if 
-		if self.can_consume:
-			return _peek in self._words or _peek in ".,!@#$%^&*()_;:-"
-		return False
+		return _peek in self._words or _peek in ".,!@#$%^&*()_;:- "
 
 
 def dict_grammar_factory():
 	_dict_grammar = Grammar(grammar_id="DICT_GRAMMAR")
 	_dict_grammar.add_rule("dict", ["dict", "CLOSING_BRACE"])
 	_dict_grammar.add_rule("dict", ["OPENING_BRACE", "dict_objects", "CLOSING_BRACE"])
+	_dict_grammar.add_rule("dict", ["OPENING_BRACE", "key_pair", "CLOSING_BRACE"])
 	_dict_grammar.add_rule("dict", ["dict_objects"])
 	_dict_grammar.add_rule("dict_objects", ["dict_objects", "dict_object"])
 	_dict_grammar.add_rule("dict_objects", ["dict_object", "COMMA", "dict_object"])
 	_dict_grammar.add_rule("dict_objects", ["dict_object"])
-	_dict_grammar.add_rule("dict_object", ["key_pair"])
-	_dict_grammar.add_rule("key_pair", ["key_part", "COLON", "key_part"])
-	# _dict_grammar.add_rule("key", ["quotation", "WORD", "quotation"])
-	_dict_grammar.add_rule("key_part", ["quotation", "WORD", "quotation"])
-	# _dict_grammar.add_rule("value", ["dict"])
+	_dict_grammar.add_rule("dict_object", ["key_pairs"])
+	_dict_grammar.add_rule("key_pairs", ["key_pair", "COMMA", "key_pair"])
+	_dict_grammar.add_rule("key_pairs", ["key_pairs", "COMMA", "key_pair"])
+	_dict_grammar.add_rule("key_pair", ["quotation", "KEY", "quotation", "COLON", "quotation", "VALUE", "quotation"])
 	_dict_grammar.add_rule("quotation", ["SINGLE_QUOTE"])
 	_dict_grammar.add_rule("quotation", ["DOUBLE_QUOTE"])
 	return _dict_grammar
@@ -102,6 +115,9 @@ class DictObject:
 
 
 
+_reduction_path = []
+
+
 def _reduce_handler(rule, matched_tokens):
 	# _current_key_part
 	print()
@@ -110,6 +126,7 @@ def _reduce_handler(rule, matched_tokens):
 	print(bold_text(apply_color(15, " ---> ")), end="")
 	print(bold_text(apply_color(214, f"{rule}")))
 	print()
+	_reduction_path.append(rule)
 	for i in matched_tokens:
 		print(f"\t• {i}")
 	print()
@@ -145,9 +162,10 @@ def get_input(filepath, mode="r", dtype=str):
 
 
 def register_dict_actions(parser):
-	parser.register_handler("dict", _key_action)
+	# parser.register_handler("dict", _key_action)
 	parser.register_handler(ParserAction.REDUCE, _reduce_handler)
 	parser.register_handler(ParserAction.SHIFT, _shift_handler)
+	# pass
 
 
 def generate_tokens(input, tokenizer):
@@ -170,7 +188,7 @@ def parse_dict(dict_input):
 	print()
 	_dict_grammar = dict_grammar_factory()
 	_dict_tokenizer = DictTokenizer(input=dict_input)
-	_parse_tokens = [i for i in _dict_tokenizer.tokenize() if i != "WS"]
+	_parse_tokens = [i for i in _dict_tokenizer.tokenize()]
 	print(f"TOKENS:")
 	print()
 	for i in _parse_tokens:
@@ -180,16 +198,27 @@ def parse_dict(dict_input):
 	register_dict_actions(_shift_reduce_parser)
 	_parser = Parser(parser_imp=_shift_reduce_parser)    
 	_dict_object = _parser.parse(_parse_tokens)
+	print(f"RULE PATH:")
+	print()
+	for i in _reduction_path:
+		print(f"\t• {i}")
+	print()
 	if _dict_object:
-		_text = "TEST INPUT IS VALID!!!"
-		_border_text = f"-" * len(_text)
 		_color = 10
+		_text = bold_text(apply_color(_color, f"TEST INPUT IS VALID!!!"))
+		_text += f"\n    |"
+		_text += f"\n    |"
+		_text += f"\n    • ----> {bold_text(apply_color(11, dict_input))}"
+		_border_text = f"-" * int(len(_text)/2)
 		_result = bold_text(apply_color(_color, _text))
 	else:
-		_text = "TEST INPUT IS INVALID!!!"
-		_border_text = f"-" * len(_text)
 		_color = 9
-		_result = bold_text(apply_color(_color, _text))
+		_text = bold_text(apply_color(_color, f"TEST INPUT IS INVALID!!!"))
+		_text += f"\n    |"
+		_text += f"\n    |"
+		_text += f"\n    • ----> {bold_text(apply_color(11, dict_input))}"
+		_border_text = f"-" * int(len(_text)/2)
+		_result = _text
 	print(apply_color(_color, _border_text))
 	print(_result)
 	print(apply_color(_color, _border_text))
@@ -198,8 +227,13 @@ def parse_dict(dict_input):
 
 def _dict_json_parsing_main():
 	TEST_INPUT_1 = "{'hello': 'moto', \"goodbye\": \"you\"}"
-	TEST_INPUT_2 = "{'hel-lo_123': 'moto_;:45,6', 'shitklasd;jfl;kasdjf': 'fuck'}"
-	# TEST_INPUT_4 = input(">>: ")
+	TEST_INPUT_2 = "{'hel-lo_123' :'moto_;:45,6', 'shitklasd;jfl;kasdjf': 'fuck'}"
+	TEST_INPUT_3 = """{
+						'hello': 'moto',
+						'goodb  ye': 'you'
+					}"""
+	TEST_INPUT_4 = "{ 'hello': 'moto'}"
+	TEST_NETWORK_INPUT = [i for i in bytes(TEST_INPUT_4, "UTF-8")]
 	print()
 	parse_dict(TEST_INPUT_1)
 	print()
@@ -209,8 +243,10 @@ def _dict_json_parsing_main():
 	print()
 	print(bold_text(f"--------------------------------------------------"))
 	print()
-	# parse_dict(TEST_INPUT_3)
-	# print()
+	parse_dict(TEST_INPUT_3)
+	print()
+	parse_dict("".join([chr(i) for i in TEST_NETWORK_INPUT]))
+	print()
 
 
 def _dict_tokenizer_testing():
@@ -219,6 +255,17 @@ def _dict_tokenizer_testing():
 	_dict_tokenizer.set_input(TEST_INPUT)
 	for i in _dict_tokenizer.tokenize():
 		print(i)
+
+
+class TestUpdatedShiftReduceParser(ShiftReduceParser):
+
+	def __init__(self, grammar=None, end_match=None):
+		super().__init__(grammar=grammar, end_match=end_match)
+		# self._ast = 
+
+
+class DateTimeTokenizer(Tokenizer):
+	pass
 
 
 if __name__ == "__main__":

@@ -1,0 +1,22 @@
+	_dict_grammar.add_rule("dict", ["dict", "CLOSING_BRACE"])
+	_dict_grammar.add_rule("dict", ["OPENING_BRACE", "dict_objects", "CLOSING_BRACE"])
+	_dict_grammar.add_rule("dict", ["dict_objects"])
+	_dict_grammar.add_rule("dict_objects", ["dict_objects", "dict_object"])
+	_dict_grammar.add_rule("dict_objects", ["dict_object", "COMMA", "dict_object"])
+	_dict_grammar.add_rule("dict_objects", ["dict_object"])
+	_dict_grammar.add_rule("dict_object", ["key_pairs"])
+	_dict_grammar.add_rule("key_pairs", ["key_pairs", "COMMA"])
+	_dict_grammar.add_rule("key_pairs", ["key_pair", "COMMA", "key_pair"])
+	_dict_grammar.add_rule("key_pair", ["key_part", "COLON", "key_part"])
+	_dict_grammar.add_rule("key_part", ["quotation", "WORD", "quotation"])
+	_dict_grammar.add_rule("quotation", ["SINGLE_QUOTE"])
+	_dict_grammar.add_rule("quotation", ["DOUBLE_QUOTE"])
+
+dict 	     ::=		<dict> "}" | "{" <dict_objects> "}" | <dict_objects>
+dict_objects ::=		<dict_objects> <dict_object> | <dict_object> "," <dict_object> | <dict_object>
+dict_object  ::=		<key_pairs>
+key_pairs    ::=		<key_pairs> "," | <key_pair> "," <key_pair>
+key_pair     ::=		<key_part> ":" <key_part>
+key_part     ::=		<quote> "WORD" <quote>
+quote        ::=		"'" | """
+

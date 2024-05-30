@@ -4,6 +4,7 @@ from .parsers import ShiftReduceParser
 from .grammar import Grammar
 from .lexer import Tokenizer
 from .token import Token
+from .parsing_tree import Node, Nodes
 
 
 if __name__ == "__main__":
