@@ -33,7 +33,6 @@ class DictTokenizer(Tokenizer):
 			char = self.consume()
 
 			if char == " ":
-				# _next_token = ("WS", char)
 				self.consume_ws()
 				continue
 			elif char in {"\n", "\r", "\r\n", "\t"}:
@@ -41,6 +40,10 @@ class DictTokenizer(Tokenizer):
 				continue
 			elif char == "{":
 				_next_token = ("OPENING_BRACE", char)
+				print(f"TOKENS IN STACK:")
+				for i in self.tokens:
+					print(f"\t• {i}")
+				print()
 			elif char == "}":
 				_next_token = ("CLOSING_BRACE", char)
 			elif char == "'":
@@ -53,14 +56,12 @@ class DictTokenizer(Tokenizer):
 				_next_token = ("COMMA", char)
 			elif char in self._words:
 				if _do_key:
-					_tmp = char
-					_tmp += self.consume_until(self._consume_words)
-					_next_token = ("KEY", _tmp)
+					char += self.consume_until(self._consume_words)
+					_next_token = ("KEY", char)
 					_do_key = False
 				else:
-					_tmp = char
-					_tmp += self.consume_until(self._consume_words)
-					_next_token = ("VALUE", _tmp)
+					char += self.consume_until(self._consume_words)
+					_next_token = ("VALUE", char)
 					_do_key = True
 
 			self.add_token(_next_token)
@@ -81,8 +82,8 @@ def dict_grammar_factory():
 	_dict_grammar.add_rule("dict_objects", ["dict_object", "COMMA", "dict_object"])
 	_dict_grammar.add_rule("dict_objects", ["dict_object"])
 	_dict_grammar.add_rule("dict_object", ["key_pairs"])
-	_dict_grammar.add_rule("key_pairs", ["key_pair", "COMMA", "key_pair"])
 	_dict_grammar.add_rule("key_pairs", ["key_pairs", "COMMA", "key_pair"])
+	_dict_grammar.add_rule("key_pairs", ["key_pair", "COMMA", "key_pair"])
 	_dict_grammar.add_rule("key_pair", ["quotation", "KEY", "quotation", "COLON", "quotation", "VALUE", "quotation"])
 	_dict_grammar.add_rule("quotation", ["SINGLE_QUOTE"])
 	_dict_grammar.add_rule("quotation", ["DOUBLE_QUOTE"])
@@ -163,9 +164,9 @@ def get_input(filepath, mode="r", dtype=str):
 
 def register_dict_actions(parser):
 	# parser.register_handler("dict", _key_action)
-	parser.register_handler(ParserAction.REDUCE, _reduce_handler)
-	parser.register_handler(ParserAction.SHIFT, _shift_handler)
-	# pass
+	# parser.register_handler(ParserAction.REDUCE, _reduce_handler)
+	# parser.register_handler(ParserAction.SHIFT, _shift_handler)
+	pass
 
 
 def generate_tokens(input, tokenizer):
@@ -227,13 +228,14 @@ def parse_dict(dict_input):
 
 def _dict_json_parsing_main():
 	TEST_INPUT_1 = "{'hello': 'moto', \"goodbye\": \"you\"}"
-	TEST_INPUT_2 = "{'hel-lo_123' :'moto_;:45,6', 'shitklasd;jfl;kasdjf': 'fuck'}"
+	TEST_INPUT_2 = "{'hel-lo_123' : 'moto_;:45,6', 'shitklasd;jfl;kasdjf': 'fuck'}"
 	TEST_INPUT_3 = """{
 						'hello': 'moto',
 						'goodb  ye': 'you'
 					}"""
 	TEST_INPUT_4 = "{ 'hello': 'moto'}"
 	TEST_NETWORK_INPUT = [i for i in bytes(TEST_INPUT_4, "UTF-8")]
+	TEST_INPUT_5 = "{'hello': 'moto', 'dict_key': {'nested_dict_key': 'nested_dict_val'}}"
 	print()
 	parse_dict(TEST_INPUT_1)
 	print()
@@ -246,6 +248,8 @@ def _dict_json_parsing_main():
 	parse_dict(TEST_INPUT_3)
 	print()
 	parse_dict("".join([chr(i) for i in TEST_NETWORK_INPUT]))
+	print()
+	parse_dict(TEST_INPUT_5)
 	print()
 
 
