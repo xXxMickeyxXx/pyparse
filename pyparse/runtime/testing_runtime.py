@@ -1,5 +1,6 @@
 import string
 
+from pyprofiler import profile_callable, SortBy
 from ..core import (
 	Parser,
 	Parse,
@@ -17,63 +18,64 @@ class DictTokenizer(Tokenizer):
 
 	_words = {"_", *set(string.ascii_lowercase + string.ascii_uppercase), *{str(i) for i in range (10)}}
 
+	def __init__(self, input=None):
+		super().__init__(input=input)
+		self.on_loop(self._tokenize())
+
 	def consume_ws(self):
 		if self.current_char is not None:
 			while self.peek() != None and self.current_char.isspace() or self.current_char in {"\r\n", "\r", "\n", "\t"}:
 				yield self.consume()
 
-	def tokenize(self):
-		if self._input is None:
-			# TODO: create and raise custom error here
-			raise RuntimeError("unable to tokenize as an input has not yet been specified")
+	def _tokenize(self):
+		_consume = self.consume
+		_consume_ws = self.consume_ws
+		_consume_until = self.consume_until
+		_consume_words = self._consume_words
+		_push_token = self.push_token
+		_quitter = self.quit
 
-		_do_key = True
-		while self.can_consume:
 
-			char = self.consume()
+		def _tokenize_():
+			_next_token = None
+			if self.can_consume:
 
-			if char == " ":
-				self.consume_ws()
-				continue
-			elif char in {"\n", "\r", "\r\n", "\t"}:
-				self.consume_ws()
-				continue
-			elif char == "{":
-				_next_token = ("OPENING_BRACE", char)
-				print(f"TOKENS IN STACK:")
-				for i in self.tokens:
-					print(f"\t• {i}")
-				print()
-			elif char == "}":
-				_next_token = ("CLOSING_BRACE", char)
-			elif char == "'":
-				_next_token = ("SINGLE_QUOTE", char)
-			elif char == "\"":
-				_next_token = ("DOUBLE_QUOTE", char)
-			elif char == ":":
-				_next_token = ("COLON", char)
-			elif char == ",":
-				_next_token = ("COMMA", char)
-			elif char in self._words:
-				if _do_key:
-					char += self.consume_until(self._consume_words)
-					_next_token = ("KEY", char)
-					_do_key = False
-				else:
-					char += self.consume_until(self._consume_words)
-					_next_token = ("VALUE", char)
-					_do_key = True
+				char = _consume()
 
-			self.add_token(_next_token)
-		return self.tokens
+				if char == " ":
+					_consume_ws()
+				elif char in {"\n", "\r", "\r\n", "\t"}:
+					_consume_ws()
+				elif char == "{":
+					_next_token = ("OPENING_BRACE", char)
+				elif char == "}":
+					_next_token = ("CLOSING_BRACE", char)
+				elif char == "'":
+					_next_token = ("SINGLE_QUOTE", char)
+				elif char == "\"":
+					_next_token = ("DOUBLE_QUOTE", char)
+				elif char == ":":
+					_next_token = ("COLON", char)
+				elif char == ",":
+					_next_token = ("COMMA", char)
+				elif char in self._words:
+					char += _consume_until(self._consume_words)
+					_next_token = ("STRING", char)
+				if _next_token is not None:
+					_push_token(_next_token)
+			else:
+				_quitter()
 
-	def _consume_words(self, _):
-		_peek = self.peek()
-		return _peek in self._words or _peek in ".,!@#$%^&*()_;:- "
+		return _tokenize_
+
+	@staticmethod
+	def _consume_words(tokenizer):
+		return tokenizer.peek() in {*tokenizer._words, *".,!@#$%^&*()_;:- "}
 
 
 def dict_grammar_factory():
 	_dict_grammar = Grammar(grammar_id="DICT_GRAMMAR")
+	_dict_grammar.add_rule("json", ["dict"])
 	_dict_grammar.add_rule("dict", ["dict", "CLOSING_BRACE"])
 	_dict_grammar.add_rule("dict", ["OPENING_BRACE", "dict_objects", "CLOSING_BRACE"])
 	_dict_grammar.add_rule("dict", ["OPENING_BRACE", "key_pair", "CLOSING_BRACE"])
@@ -81,13 +83,34 @@ def dict_grammar_factory():
 	_dict_grammar.add_rule("dict_objects", ["dict_objects", "dict_object"])
 	_dict_grammar.add_rule("dict_objects", ["dict_object", "COMMA", "dict_object"])
 	_dict_grammar.add_rule("dict_objects", ["dict_object"])
-	_dict_grammar.add_rule("dict_object", ["key_pairs"])
+	_dict_grammar.add_rule("dict_object", ["OPENING_BRACE", "key_pairs", "CLOSING_BRACE"])
 	_dict_grammar.add_rule("key_pairs", ["key_pairs", "COMMA", "key_pair"])
 	_dict_grammar.add_rule("key_pairs", ["key_pair", "COMMA", "key_pair"])
-	_dict_grammar.add_rule("key_pair", ["quotation", "KEY", "quotation", "COLON", "quotation", "VALUE", "quotation"])
+	_dict_grammar.add_rule("key_pair", ["key_pair_comp", "COLON", "key_pair_comp"])
+	_dict_grammar.add_rule("key_pair_comp", ["quotation", "STRING", "quotation"])
 	_dict_grammar.add_rule("quotation", ["SINGLE_QUOTE"])
 	_dict_grammar.add_rule("quotation", ["DOUBLE_QUOTE"])
 	return _dict_grammar
+
+
+# def dict_grammar_factory():
+# 	_dict_grammar = Grammar(grammar_id="DICT_GRAMMAR")
+# 	_dict_grammar.add_rule("json", ["dict"])
+# 	_dict_grammar.add_rule("dict", ["dict", "CLOSING_BRACE"])
+# 	_dict_grammar.add_rule("dict", ["OPENING_BRACE", "dict_objects", "CLOSING_BRACE"])
+# 	_dict_grammar.add_rule("dict", ["OPENING_BRACE", "key_pair", "CLOSING_BRACE"])
+# 	_dict_grammar.add_rule("dict", ["dict_objects"])
+# 	_dict_grammar.add_rule("dict_objects", ["dict_objects", "dict_object"])
+# 	_dict_grammar.add_rule("dict_objects", ["dict_object", "COMMA", "dict_object"])
+# 	_dict_grammar.add_rule("dict_objects", ["dict_object"])
+# 	_dict_grammar.add_rule("dict_object", ["key_pairs"])
+# 	_dict_grammar.add_rule("key_pairs", ["key_pairs", "COMMA", "key_pair"])
+# 	_dict_grammar.add_rule("key_pairs", ["key_pair", "COMMA", "key_pair"])
+# 	_dict_grammar.add_rule("key_pair", ["key_pair_comp", "COLON", "key_pair_comp"])
+# 	_dict_grammar.add_rule("key_pair_comp", ["quotation", "STRING", "quotation"])
+# 	_dict_grammar.add_rule("quotation", ["SINGLE_QUOTE"])
+# 	_dict_grammar.add_rule("quotation", ["DOUBLE_QUOTE"])
+# 	return _dict_grammar
 
 
 class DictObject:
@@ -195,7 +218,7 @@ def parse_dict(dict_input):
 	for i in _parse_tokens:
 		print(f"• \t{i}")
 	print()
-	_shift_reduce_parser = ShiftReduceParser(grammar=_dict_grammar, end_match="dict")
+	_shift_reduce_parser = ShiftReduceParser(grammar=_dict_grammar, end_match="json")
 	register_dict_actions(_shift_reduce_parser)
 	_parser = Parser(parser_imp=_shift_reduce_parser)    
 	_dict_object = _parser.parse(_parse_tokens)
@@ -226,6 +249,7 @@ def parse_dict(dict_input):
 	print()
 
 
+# @profile_callable(sort_by=SortBy.TIME)
 def _dict_json_parsing_main():
 	TEST_INPUT_1 = "{'hello': 'moto', \"goodbye\": \"you\"}"
 	TEST_INPUT_2 = "{'hel-lo_123' : 'moto_;:45,6', 'shitklasd;jfl;kasdjf': 'fuck'}"

@@ -1,4 +1,4 @@
-from ...library import PyChannel
+from ...library import PyChannels, PyChannel
 from ...cons import ParserAction
 
 

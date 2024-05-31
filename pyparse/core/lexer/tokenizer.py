@@ -1,3 +1,4 @@
+from ...library import PySynchronyEventLoop
 from ...errors import TimeOutError
 
 
@@ -8,21 +9,21 @@ class Tokenizer:
 		self._pointer = 0
 		self._tokens = []
 		self._input_len = len(self._input) if self._input is not None else 0
+		self._event_loop = PySynchronyEventLoop(loop_id=None)
 
 
 	@property
 	def can_consume(self):
-		return self._pointer < self._input_len
-
-	@property
-	def tokens(self):
-		return self._tokens
+		return self._input is not None and self._pointer < self._input_len
 
 	@property
 	def current_char(self):
 		_input = self._input
 		_pointer = self._pointer
 		return _input[_pointer] if _input and self.can_consume else None
+
+	def on_loop(self, handler, handler_id=None):
+		self._event_loop.on_loop(handler, handler_id=handler_id)
 
 	def set_input(self, input):
 		self._input = input
@@ -82,11 +83,34 @@ class Tokenizer:
 			return True
 		return False
 
-	def add_token(self, token):
+	def push_token(self, token, ):
+		# TODO: consider adding the 'block=False, timeout=None' params, like how the
+		# 		built-in 'Queue' object does it
 		self._tokens.append(token)
 
+	def tokens(self):
+		return self._tokens
+
+	def pop_token(self, idx=-1):
+		return self._tokens.pop(idx)
+
+	def token_at(self, index):
+		if index >= self._input_len:
+			# TODO: create and raise custom error here
+			_error_details = f"unable to access token at index: {index} as it exceeds the bounds of tokens container..."
+			raise IndexError(_error_details)
+		return self._tokens[index]
+
+	def token_range(self, *slice_args):
+		_slicer = slice(*slice_args)
+		return self._tokens[_slicer]
+
+	def quit(self):
+		self._event_loop.quit()
+
 	def tokenize(self):
-		raise NotImplementedError
+		self._event_loop.run()
+		return self.tokens()
 
 
 if __name__ == "__main__":
