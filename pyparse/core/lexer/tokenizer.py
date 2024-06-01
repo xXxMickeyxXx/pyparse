@@ -11,7 +11,6 @@ class Tokenizer:
 		self._input_len = len(self._input) if self._input is not None else 0
 		self._event_loop = PySynchronyEventLoop(loop_id=None)
 
-
 	@property
 	def can_consume(self):
 		return self._input is not None and self._pointer < self._input_len
@@ -21,6 +20,18 @@ class Tokenizer:
 		_input = self._input
 		_pointer = self._pointer
 		return _input[_pointer] if _input and self.can_consume else None
+
+	@property
+	def tokens(self):
+		return self._tokens
+
+	@property
+	def input(self):
+		if self._input is None:
+			# TODO: create and raise custom error here
+			_error_details = f"unable to access 'input' as one has not yet been associated instance of {self.__class__.__name__}..."
+			raise RuntimeError(_error_details)
+		return self._input
 
 	def on_loop(self, handler, handler_id=None):
 		self._event_loop.on_loop(handler, handler_id=handler_id)
@@ -66,11 +77,12 @@ class Tokenizer:
 					_error_details = f"call to 'consume_until' has timed out..."
 					raise TimeOutError(details=_error_details)
 			if not condition_callable(self):
-				_consume = self.consume()
-				if _consume is None:
-					break
-				_tmp_word += _consume
-				break
+				return _tmp_word
+				# _consume = self.consume()
+				# if _consume is None:
+				# 	break
+				# _tmp_word += _consume
+				# break
 			_tmp_word += self.consume()
 		if len(_tmp_word) > 0:
 			return _tmp_word
@@ -83,16 +95,28 @@ class Tokenizer:
 			return True
 		return False
 
-	def push_token(self, token, ):
+	def push_token(self, token):
 		# TODO: consider adding the 'block=False, timeout=None' params, like how the
 		# 		built-in 'Queue' object does it
-		self._tokens.append(token)
-
-	def tokens(self):
-		return self._tokens
+		self.tokens.append(token)
 
 	def pop_token(self, idx=-1):
-		return self._tokens.pop(idx)
+		if not self.tokens or len(self.tokens) <= 0:
+			# TODO: create and raise custom error here
+			_error_details = f"unable to 'pop' token from token container, as it's currently empty..."
+			raise IndexError(_error_details)
+		return self.tokens.pop(idx)
+
+	def input_at(self, index):
+		if index >= self._input_len:
+			# TODO: create and raise custom error here
+			_error_details = f"unable to access token at index: {index} as it exceeds the bounds of tokens container..."
+			raise IndexError(_error_details)
+		return self.input[index]
+
+	def input_range(self, *slice_args):
+		_slicer = slice(*slice_args)
+		return self.input[_slicer]
 
 	def token_at(self, index):
 		if index >= self._input_len:
@@ -103,14 +127,14 @@ class Tokenizer:
 
 	def token_range(self, *slice_args):
 		_slicer = slice(*slice_args)
-		return self._tokens[_slicer]
+		return self.tokens[_slicer]
 
 	def quit(self):
 		self._event_loop.quit()
 
 	def tokenize(self):
 		self._event_loop.run()
-		return self.tokens()
+		return self.tokens
 
 
 if __name__ == "__main__":
