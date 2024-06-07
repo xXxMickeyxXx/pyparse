@@ -1,10 +1,10 @@
-from .parser import Parser
-from .parse_context import Parse, ParseContextManager
-from .parsers import ShiftReduceParser
-from .grammar import Grammar
-from .lexer import Tokenizer
-from .token import Token
-from .parsing_tree import Node, Nodes
+from .core import Parser
+from .core import Parse, ParseContextManager
+from .core import ShiftReduceParser
+from .core import Grammar
+from .core import Tokenizer
+from .core import Token
+from .core import Node, Nodes
 
 
 if __name__ == "__main__":

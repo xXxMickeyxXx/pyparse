@@ -63,6 +63,15 @@ from ._request_obj import Request
 from ....utils import apply_color, underline_text, bold_text, center_text
 
 
+"""
+                            ********** NOTICE **********
+
+                    contents of this module have been relocated too their respective
+                    sub-packages
+
+"""
+
+
 # TODO: recreate some of the 'quick-n-diry' implementations contained in this
 #       module so that they are more object oriented
 
@@ -84,7 +93,7 @@ class ShiftReduceParser:
         self.stack = []
         self.end_match = end_match
         self._tokens = None
-        self._get_grammar = None
+        self._grammar_rules = None
         self._actions = None
 
     @property
@@ -118,15 +127,15 @@ class ShiftReduceParser:
     def actions_factory(self):
         return PyChannel()
 
-    def get_grammar(self):
-        if self._get_grammar is None:
-            self._get_grammar = self.grammar.get_grammar()
-        return self._get_grammar
+    def grammar_rules(self):
+        if self._grammar_rules is None:
+            self._grammar_rules = self.grammar.rules()
+        return self._grammar_rules
 
     def reset(self):
         self._tokens = None
         self.stack = []
-        self._get_grammar = None
+        self._grammar_rules = None
 
     def set_grammar(self, grammar):
         self._grammar = grammar
@@ -160,7 +169,7 @@ class ShiftReduceParser:
         raise error(error_text)
 
     def can_reduce(self):
-        for prod_rule, match_cases in self.get_grammar():
+        for prod_rule, match_cases in self.grammar_rules():
             if len(match_cases) <= len(self.stack) and [i[0] for i in self.stack[-len(match_cases):][0:]] == match_cases:
                 return prod_rule, match_cases
         return False
@@ -253,7 +262,7 @@ class Grammar:
         _new_rule = [non_terminal, rule]
         self._rules.append(_new_rule)
 
-    def get_grammar(self):
+    def rules(self):
         return self._rules
 
 
