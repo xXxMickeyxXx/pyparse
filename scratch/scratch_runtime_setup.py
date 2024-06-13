@@ -1,63 +1,45 @@
-from .test_parser_design import shift_reduce_parse_tester
-from .prefix_tree import Trie
-from .grammar_rule import GrammarRule
-from .grammar_designing import NewGrammarDesign
+from .scratch_init_grammar import grammar_factory, init_grammar
 
 
-def _parser_main():
-	print(f"HELLO FROM PARSER MAIN ---> {__file__}")
-	print(f"PARSER FUNC ---> {shift_reduce_parse_tester}")
+        #####################################################################################################################
+        #                                                                                                                   #
+        # • -------------------------------------------------- TESTING -------------------------------------------------- • #
+        #                                                                                                                   #
+        #####################################################################################################################
 
 
-def _prefix_tree_main():
-    trie = Trie()
-    trie.insert("hello")
-    trie.insert("world")
-
-    print()
-    print(trie.search("hello"))  # Output: True
-    print(trie.search("hell"))   # Output: False
-    print(trie.starts_with("hell")) # Output: True
-    print(trie.starts_with("helloa")) # Output: False
-    print(trie.starts_with("world")) # Output: True
-    print()
+def generate_lr_items(grammar):
+    raise NotImplementedError("Logic for generating item sets/states for the LR(0) automaton not yet implemented")
 
 
-def _grammar_rule_main():
-    print()
-    _copy_1 = GrammarRule("S", ["a", "A"])
-    _copy_1.augment()
-    _copy_2 = _copy_1.copy()
-    # _copy_2 = _copy_1.copy(deepcopy=True)
-    print()
-    print(f"COPY 1 is COPY 2 ---> {_copy_1 is _copy_2}")
-    print(f"COPY 1 == COPY 2 ---> {_copy_1 == _copy_2}")
-    print()
+def read_source(filepath):
+    if not isinstance(filepath, Path):
+        filepath = Path(filepath)
+    _file_data = ""
+    with open(filepath, "r") as in_file:
+        _file_data = in_file.read()
+
+    if not bool(_file_data):
+        # TODO: create and raise custom error here
+        _error_details = f"Error Reading File Contents -- unable to read data contained within file @ path ---> {filepath}"
+        raise RuntimeError
+    return _file_data
 
 
-def _new_grammar_design_main():
-    _new_grammar = NewGrammarDesign(grammar_id="[NEW_GRAMMAR_DESIGN]")
+def tokenize(source):
+    raise NotImplementedError
+
+
+def _parse_helper(source):
+    raise NotImplementedError
+
+
+def parse(filepath):
+    _source_data = read_source(filepath)
+
+
+def parse_main():
     
-    _test_rule_1 = GrammarRule("$", ["S"])
-    _test_rule_2 = GrammarRule("S", ["a", "A"])
-    _test_rule_2_dupe = GrammarRule("S", ["a", "A"])
-    _test_rule_3 = GrammarRule("A", ["b"])
-
-    _new_grammar.add_rule(_test_rule_1)
-    _new_grammar.add_rule(_test_rule_2)
-    _new_grammar.add_rule(_test_rule_2_dupe)
-    _new_grammar.add_rule(_test_rule_3)
-    _new_grammar.add_rule(GrammarRule("A", ["bb"]))
-
-    for i in _new_grammar.rules():
-        print(f"{i}")
-
-    _test_removed_by_body = _new_grammar.remove_rule(rule_body=["b"])
-    print(_test_removed_by_body)
-    print()
-    _test_removed_by_head = _new_grammar.remove_rule(rule_head=["S"])
-    print(_test_removed_by_head)
-    print()
 
 
 if __name__ == "__main__":

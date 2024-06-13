@@ -1,15 +1,11 @@
 from .scratch_runtime_setup import (
-	_parser_main,
-	_prefix_tree_main,
-	_grammar_rule_main,
-	_new_grammar_design_main
+	parse_main
 )
 
 
 def main():
 	print()
-	# _grammar_rule_main()
-	_new_grammar_design_main()
+	parse_main()
 	print()
 
 
