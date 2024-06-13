@@ -1,24 +1,24 @@
 from ..utils import generate_id
 
 
-class GrammarRule:
+# class GrammarRule:
 
-	__slots__ = ("_rule_id", "_rule")
+# 	__slots__ = ("_rule_id", "_rule")
 
-	def __init__(self, rule_id, rule):
-		self._rule_id = rule_id
-		self._rule = rule
+# 	def __init__(self, rule_id, rule):
+# 		self._rule_id = rule_id
+# 		self._rule = rule
 
-	@property
-	def rule_id(self):
-		return self._rule_id
+# 	@property
+# 	def rule_id(self):
+# 		return self._rule_id
 
-	@property
-	def rule(self):
-		return self._rule
+# 	@property
+# 	def rule(self):
+# 		return self._rule
 
-	def __eq__(self, other):
-		pass
+# 	def __eq__(self, other):
+# 		pass
 
 
 class Grammar:
@@ -58,10 +58,10 @@ class Grammar:
 			for _rule in rules:
 				_rule_list.pop()
 
-	def rules(self):
-		return self._rules
+	def rules(self, invert=False):
+		return self._rules if not invert else self._inverted_rules()
 
-	def inverted_rules(self):
+	def _inverted_rules(self):
 		_inverted_rules = {}
 		for head, body_options in self._rules.items():
 			for body in body_options:

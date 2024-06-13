@@ -22,5 +22,10 @@ class TimeOutError(PyParseError):
     """Time Out Error"""
 
 
+@use_docstring
+class TransitionError(PyParseError):
+    """Transition Error"""
+
+
 if __name__ == "__main__":
 	pass

@@ -38,19 +38,5 @@ class Trie:
         raise NotImplementedError
 
 
-def prefix_tree_main():
-    trie = Trie()
-    trie.insert("hello")
-    trie.insert("world")
-
-    print()
-    print(trie.search("hello"))  # Output: True
-    print(trie.search("hell"))   # Output: False
-    print(trie.starts_with("hell")) # Output: True
-    print(trie.starts_with("helloa")) # Output: False
-    print(trie.starts_with("world")) # Output: True
-    print()
-
-
 if __name__ == "__main__":
     pass

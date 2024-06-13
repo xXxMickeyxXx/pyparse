@@ -5,6 +5,12 @@ from .core import Grammar
 from .core import Tokenizer
 from .core import Token
 from .core import Node, Nodes
+from .errors import (
+    PyParseError,
+    TokenError,
+    TimeOutError,
+    TransitionError
+)
 
 
 if __name__ == "__main__":
