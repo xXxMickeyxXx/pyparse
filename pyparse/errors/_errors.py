@@ -7,6 +7,8 @@ from ..library import RootError, use_docstring
 #    event that it's preferable to catch all package related errors, and    #
 #    possibly allowing other package/applicaiton errors to come through.    #
 #############################################################################
+
+
 @use_docstring
 class PyParseError(RootError):
 	"""PyParse Error"""
@@ -25,6 +27,11 @@ class TimeOutError(PyParseError):
 @use_docstring
 class TransitionError(PyParseError):
     """Transition Error"""
+
+
+@use_docstring
+class GrammarRuleError(PyParseError):
+	"""Grammar Rule Error"""
 
 
 if __name__ == "__main__":

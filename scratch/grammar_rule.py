@@ -11,14 +11,35 @@ from .utils import generate_id, apply_color, underline_text, bold_text, center_t
 
 class GrammarRule:
 
-    # TODO: possibly make into python 'descriptor' (eithe a 'data descriptor' or
-    #       a 'non-data descriptor')
+    """
 
-    # TODO: possibly add ability to save/load state and copy/deepcopy the object
+        #######################################################
+        #                                                     #
+        # • -------------------- TO-DO -------------------- • #
+        #                                                     #
+        #######################################################
 
-    # TODO: have this item be what's added to the 'Grammar' object as a rule
 
 
+    -•- Possibly add descriptors to this implementation so that
+    constraints can be enforced (e.g. making sure that the
+    rule body contains a list of 0 or more single/individual
+    symbols/characters, which make up the whole of the rule body
+    such as:)
+
+    -•- Have this item be what's added to the 'Grammar' object as a rule
+    (see 'TODO' directly below about using a 'GrammarRules' object
+    as the container which these 'GrammarRule' instances are added
+    to)
+
+    -•- Possibly create another class, 'GrammarRules' which represents a
+    collection of rules, and THAT is what these 'GrammarRule' instances
+    are added to, then the grammar can have an instance of 'GrammarRules'
+    which could be copied as desired
+
+    """
+
+    __slots__ = ("_rule_head", "_rule_body", "_marker_symbol", "_marker_pos", "_augmented_item", "_status", "_can_reduce")
 
     def __init__(self, rule_head: str, rule_body: list | tuple, marker_symbol: str = "."):
         self._rule_head = rule_head
@@ -28,6 +49,11 @@ class GrammarRule:
         self._augmented_item = None
         self._status = None
         self._can_reduce = False
+        self.augment()
+
+    @property
+    def augmented(self):
+        return self._augmented_item is not None
 
     @property
     def rule_head(self):
@@ -59,27 +85,26 @@ class GrammarRule:
 
     @property
     def augmented_item(self):
-        if self._augmented_item is None:
-            # TODO: create and raise custom error here, indicating that an augmented item
-            #       has not yet been producted (via the 'augment' method)
-            _error_details = f"'{self.__class__.__name__}' has not yet performed it's augmentation; please agument with the 'augment' method and try again..."
-            raise RuntimeError(_error_details)
+        # NOTE: if the call to 'augment' is removed from rule's '__init__' method
+        #       call, then the below muted block needs to be un-muted
+        # if self._augmented_item is None:
+        #     # TODO: create and raise custom error here, indicating that an augmented item
+        #     #       has not yet been producted (via the 'augment' method)
+        #     _error_details = f"'{self.__class__.__name__}' has not yet performed it's augmentation; please agument with the 'augment' method and try again..."
+        #     raise RuntimeError(_error_details)
         return self._augmented_item
 
     def __str__(self):
         return self.__repr__()
 
     def __repr__(self):
-        if self._augmented_item is None:
-            return f"RULE HEAD ---> {self.rule_head}\nRULE BODY ---> {self.rule_body}\nSTATUS ---> None"
-        return f"RULE HEAD ---> {self.rule_head}\nRULE BODY ---> {self.rule_body}\nSTATUS ---> {self.augmented_item}"
+        return f"{self.__class__.__name__}(rule_head={self.rule_head}, rule_body={self.rule_body}, marker_symbol={self.marker_symbol})"
 
     def __eq__(self, other):
-        # TODO: update so that this logic makes sense as it relates to this
-        #       implementation (making sure to take into account the ability
-        #       to 'copy')
+        return self.rule_head == other.rule_head and other.rule_head and self.rule_body == other.rule_body
 
-        return True if self.rule_head == other.rule_head and self.rule_body == other.rule_body else False
+    def __hash__(self):
+        return hash((self.rule_head, "".join(self.rule_body)))
 
     def _augment_rule(self):
         _rule_body, _marker_symbol = self.rule_body, self.marker_symbol        
@@ -103,13 +128,13 @@ class GrammarRule:
     def status(self):
         return self.augmented_item
 
-    def look_ahead(self):
+    def look_behind(self):
         _left_of_lst = []
         if self._marker_pos > 0:
             _left_of_lst = self.augmented_item[:self._marker_pos]
         return _left_of_lst
 
-    def look_behind(self):
+    def look_ahead(self):
         _right_of_lst = []
         if not self.at_end:
             _right_of_lst = self.augmented_item[self._marker_pos + 1:]

@@ -2,7 +2,8 @@ from ._errors import (
     PyParseError,
     TokenError,
     TimeOutError,
-    TransitionError
+    TransitionError,
+    GrammarRuleError
 )
 
 

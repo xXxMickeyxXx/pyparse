@@ -1,4 +1,10 @@
-from enum import StrEnum, auto
+from enum import StrEnum, IntEnum, auto
+
+
+class  GrammarRuleBy(IntEnum):
+
+    HEAD = auto()
+    BODY = auto()
 
 
 class FileDescriptorMode(StrEnum):

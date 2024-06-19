@@ -220,7 +220,7 @@ def parse_dict(dict_input):
 	print()
 	_shift_reduce_parser = ShiftReduceParser(grammar=_dict_grammar, end_match="json")
 	register_dict_actions(_shift_reduce_parser)
-	_parser = Parser(parser_imp=_shift_reduce_parser)    
+	_parser = Parser(parser=_shift_reduce_parser)    
 	_dict_object = _parser.parse(_parse_tokens)
 	print(f"RULE PATH:")
 	print()

@@ -9,7 +9,8 @@ from .errors import (
     PyParseError,
     TokenError,
     TimeOutError,
-    TransitionError
+    TransitionError,
+    GrammarRuleError
 )
 
 
