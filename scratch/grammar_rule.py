@@ -39,7 +39,7 @@ class GrammarRule:
 
     """
 
-    __slots__ = ("_rule_head", "_rule_body", "_marker_symbol", "_marker_pos", "_augmented_item", "_status", "_can_reduce")
+    __slots__ = ("_rule_head", "_rule_body", "_marker_symbol", "_marker_pos", "_augmented_item", "_status", "_can_reduce", "_state_updates", "__advance")
 
     def __init__(self, rule_head: str, rule_body: list | tuple, marker_symbol: str = "."):
         self._rule_head = rule_head
@@ -49,7 +49,9 @@ class GrammarRule:
         self._augmented_item = None
         self._status = None
         self._can_reduce = False
-        self.augment()
+        self.__advance = False
+        self._state_updates = 0
+        # self.advance_marker()
 
     @property
     def augmented(self):
@@ -94,6 +96,10 @@ class GrammarRule:
         #     raise RuntimeError(_error_details)
         return self._augmented_item
 
+    @property
+    def state_updates(self):
+        return self._state_updates
+
     def __str__(self):
         return self.__repr__()
 
@@ -106,6 +112,27 @@ class GrammarRule:
     def __hash__(self):
         return hash((self.rule_head, "".join(self.rule_body)))
 
+    def __len__(self):
+        return self.rule_size
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        # TODO: update as implementation isn't working
+        if self.__advance:
+            self.advance_marker()
+        _state_updates = self.state_updates
+        _current_state = self.status()
+        if _state_updates == 0:
+            self.__advance = True
+
+        print(f"CURRENT STATUS: {_current_state}")
+        print(f"RULE SIZE: {len(self)}\nSTATE UPDATES: {self.state_updates}")
+        if self.at_end:
+            raise StopIteration
+        return _current_state
+
     def _augment_rule(self):
         _rule_body, _marker_symbol = self.rule_body, self.marker_symbol        
         _augmented_rule_lst = [_marker_symbol]
@@ -116,14 +143,20 @@ class GrammarRule:
         self._augmented_item = self._augment_rule()
 
     def advance_marker(self):
+        # if not self.augmented:
+        #     self.augment()
+        #     return
         if self.rule_size > self.marker_pos:
             _current_pos = self._marker_pos
             self._marker_pos += 1
             _marker_sym = self.augmented_item.pop(_current_pos)
             self.augmented_item.insert(self._marker_pos, _marker_sym)
 
-        if self.at_end and not self._can_reduce:
-            self._can_reduce = True
+        if self.at_end:
+            if not self._can_reduce:
+                self._can_reduce = True
+        else:
+            self._state_updates += 1
 
     def status(self):
         return self.augmented_item

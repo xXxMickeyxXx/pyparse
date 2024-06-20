@@ -391,12 +391,44 @@ from collections import deque
 from pathlib import Path
 
 from pyprofiler import profile_callable, SortBy
+from pyevent import PySignal
 
 from pyparse import Parser
 from .scratch_init_grammar import grammar_factory, init_grammar
 from .source_descriptor import SourceFile
 from .utils import apply_color, bold_text, underline_text, center_text
 from .scratch_cons import GrammarRuleBy
+
+
+
+"""
+        
+        ###########################################################################################################################
+        #                                                                                                                         #
+        # • -------------------------------------------------- PYPARSE TO-DO -------------------------------------------------- • #
+        #                                                                                                                         #
+        ###########################################################################################################################
+
+
+        I.)
+
+
+
+
+
+        ###################################################################################################################
+        #                                                                                                                 #
+        # • -------------------------------------------------- NOTES -------------------------------------------------- • #
+        #                                                                                                                 #
+        ###################################################################################################################
+
+
+        1.) Use the event loop and context designs from the 'pysynchrony' for implementing and designing components of this library/package
+
+
+"""
+
+
 
 
         #####################################################################################################################
@@ -548,7 +580,7 @@ def display_items(items, set_id):
     print()
 
 
-def create_I0(grammar=None):
+def init_I0(grammar=None):
     _grammar = GRAMMAR if grammar is None else grammar
     _g_rules = GRAMMAR_RULES if grammar is None else _grammar.rules().copy()
 
@@ -561,25 +593,35 @@ def create_I0(grammar=None):
     return closure(_augmented_item, grammar=_grammar)
 
 
+# def generate_item_states(grammar=None, augmented_symbol="$"):  # TODO: consider utilizing the 'augmented_symbol' param to kick off the initial
+                                                                 #       item set generation and so on and so forth and so on and etc...
 def generate_item_states(grammar=None):
     _grammar = GRAMMAR if grammar is None else grammar
-    _g_rules = GRAMMAR_RULES if grammar is None else _grammar.rules().copy()
+    # _g_rules = GRAMMAR_RULES if grammar is None else _grammar.rules().copy()
 
     _item_states = {}
-    _augmented_item = _g_rules.pop(0)
-    I0_closure = closure(_augmented_item)
-    # _queue = deque([_augmented_item])
-    # _current_state = 0
-    # while _queue:
-    #     _full_set = []
-    #     _next_rule = _queue.popleft()
-    #     if next_symbol(_next_rule) in NON_TERMINALS:
+    _current_state_int = 0
+    _current_item_set = init_I0(grammar=_grammar)
+
+    _new_state_added = False
+    # while _new_state_added:
+    while True:
+        if not _item_states:
+            _item_states[_current_state_int] = _current_item_set
+            _current_state_int += 1
+            _new_state_added = True
+            continue
+        if not _new_state_added:
+            break
+        _new_state_added = False
 
 
-    #     if _current_state not in _item_states:
-    #         _item_states[_current_state] = 
-    #     for i in _g_rules:
-    #         print(i)
+        for _count, _item in enumerate(_current_item_set):
+            print(f"ITEM STATUS: {_item.status()}")
+            # if _count >= 1:
+            #     print(f"BREAKING HERE, MAYBE IN FOR LOOP...")
+            #     break
+
     return _item_states
 
 
@@ -664,12 +706,6 @@ def parse_main():
     # '__________SCRATCH GRAMMAR SPEC__________' section for grammar
     # spec)
     init_grammar(GRAMMAR)
-
-
-    # Create initial item set/state, I0
-    _items_I0 = create_I0()
-    for _item in _items_I0:
-        print(f"ITEM ---> {_item}")
 
 
     # Generate (and display) item sets/states then create parse table (for use
