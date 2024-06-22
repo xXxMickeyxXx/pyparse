@@ -25,5 +25,11 @@ class FileDescriptorMode(StrEnum):
     # Appending related modes
 
 
+class TableConstructionEvent(StrEnum):
+
+    UPDATE_STATES = auto()
+    UPDATE_GOTO_MAPPING = auto()
+
+
 if __name__ == "__main__":
     pass

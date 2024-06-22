@@ -110,7 +110,8 @@ class GrammarRule:
         return self.rule_head == other.rule_head and other.rule_head and self.rule_body == other.rule_body
 
     def __hash__(self):
-        return hash((self.rule_head, "".join(self.rule_body)))
+        _rule_head_hash = hash(self.rule_head)
+        return hash((_rule_head_hash, "".join(self.rule_body)))
 
     def __len__(self):
         return self.rule_size
@@ -146,17 +147,21 @@ class GrammarRule:
         # if not self.augmented:
         #     self.augment()
         #     return
-        if self.rule_size > self.marker_pos:
-            _current_pos = self._marker_pos
-            self._marker_pos += 1
-            _marker_sym = self.augmented_item.pop(_current_pos)
-            self.augmented_item.insert(self._marker_pos, _marker_sym)
+        # (NOTE: still need to ensure this doesn't mess anything up, logic-wise, as I
+        #        just added this as of 2024-06-20 @ 7:17pm EST)
+        _at_end = self.at_end
+        if not _at_end:        
+            if self.rule_size > self.marker_pos:
+                _current_pos = self._marker_pos
+                self._marker_pos += 1
+                _marker_sym = self.augmented_item.pop(_current_pos)
+                self.augmented_item.insert(self._marker_pos, _marker_sym)
 
-        if self.at_end:
-            if not self._can_reduce:
-                self._can_reduce = True
-        else:
-            self._state_updates += 1
+            if _at_end:
+                if not self._can_reduce:
+                    self._can_reduce = True
+            else:
+                self._state_updates += 1
 
     def status(self):
         return self.augmented_item

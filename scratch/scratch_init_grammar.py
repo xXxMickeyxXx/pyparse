@@ -31,15 +31,7 @@ def init_grammar(grammar):
     _S_rule.augment()
     grammar.add_rule(_S_rule)
 
-    _S_rule = GrammarRule("S", ["S", "S"])
-    _S_rule.augment()
-    grammar.add_rule(_S_rule)
-
     _S_rule = GrammarRule("A", ["b"])
-    _S_rule.augment()
-    grammar.add_rule(_S_rule)
-
-    _S_rule = GrammarRule("A", ["c"])
     _S_rule.augment()
     grammar.add_rule(_S_rule)
 
