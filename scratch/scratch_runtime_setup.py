@@ -395,8 +395,9 @@ from pyevent import PyChannels, PyChannel, PySignal
 
 from pyparse import Parser
 from .test_automaton_design import Automaton
-from .scratch_init_grammar import grammar_factory, init_grammar
+from .scratch_init_grammar import grammar_factory, init_grammar_1, init_grammar_2
 from .source_descriptor import SourceFile
+from .scratch_utils import CircularBuffer, copy_items, copy_item
 from .utils import apply_color, bold_text, underline_text, center_text
 from .scratch_cons import GrammarRuleBy, TableConstructionEvent
 
@@ -429,9 +430,6 @@ from .scratch_cons import GrammarRuleBy, TableConstructionEvent
 
 """
 
-
-
-
         #####################################################################################################################
         #                                                                                                                   #
         # • -------------------------------------------------- TESTING -------------------------------------------------- • #
@@ -444,10 +442,6 @@ GRAMMAR_RULES = GRAMMAR.rules()
 NON_TERMINALS = GRAMMAR.non_terminals()
 TERMINALS = GRAMMAR.terminals()
 SYMBOLS = NON_TERMINALS + TERMINALS
-
-ITEM_STATES = {}
-GOTO_MAPPING = {}
-TABLE_CHANNEL = PyChannel(channel_id="PARSE_TABLE_CHANNEL")
 
 
 def display_grammar(grammar):
@@ -476,11 +470,6 @@ def display_non_terminals(grammar=None):
     print()
 
 
-def copy_grammar(grammar=None, *, deepcopy=False):
-    _grammar = GRAMMAR if grammar is None else grammar
-    return _grammar.copy(deepcopy=deepcopy)
-
-
 def display_grammar_info(grammar=None):
     _grammar = GRAMMAR if grammar is None else grammar
     print(f"_______________ORIGINAL GRAMMAR_______________")
@@ -490,7 +479,7 @@ def display_grammar_info(grammar=None):
     print()
     display_non_terminals(_grammar)
     print()
-    _grammar_2 = copy_grammar(_grammar, deepcopy=True)
+    _grammar_2 = copy_items(_grammar, deepcopy=True)
     print(f"_______________COPIED GRAMMAR_______________")
     display_grammar(_grammar_2)
     print()
@@ -537,7 +526,7 @@ def display_rule_statuses(grammar=None):
                 print(_rule_status + " (COMPLETE)")
             else:
                 print(_rule_status)
-            rule.advance_marker()
+            rule.advance()
         print()
 
 
@@ -567,23 +556,18 @@ def display_item_states(item_sets):
     for item_state, _items in item_sets.items():
         print(f"STATE: {item_state}")
         for _item in _items:
-            print(f"\tITEM SYMBOL: {_item.rule_head}")
-            print(f"\tITEM STATE: {_item.status()}")
-            print()
+            print(f"\t{_item.rule_head}")
+            print(f"\tITEM STATE ---> {_item.status()}")
         print()
     print()
 
 
 def display_goto_mapping(goto_mapping):
     print()
-    print(underline_text(bold_text(apply_color(211, f"GOTO MAPPING:"))))
-    print()
-    for (pre_tran, symbol), post_tran in goto_mapping.items():
-        print(f"\t{apply_color(208, 'ON')} {bold_text(apply_color(11, symbol))} {apply_color(208, 'IN STATE')} {bold_text(apply_color(11, pre_tran))} {apply_color(208, 'GOTO STATE')}:")
-        print(f"\t    |")
-        print(f"\t    |")
-        print(f"\t    |")
-        print(f"\t    • ---> {bold_text(apply_color(11, post_tran))}")
+    for k, v in goto_mapping.items():
+        print(f"{k}")
+        for i, e in v.items():
+            print(f"\tON {i} GOTO ---> STATE: {e}")
         print()
     print()
 
@@ -611,59 +595,31 @@ def display_result(input, parser_result):
     print()
 
 
-def next_symbol(rule, default=None):
-    # TODO: figure out if rule is augmented and if it isn't, figure out if it's
-    #       safe to do so
-    _look_ahead = rule.look_ahead()
-    if _look_ahead:
-        return _look_ahead[0]
-    return default
-
-
-def closure(rule, grammar=None):
-    _grammar = GRAMMAR if grammar is None else grammar
-    _non_terminals = NON_TERMINALS if (bool(NON_TERMINALS) and grammar is None) else _grammar.non_terminals()
-    _terminals = TERMINALS if (bool(TERMINALS) and grammar is None) else _grammar.terminals()
-    
+def closure(rule, grammar):    
+    _non_terminals = grammar.non_terminals()
     _closure_group = [rule]
     _break = False
     _rule_queue = deque(_closure_group)
     while _rule_queue:
         _next_rule = _rule_queue.popleft()
-        _next_symbol = next_symbol(_next_rule)
+        _next_symbol = _next_rule.next_symbol(default=None)
         if _next_symbol in _non_terminals:
-            _rule = _grammar.rule(_next_symbol, search_by=GrammarRuleBy.HEAD)
+            _rule = grammar.rule(_next_symbol, search_by=GrammarRuleBy.HEAD)
             for _check_rule in _rule:
                 if _check_rule in _closure_group:
                     continue
                 _closure_group.append(_check_rule)
                 _rule_queue.append(_check_rule)
-    return tuple(_closure_group)
+    return tuple(copy_items(_closure_group, deepcopy=True))
 
 
-def goto(current_state, rule, transitions=None, item_groups=None):
-    # _rule = rule.copy()
-    # _info_text = ""
-    if not rule.at_end:
-        # _info_text += f"PRE-ADVANCE ITEM - STATE @: {current_state}\n\t{rule.status()}\n"
-        _new_state = current_state + 1
-        rule.advance_marker()
-        # _info_text += f"POST-ADVANCE ITEM - STATE @: {_new_state}\n\t{rule.status()}\n"
-        _closure_group = closure(rule)
-
-        # _info_text += f"CLOSURE (on state: {current_state} ---> state: {_new_state})"
-        # for _item in _closure_group:
-        #     _info_text += f"RULE: {_item.rule_head}\n"
-        #     _info_text += f"BODY: {_item.rule_body}\n\n"
-        # print(_info_text)
-        # print()
-        return _new_state, _closure_group
-    return None
+def goto(rule):
+    pass
 
 
-def init_I0(grammar=None):
-    _grammar = GRAMMAR if grammar is None else grammar
-    _g_rules = GRAMMAR_RULES if grammar is None else _grammar.rules()
+def init_I0(grammar):
+    _g_rules = grammar.rules()
+    # _g_rules = grammar.copy().rules()
 
     if not _g_rules:
         # TODO: create and raise custom error here
@@ -671,57 +627,74 @@ def init_I0(grammar=None):
         raise RuntimeError(_error_details)
     
     _augmented_item = _g_rules.pop(0)
-    return closure(_augmented_item, grammar=_grammar)
+    return closure(_augmented_item, grammar=grammar)
 
 
-def generate_item_sets(grammar=None) -> None:
+def generate_item_states(grammar, start_symbol="$") -> None:
+    """
+    # TODO: create 'GOTO' table - after generating item sets/states,
+    #       iterate through them, performing the searches 
+
+    # TODO: be wary of how the below logic (as well as the lib logic
+    #       in general) handles concurrency/parallelism
+
+    # TODO: ?? possibly create a stack implementation (possibly
+    #       optimized for this lib, perhaps implement in the c
+    #       programming language) ??
+
+    # TODO: ?? create a buffer design (possibly optimized for this
+    #       lib, perhaps implement in the c programming language) ??
+
     # TODO: fix goto logic as current implementation is missing some of the
     #       goto transitions for certain state/symbol combinations
-
-    # TODO: figure out how to ensure items add to the item set/state/group (via
-    #       calling the 'closure' function on the item) are taken into account,
-    #       otherwise, the parse table may be incomplete
-
-    # TODO: this function should use events to build the final item sets/states
-    #       as well as the GoTo mappings, as opposed to returning those values
-    #       (using events/event-driven techniques)
-
-    # TODO: need to copy an item in it's state into the it's respective item
-    #       state grouping so that it's a separate object or else you'll have
-    #       all of the correct rules in their correct groups/states, but they
-    #       will all have been advanced (i.e. their marker) to the end of the
-    #       augmented rule
 
     # TODO: add small runtime optimizations (like aliases for methods to reduce
     #       lookup times)
 
 
-    _initial_item_group = init_I0(grammar=grammar)
+    """
 
-    _gotos = {}
-    _item_states = {0: _initial_item_group}
-    TABLE_CHANNEL.emit(TableConstructionEvent.UPDATE_STATES, 0, _initial_item_group)
-    _new_state_added = True
-    _current_state = 0
-    while _new_state_added:
-        _new_state_added = False
+    _terminals = grammar.terminals()
+    _non_terminals = grammar.non_terminals()
 
-        _temp_goto_container = {}
-        _next_states = [(next_symbol(i), i) for i in _item_states[0]]
-        while _next_states:
-            _next_symbol, _next_item_rule = _next_states.pop(0)
+    _init_item_set = init_I0(grammar)
+    _item_states = [_init_item_set]
 
-            _previous_state = _current_state
-            _goto_result = goto(_current_state, _next_item_rule)
-            if _goto_result is None:
+    _state_added = True
+    _rule_queue = deque([_init_item_set])
+    while _rule_queue or _state_added:
+        _state_added = False
+        _next_item_set = _rule_queue.popleft()
+
+        for _item in _next_item_set:
+            _item = _item.copy()
+            if _item.can_reduce:
                 continue
+            _item.advance()
+            if _item.next_symbol() in _non_terminals:
+                _closure_group = closure(_item, grammar)
+                if _closure_group not in _item_states:
+                    _item_states.append(_closure_group)
+                    _rule_queue.append(_closure_group)
+                    _state_added = True
+            else:
+                _new_state = [_item]
+                if _new_state not in _item_states:
+                    _item_states.append(_new_state)
+                    _rule_queue.append(_new_state)
+                    _state_added = True
 
-            _current_state, _new_item_group = _goto_result
-            print(f"IN STATE: {_current_state}")
-            if TABLE_CHANNEL.emit(TableConstructionEvent.UPDATE_STATES, _current_state, _new_item_group)["UPDATE_STATES"]:
-                TABLE_CHANNEL.emit(TableConstructionEvent.UPDATE_GOTO_MAPPING, _next_symbol, _previous_state, _current_state)
-                _item_states[_current_state] = _new_item_group
-                _new_state_added = True
+    _retval = {}
+    for idx, i in enumerate(_item_states):
+        _retval[idx] = []
+        for k in i:
+            _retval[idx].append(k)
+
+    return _retval
+
+
+def generate_goto_table(item_sets):
+    raise NotImplementedError
 
 
 def generate_parse_table(grammar=None):
@@ -751,59 +724,93 @@ def parse_data(source_data, parser):
     return parser.parse(source_data)
 
 
-def update_item_sets_tblevent(state, item_sets):
-    # TODO: ?? raise an error if 'state' already exists within
-    #       'ITEM_STATES' ??
-    if state not in ITEM_STATES:
-        ITEM_STATES.update({state: [i.copy() for i in item_sets]})
-        return True
-    return False
-
-
-def update_goto_mapping_tblevent(next_symbol, previous_state, current_state):
-    # TODO: ?? raise an error if 'previous_state' already exists within
-    #       'GOTO_MAPPING' ??
-    if previous_state not in GOTO_MAPPING:
-        _goto_key = (previous_state, next_symbol)
-        GOTO_MAPPING[_goto_key] = current_state
-
-
-# @profile_callable(sort_by=SortBy.CALLS)
+# @profile_callable(sort_by=SortBy.TIME)
 def parse_main():
-
-    #### • ----------**4TESTING**---------- • ####
-    from .grammar_designing import Grammar
-    from .grammar_rule import GrammarRule
-
-
     # Initialize grammar object so that it contains all grammar rules
     # related to scratch language implementation (refer to top of
     # this module, within the docstring under the
     # '__________SCRATCH GRAMMAR SPEC__________' section for grammar
     # spec)
-    init_grammar(GRAMMAR)
+    init_grammar_1(GRAMMAR)
 
 
-    # TODO
-    #  |
-    #  • ---> Deserialize parse table
+    ITEM_STATES = []
+    GOTO_MAPPING = {sym: None for sym in SYMBOLS}
+    TABLE_CHANNEL = PyChannel(channel_id="PARSE_TABLE_CHANNEL")
+
+
+    # Parse table event for generating initial item set/states
+    def init_I0_set_tblevent(grammar, result_buffer, start_symbol="$"):
+        _starting_augmented_item = grammar.rule(start_symbol, search_by=GrammarRuleBy.HEAD)
+        _init_i0_items = closure(_starting_augmented_item[0], grammar=grammar)
+        result_buffer.enqueue((0, _init_i0_items))
+
+
+    # Parse table event for updating an 'ITEM_STATES'
+    def update_item_sets_tblevent(state, item_sets, result_buffer=None):
+        # TODO: ?? perhaps this is where we can build the GOTO mapping ??
+
+        # TODO: ?? raise an error if 'state' already exists within
+        #       'ITEM_STATES' ??
+        _retval = False
+        if state not in ITEM_STATES:
+            _copied_items = copy_items(item_sets)
+            ITEM_STATES.update({state: _copied_items})
+            _retval = True
+        if result_buffer:
+            result_buffer.enqueue(_retval)
+
+
+    # Parse event for updating 'GOTO_MAPPING'
+    def update_goto_mapping_tblevent(next_item, previous_state, current_state):
+        # TODO: ?? raise an error if 'previous_state' already exists within
+        #       'GOTO_MAPPING' ??
+        _prev_in_mapping = previous_state in GOTO_MAPPING
+        if not _prev_in_mapping:
+            GOTO_MAPPING[previous_state] = {next_item.rule_head: current_state}
+            for k, v in GOTO_MAPPING.items():
+                print(f"PREVIOUS STATE: {k}")
+                for i, e in v.items():
+                    print(f"ITEM RULE HEAD: {i}")
+                    print(f"CURRENT STATE: {e}")
+                    print()
+                print()
+            print(f"-----> {GOTO_MAPPING[previous_state]}")
+            # _goto_key = (previous_state, next_symbol)
+            # GOTO_MAPPING[_goto_key] = current_state
+        elif _prev_in_mapping:
+            print(f"PREVIOUS STATE USED")
+
+        else:
+            print(f"PREVIOUS STATE: {previous_state} ALREADY EXISTS WITHIN 'GOTO_MAPPING'...")
+
+
+    # def update_goto_mapping_tblevent(next_symbol, previous_state, current_state):
+    #     # TODO: ?? raise an error if 'previous_state' already exists within
+    #     #       'GOTO_MAPPING' ??
+    #     print(f"NEXT SYMBOL ---> {next_symbol}")
+    #     if previous_state not in GOTO_MAPPING:
+    #         # GOTO_MAPPING[previous_state]
+    #         _goto_key = (previous_state, next_symbol)
+    #         GOTO_MAPPING[_goto_key] = current_state
+    #     else:
+    #         print(f"PREVIOUS STATE: {previous_state} ALREADY EXISTS WITHIN 'GOTO_MAPPING'...")
 
 
     # Register events associated with building parse table (if one hasn't been
     # serialized and saved to disk)
-    TABLE_CHANNEL.register(TableConstructionEvent.UPDATE_STATES, receiver=update_item_sets_tblevent, receiver_id="UPDATE_STATES")
-    TABLE_CHANNEL.register(TableConstructionEvent.UPDATE_GOTO_MAPPING, receiver=update_goto_mapping_tblevent, receiver_id="UPDATE_GOTO_MAPPING")
+    TABLE_CHANNEL.register(TableConstructionEvent.INIT_I0, receiver=init_I0_set_tblevent)
+    TABLE_CHANNEL.register(TableConstructionEvent.UPDATE_STATES, receiver=update_item_sets_tblevent)
+    TABLE_CHANNEL.register(TableConstructionEvent.UPDATE_GOTO_MAPPING, receiver=update_goto_mapping_tblevent)
 
 
-    # Generate (and display) item sets/states then create parse table (for use
-    # in guiding the LR(0) automaton component of the shift-reduce parser)
-    # _item_states = generate_item_sets()
-    # display_item_states(_item_states)
-
-    generate_item_sets()    
-    display_item_states(ITEM_STATES)
-
-    display_goto_mapping(GOTO_MAPPING)
+    # Generate (and display) item sets/states then create GOTO and actions
+    # mapping which together when combined with an enumeration of the all
+    # grammar symbols, build the parse table (which is used to guid the LR(0)
+    # automaton component of the shift-reduce parser)
+    _item_sets = generate_item_states(GRAMMAR)
+    display_item_states(_item_sets)
+    # display_goto_mapping(GOTO_MAPPING)
 
 
     # # Create parse table, used to guide the LR(0) automaton that makes

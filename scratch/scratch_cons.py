@@ -27,6 +27,7 @@ class FileDescriptorMode(StrEnum):
 
 class TableConstructionEvent(StrEnum):
 
+    INIT_I0 = auto()
     UPDATE_STATES = auto()
     UPDATE_GOTO_MAPPING = auto()
 

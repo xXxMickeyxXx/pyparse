@@ -7,8 +7,8 @@ from io import (
 	BufferedWriter
 )
 
+from .scratch_utils import generate_id
 from .scratch_cons import FileDescriptorMode
-from .utils import generate_id
 
 
 class InputBuffer:

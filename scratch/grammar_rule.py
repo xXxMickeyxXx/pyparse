@@ -6,7 +6,7 @@ from pyparse import (
     TransitionError
 )
 from pyparse.library import PySignal, PyChannel
-from .utils import generate_id, apply_color, underline_text, bold_text, center_text
+from .scratch_utils import generate_id
 
 
 class GrammarRule:
@@ -20,6 +20,24 @@ class GrammarRule:
         #######################################################
 
 
+    -•- Perhaps utilize the 'flyweight' pattern in order to better manage memory/space
+    complexity (though this should not be done until after implementation, testing,
+    documentation, benchmarking and pretty much everything else have been completed)
+ 
+    -•- Determine how the rule goes about augmenting item to make it's associated item
+    and further, how to initialize it (i.e. call 'advance' once to prime or create an
+    'augment' method and call it once to prime)
+
+    -•- Create a new class, 'AugmentedGrammarRule' or 'AugmentedGrammarItem'
+    to encapsulate the logic related to grammar rule augmentation; it
+    also better separates concerns and responsibilities in the
+    overall design. In brainstorming, I could create the class,
+    and have that be what's returned when I call the 'augment'
+    method (though I'll have to re-instante it, as I deleted the
+    method in favor of using only 'advance' to manage augmentation)
+    NOTE: current implementation auto primes augmented item by calling
+    'advance' within objects '__init__' method (as well as when calling
+    'reset')
 
     -•- Possibly add descriptors to this implementation so that
     constraints can be enforced (e.g. making sure that the
@@ -39,23 +57,26 @@ class GrammarRule:
 
     """
 
-    __slots__ = ("_rule_head", "_rule_body", "_marker_symbol", "_marker_pos", "_augmented_item", "_status", "_can_reduce", "_state_updates", "__advance")
+    __slots__ = ("_rule_head", "_rule_body", "_marker_symbol", "_marker_pos", "_augmented_item", "_status", "_can_reduce", "_state_updates", "_track_goto", "_goto", "_rule_id", "_augmented")
 
-    def __init__(self, rule_head: str, rule_body: list | tuple, marker_symbol: str = "."):
+    def __init__(self, rule_head: str, rule_body: list | tuple, marker_symbol: str = ".", rule_id=None):
+        self._rule_id = rule_id or generate_id()
         self._rule_head = rule_head
         self._rule_body = rule_body
         self._marker_symbol = marker_symbol
         self._marker_pos = 0
         self._augmented_item = None
+        self._augmented = False
         self._status = None
-        self._can_reduce = False
-        self.__advance = False
         self._state_updates = 0
-        # self.advance_marker()
+
+    @property
+    def rule_id(self):
+        return self._rule_id
 
     @property
     def augmented(self):
-        return self._augmented_item is not None
+        return self._augmented
 
     @property
     def rule_head(self):
@@ -75,7 +96,7 @@ class GrammarRule:
 
     @property
     def at_end(self):
-        return self.augmented_item[-1] == self.marker_symbol
+        return self.state_updates == self.rule_size
 
     @property
     def marker_pos(self):
@@ -83,22 +104,23 @@ class GrammarRule:
 
     @property
     def can_reduce(self):
-        return self._can_reduce
+        return self.at_end is True
 
     @property
     def augmented_item(self):
-        # NOTE: if the call to 'augment' is removed from rule's '__init__' method
-        #       call, then the below muted block needs to be un-muted
-        # if self._augmented_item is None:
-        #     # TODO: create and raise custom error here, indicating that an augmented item
-        #     #       has not yet been producted (via the 'augment' method)
-        #     _error_details = f"'{self.__class__.__name__}' has not yet performed it's augmentation; please agument with the 'augment' method and try again..."
-        #     raise RuntimeError(_error_details)
+        if self._augmented_item is None:
+            # # TODO: create and raise custom error here
+            # _error_details = f"unable to acces 'augmented_item'; must prime augmentation via the 'advance' method..."
+            # raise RuntimeError(_error_details)
+            self._augment_rule()
         return self._augmented_item
 
     @property
     def state_updates(self):
         return self._state_updates
+
+    def goto(self):
+        raise NotImplementedError
 
     def __str__(self):
         return self.__repr__()
@@ -107,48 +129,33 @@ class GrammarRule:
         return f"{self.__class__.__name__}(rule_head={self.rule_head}, rule_body={self.rule_body}, marker_symbol={self.marker_symbol})"
 
     def __eq__(self, other):
-        return self.rule_head == other.rule_head and other.rule_head and self.rule_body == other.rule_body
+        return self.rule_id == other.rule_id and (self.rule_head == other.rule_head) and (self.status() == other.status())
 
-    def __hash__(self):
-        _rule_head_hash = hash(self.rule_head)
-        return hash((_rule_head_hash, "".join(self.rule_body)))
+    # def __hash__(self):
+    #     return hash(self.rule_id)
 
     def __len__(self):
         return self.rule_size
 
-    def __iter__(self):
-        return self
+    # def __iter__(self):
+    #     return self
 
-    def __next__(self):
-        # TODO: update as implementation isn't working
-        if self.__advance:
-            self.advance_marker()
-        _state_updates = self.state_updates
-        _current_state = self.status()
-        if _state_updates == 0:
-            self.__advance = True
+    # def __next__(self):
+    #     pass
 
-        print(f"CURRENT STATUS: {_current_state}")
-        print(f"RULE SIZE: {len(self)}\nSTATE UPDATES: {self.state_updates}")
-        if self.at_end:
-            raise StopIteration
-        return _current_state
+    def next_symbol(self, default=None):
+        _look_ahead = self.look_ahead()
+        return _look_ahead[0] if _look_ahead else default
 
     def _augment_rule(self):
-        _rule_body, _marker_symbol = self.rule_body, self.marker_symbol        
-        _augmented_rule_lst = [_marker_symbol]
-        _augmented_rule_lst.extend(_rule_body)
-        return _augmented_rule_lst
+        if self._augmented_item is None:
+            _rule_body, _marker_symbol = self.rule_body, self.marker_symbol        
+            _augmented_rule_lst = [_marker_symbol]
+            _augmented_rule_lst.extend(_rule_body)
+            self._augmented_item = _augmented_rule_lst
+            self._augmented = True
 
-    def augment(self):
-        self._augmented_item = self._augment_rule()
-
-    def advance_marker(self):
-        # if not self.augmented:
-        #     self.augment()
-        #     return
-        # (NOTE: still need to ensure this doesn't mess anything up, logic-wise, as I
-        #        just added this as of 2024-06-20 @ 7:17pm EST)
+    def advance(self):
         _at_end = self.at_end
         if not _at_end:        
             if self.rule_size > self.marker_pos:
@@ -156,11 +163,6 @@ class GrammarRule:
                 self._marker_pos += 1
                 _marker_sym = self.augmented_item.pop(_current_pos)
                 self.augmented_item.insert(self._marker_pos, _marker_sym)
-
-            if _at_end:
-                if not self._can_reduce:
-                    self._can_reduce = True
-            else:
                 self._state_updates += 1
 
     def status(self):
@@ -179,7 +181,6 @@ class GrammarRule:
         return _right_of_lst
 
     def copy(self, *, deepcopy=False):
-        # TODO: need to test to ensure this works as intended
         _cls_type = type(self)
         return self._deepcopy(_cls_type) if deepcopy else self._copy(_cls_type)
         
@@ -189,12 +190,12 @@ class GrammarRule:
         _marker_symbol = copy.copy(self.marker_symbol)
         _marker_pos = copy.copy(self.marker_pos)
         _augmented_item = copy.copy(self._augmented_item)
-        _can_reduce = copy.copy(self.can_reduce)
+        _rule_id = copy.copy(self.rule_id)
 
         _new_instance = cls_type(_rule_head, _rule_body, marker_symbol=_marker_symbol)
         _new_instance._augmented_item = _augmented_item
         _new_instance._marker_pos = _marker_pos
-        _new_instance._can_reduce = _can_reduce
+        _new_instance._rule_id = _rule_id
         return _new_instance
 
     def _deepcopy(self, cls_type):
@@ -203,13 +204,21 @@ class GrammarRule:
         _marker_symbol = copy.deepcopy(self.marker_symbol)
         _marker_pos = copy.deepcopy(self.marker_pos)
         _augmented_item = copy.deepcopy(self._augmented_item)
-        _can_reduce = copy.deepcopy(self.can_reduce)
+        _rule_id = copy.deepcopy(self.rule_id)
 
         _new_instance = cls_type(_rule_head, _rule_body, marker_symbol=_marker_symbol)
         _new_instance._augmented_item = _augmented_item
         _new_instance._marker_pos = _marker_pos
-        _new_instance._can_reduce = _can_reduce
+        _new_instance._rule_id = _rule_id
         return _new_instance
+
+    def reset(self):
+        self._marker_pos = 0
+        self._augmented_item = None
+        self._augmented = False
+        self._status = None
+        self._can_reduce = False
+        self._state_updates = 0
 
     def save(self):
         raise NotImplementedError
@@ -221,7 +230,7 @@ class GrammarRule:
 def _main():
     print()
     _copy_1 = GrammarRule("S", ["a", "A"])
-    _copy_1.augment()
+    _copy_1.advance()
     _copy_2 = _copy_1.copy()
     # _copy_2 = _copy_1.copy(deepcopy=True)
     print()
