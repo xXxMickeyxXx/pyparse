@@ -6,6 +6,7 @@ from pyparse import (
     TransitionError
 )
 from pyparse.library import PySignal, PyChannel
+from .scratch_augmented_grammar_rule import AugmentedGrammarRule
 from .scratch_utils import generate_id
 
 
@@ -57,7 +58,7 @@ class GrammarRule:
 
     """
 
-    __slots__ = ("_rule_head", "_rule_body", "_marker_symbol", "_marker_pos", "_augmented_item", "_status", "_can_reduce", "_state_updates", "_track_goto", "_goto", "_rule_id", "_augmented")
+    __slots__ = ("_rule_head", "_rule_body", "_marker_symbol", "_marker_pos", "_augmented_item", "_status", "_can_reduce", "_track_goto", "_goto", "_rule_id", "_augmented", "__at_end")
 
     def __init__(self, rule_head: str, rule_body: list | tuple, marker_symbol: str = ".", rule_id=None):
         self._rule_id = rule_id or generate_id()
@@ -68,7 +69,7 @@ class GrammarRule:
         self._augmented_item = None
         self._augmented = False
         self._status = None
-        self._state_updates = 0
+        self.__at_end = False
 
     @property
     def rule_id(self):
@@ -96,7 +97,7 @@ class GrammarRule:
 
     @property
     def at_end(self):
-        return self.state_updates == self.rule_size
+        return self.augmented_item[-1] == self.marker_symbol
 
     @property
     def marker_pos(self):
@@ -109,15 +110,8 @@ class GrammarRule:
     @property
     def augmented_item(self):
         if self._augmented_item is None:
-            # # TODO: create and raise custom error here
-            # _error_details = f"unable to acces 'augmented_item'; must prime augmentation via the 'advance' method..."
-            # raise RuntimeError(_error_details)
             self._augment_rule()
         return self._augmented_item
-
-    @property
-    def state_updates(self):
-        return self._state_updates
 
     def goto(self):
         raise NotImplementedError
@@ -129,19 +123,29 @@ class GrammarRule:
         return f"{self.__class__.__name__}(rule_head={self.rule_head}, rule_body={self.rule_body}, marker_symbol={self.marker_symbol})"
 
     def __eq__(self, other):
-        return self.rule_id == other.rule_id
+        return self.rule_id == other.rule_id and self.rule_body == other.rule_body
 
     def __hash__(self):
-        return hash(self.rule_id)
+        return hash((self.rule_id, "".join(self.rule_body)))
 
     def __len__(self):
         return self.rule_size
 
-    # def __iter__(self):
-    #     return self
+    def __iter__(self):
+        return self
 
-    # def __next__(self):
-    #     pass
+    def __next__(self):
+        if self.__at_end:
+            raise StopIteration
+        if self.at_end:
+            self.__at_end = True
+        _item_copy = self.copy()
+        _retval = _item_copy.status()
+        self.advance()
+        return _retval
+
+    def augmented_item_factory(self):
+        return AugmentedGrammarRule(self)
 
     def next_symbol(self, default=None):
         _look_ahead = self.look_ahead()
@@ -163,7 +167,6 @@ class GrammarRule:
                 self._marker_pos += 1
                 _marker_sym = self.augmented_item.pop(_current_pos)
                 self.augmented_item.insert(self._marker_pos, _marker_sym)
-                self._state_updates += 1
 
     def status(self):
         return self.augmented_item
@@ -218,7 +221,7 @@ class GrammarRule:
         self._augmented = False
         self._status = None
         self._can_reduce = False
-        self._state_updates = 0
+        # self._state_updates = 0
 
     def save(self):
         raise NotImplementedError
@@ -227,17 +230,26 @@ class GrammarRule:
         raise NotImplementedError
 
 
-def _main():
+def _grammar_rule_main():
     print()
-    _copy_1 = GrammarRule("S", ["a", "A"])
-    _copy_1.advance()
-    _copy_2 = _copy_1.copy()
-    # _copy_2 = _copy_1.copy(deepcopy=True)
-    print()
-    print(f"COPY 1 is COPY 2 ---> {_copy_1 is _copy_2}")
-    print(f"COPY 1 == COPY 2 ---> {_copy_1 == _copy_2}")
+    test_rule = GrammarRule("S", ["a", "A", "B", "c"])
+    a = next(test_rule)
+    print(a)
+
+    b = next(test_rule)
+    print(b)
+
+    c = next(test_rule)
+    print(c)
+
+    d = next(test_rule)
+    print(d)
+
+    e = next(test_rule)
+    print(e)
+    
     print()
 
 
 if __name__ == "__main__":
-    pass
+    _grammar_rule_main()

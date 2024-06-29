@@ -511,25 +511,6 @@ def display_rules(grammar=None):
     print()
 
 
-def display_rule_statuses(grammar=None):
-    _grammar = GRAMMAR if grammar is None else grammar
-    _grammar_rules = GRAMMAR_RULES if grammar is None else _grammar.rules()
-    _rule_count = len(_grammar)
-    print()
-    print(f"STATUS OF GRAMMAR RULES ({_rule_count} RULES):")
-    _done_rules = 0
-    while _done_rules < _rule_count:
-        for rule in _grammar_rules:
-            _rule_status = f"{rule.rule_head} ---> {rule.status()}"
-            if rule.can_reduce:
-                _done_rules += 1
-                print(_rule_status + " (COMPLETE)")
-            else:
-                print(_rule_status)
-            rule.advance()
-        print()
-
-
 def display_table(parse_table):
     print()
     print(f"PARSE TABLE:")
@@ -564,9 +545,7 @@ def display_item_states(item_sets):
     for item_state, _items in item_sets.items():
         print(f"STATE: {item_state}")
         for _item in _items:
-            print(f"\t{_item.rule_head}")
-            print(f"\tITEM STATE ---> {_item.status()}")
-            print(f"\tRULE ID: {_item.rule_id}")
+            print(f"\t{_item.rule_head} ---> {_item.status()}")
         print()
     print()
 
@@ -628,14 +607,13 @@ def goto(rule):
 
 def init_I0(grammar):
     _g_rules = grammar.rules()
-    # _g_rules = grammar.copy().rules()
 
     if not _g_rules:
         # TODO: create and raise custom error here
         _error_details = f"unable to create item set as no grammar rules have been added to grammar object..."
         raise RuntimeError(_error_details)
     
-    _augmented_item = _g_rules.pop(0)
+    _augmented_item = _g_rules[0]
     return closure(_augmented_item, grammar=grammar)
 
 
@@ -667,30 +645,30 @@ def generate_item_states(grammar, start_symbol="$") -> None:
     _non_terminals = grammar.non_terminals()
 
     _init_item_set = init_I0(grammar)
-    _item_states = [_init_item_set]
+    _item_sets = [_init_item_set]
 
     _rule_queue = deque([_init_item_set])
     while _rule_queue:
         _next_item_set = _rule_queue.popleft()
 
         for _item in _next_item_set:
-            _item = _item.copy(deepcopy=True)
+            _item = _item.copy()
             if _item.can_reduce:
                 continue
             _item.advance()
             if _item.next_symbol() in _non_terminals:
                 _closure_group = closure(_item, grammar)
-                if _closure_group not in _item_states:
-                    _item_states.append(_closure_group)
+                if _closure_group not in _item_sets:
+                    _item_sets.append(_closure_group)
                     _rule_queue.append(_closure_group)
             else:
                 _new_state = [_item]
-                if _new_state not in _item_states:
-                    _item_states.append(_new_state)
+                if _new_state not in _item_sets:
+                    _item_sets.append(_new_state)
                     _rule_queue.append(_new_state)
 
     _retval = {}
-    for idx, i in enumerate(_item_states):
+    for idx, i in enumerate(_item_sets):
         _retval[idx] = []
         for k in i:
             _retval[idx].append(k)
@@ -760,8 +738,8 @@ def parse_main():
     # this module, within the docstring under the
     # '__________SCRATCH GRAMMAR SPEC__________' section for grammar
     # spec)
-    # init_grammar_1(GRAMMAR)
-    init_grammar_2(GRAMMAR)
+    init_grammar_1(GRAMMAR)
+    # init_grammar_2(GRAMMAR)
 
 
     ITEM_STATES = []
@@ -774,6 +752,7 @@ def parse_main():
     # automaton component of the shift-reduce parser)
     _item_states = generate_item_states(GRAMMAR)
     display_item_states(_item_states)
+
 
     _goto_mapping = generate_goto_mapping(_item_states)
     # display_goto_mapping(GOTO_MAPPING)
