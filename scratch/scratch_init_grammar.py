@@ -56,13 +56,16 @@ def init_grammar_2(grammar):
     _S_rule = GrammarRule("S", ["a", "A"], rule_id="S_rule")
     grammar.add_rule(_S_rule)
 
-    _S_rule = GrammarRule("A", ["B", "c"], rule_id="A_rule")
+    _S_rule = GrammarRule("A", ["b", "B"], rule_id="A_rule")
     grammar.add_rule(_S_rule)
 
-    _S_rule = GrammarRule("A", ["B", "B"], rule_id="A_rule")
+    _S_rule = GrammarRule("B", ["c", "C"], rule_id="A_rule")
     grammar.add_rule(_S_rule)
 
-    _S_rule = GrammarRule("B", ["c"], rule_id="A_rule")
+    _S_rule = GrammarRule("C", ["d", "D"], rule_id="A_rule")
+    grammar.add_rule(_S_rule)
+
+    _S_rule = GrammarRule("D", ["e"], rule_id="A_rule")
     grammar.add_rule(_S_rule)
 
 

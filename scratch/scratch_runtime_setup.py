@@ -387,7 +387,7 @@ __________LR(0) AUTOMATON__________
 
 """
 
-from collections import deque
+from collections import deque, defaultdict
 from pathlib import Path
 
 from pyprofiler import profile_callable, SortBy
@@ -399,7 +399,7 @@ from .scratch_init_grammar import grammar_factory, init_grammar_1, init_grammar_
 from .source_descriptor import SourceFile
 from .scratch_utils import CircularBuffer, copy_items, copy_item
 from .utils import apply_color, bold_text, underline_text, center_text
-from .scratch_cons import GrammarRuleBy, TableConstructionEvent
+from .scratch_cons import GrammarRuleBy, TableConstructionEvent, TEST_INPUT
 
 
 
@@ -550,6 +550,14 @@ def display_items(items, set_id):
     print()
 
 
+def display_test_data(test_data):
+    print()
+    print(f"TEST INPUT DATA")
+    for i in test_data:
+        print(i)
+    print()
+
+
 def display_item_states(item_sets):
     print()
     print(f"ITEM STATES:")
@@ -558,6 +566,7 @@ def display_item_states(item_sets):
         for _item in _items:
             print(f"\t{_item.rule_head}")
             print(f"\tITEM STATE ---> {_item.status()}")
+            print(f"\tRULE ID: {_item.rule_id}")
         print()
     print()
 
@@ -660,14 +669,12 @@ def generate_item_states(grammar, start_symbol="$") -> None:
     _init_item_set = init_I0(grammar)
     _item_states = [_init_item_set]
 
-    _state_added = True
     _rule_queue = deque([_init_item_set])
-    while _rule_queue or _state_added:
-        _state_added = False
+    while _rule_queue:
         _next_item_set = _rule_queue.popleft()
 
         for _item in _next_item_set:
-            _item = _item.copy()
+            _item = _item.copy(deepcopy=True)
             if _item.can_reduce:
                 continue
             _item.advance()
@@ -676,13 +683,11 @@ def generate_item_states(grammar, start_symbol="$") -> None:
                 if _closure_group not in _item_states:
                     _item_states.append(_closure_group)
                     _rule_queue.append(_closure_group)
-                    _state_added = True
             else:
                 _new_state = [_item]
                 if _new_state not in _item_states:
                     _item_states.append(_new_state)
                     _rule_queue.append(_new_state)
-                    _state_added = True
 
     _retval = {}
     for idx, i in enumerate(_item_states):
@@ -693,12 +698,36 @@ def generate_item_states(grammar, start_symbol="$") -> None:
     return _retval
 
 
-def generate_goto_table(item_sets):
+def generate_goto_mapping(item_states, grammar=GRAMMAR):
+    _all_symbols = grammar.symbols()
+    _goto_mapping = {_sym: {} for _sym in _all_symbols}
+    # for k, v in _goto_mapping.items():
+    #     print(f"{k}: {v}")
+    # print()
+
+    _state_item_lst = []
+    for idx, (k, v) in enumerate(item_states.items()):
+        for _item in v:
+            _state_item_lst.append((k, _item))
+
+    _testtest = {}
+    # print(f"ITEM STATES LIST")
+    for i in _state_item_lst:
+        _state = i[0]
+        _item = i[1]
+        if _item not in _testtest:
+            _testtest[_item] = []
+        _testtest[_item].append(_state)
+
+    for k, v in _testtest.items():
+        print(f"{k}: {v}")
+
+
+    return {}
+
+
+def generate_parse_table(grammar):
     raise NotImplementedError
-
-
-def generate_parse_table(grammar=None):
-    return []
 
 
 def read_source(source_file):
@@ -713,7 +742,7 @@ def read_source(source_file):
         # TODO: create and raise custom error here
         _error_details = f"Error Reading Source File Contents -- unable to read data contained within file @: {filepath}"
         raise RuntimeError
-    return _file_data
+    return [i for i in _file_data.split("\n") if i]
 
 
 def tokenize(source):
@@ -721,7 +750,7 @@ def tokenize(source):
 
 
 def parse_data(source_data, parser):
-    return parser.parse(source_data)
+    raise NotImplementedError
 
 
 # @profile_callable(sort_by=SortBy.TIME)
@@ -731,110 +760,48 @@ def parse_main():
     # this module, within the docstring under the
     # '__________SCRATCH GRAMMAR SPEC__________' section for grammar
     # spec)
-    init_grammar_1(GRAMMAR)
+    # init_grammar_1(GRAMMAR)
+    init_grammar_2(GRAMMAR)
 
 
     ITEM_STATES = []
     GOTO_MAPPING = {sym: None for sym in SYMBOLS}
-    TABLE_CHANNEL = PyChannel(channel_id="PARSE_TABLE_CHANNEL")
-
-
-    # Parse table event for generating initial item set/states
-    def init_I0_set_tblevent(grammar, result_buffer, start_symbol="$"):
-        _starting_augmented_item = grammar.rule(start_symbol, search_by=GrammarRuleBy.HEAD)
-        _init_i0_items = closure(_starting_augmented_item[0], grammar=grammar)
-        result_buffer.enqueue((0, _init_i0_items))
-
-
-    # Parse table event for updating an 'ITEM_STATES'
-    def update_item_sets_tblevent(state, item_sets, result_buffer=None):
-        # TODO: ?? perhaps this is where we can build the GOTO mapping ??
-
-        # TODO: ?? raise an error if 'state' already exists within
-        #       'ITEM_STATES' ??
-        _retval = False
-        if state not in ITEM_STATES:
-            _copied_items = copy_items(item_sets)
-            ITEM_STATES.update({state: _copied_items})
-            _retval = True
-        if result_buffer:
-            result_buffer.enqueue(_retval)
-
-
-    # Parse event for updating 'GOTO_MAPPING'
-    def update_goto_mapping_tblevent(next_item, previous_state, current_state):
-        # TODO: ?? raise an error if 'previous_state' already exists within
-        #       'GOTO_MAPPING' ??
-        _prev_in_mapping = previous_state in GOTO_MAPPING
-        if not _prev_in_mapping:
-            GOTO_MAPPING[previous_state] = {next_item.rule_head: current_state}
-            for k, v in GOTO_MAPPING.items():
-                print(f"PREVIOUS STATE: {k}")
-                for i, e in v.items():
-                    print(f"ITEM RULE HEAD: {i}")
-                    print(f"CURRENT STATE: {e}")
-                    print()
-                print()
-            print(f"-----> {GOTO_MAPPING[previous_state]}")
-            # _goto_key = (previous_state, next_symbol)
-            # GOTO_MAPPING[_goto_key] = current_state
-        elif _prev_in_mapping:
-            print(f"PREVIOUS STATE USED")
-
-        else:
-            print(f"PREVIOUS STATE: {previous_state} ALREADY EXISTS WITHIN 'GOTO_MAPPING'...")
-
-
-    # def update_goto_mapping_tblevent(next_symbol, previous_state, current_state):
-    #     # TODO: ?? raise an error if 'previous_state' already exists within
-    #     #       'GOTO_MAPPING' ??
-    #     print(f"NEXT SYMBOL ---> {next_symbol}")
-    #     if previous_state not in GOTO_MAPPING:
-    #         # GOTO_MAPPING[previous_state]
-    #         _goto_key = (previous_state, next_symbol)
-    #         GOTO_MAPPING[_goto_key] = current_state
-    #     else:
-    #         print(f"PREVIOUS STATE: {previous_state} ALREADY EXISTS WITHIN 'GOTO_MAPPING'...")
-
-
-    # Register events associated with building parse table (if one hasn't been
-    # serialized and saved to disk)
-    TABLE_CHANNEL.register(TableConstructionEvent.INIT_I0, receiver=init_I0_set_tblevent)
-    TABLE_CHANNEL.register(TableConstructionEvent.UPDATE_STATES, receiver=update_item_sets_tblevent)
-    TABLE_CHANNEL.register(TableConstructionEvent.UPDATE_GOTO_MAPPING, receiver=update_goto_mapping_tblevent)
 
 
     # Generate (and display) item sets/states then create GOTO and actions
     # mapping which together when combined with an enumeration of the all
     # grammar symbols, build the parse table (which is used to guid the LR(0)
     # automaton component of the shift-reduce parser)
-    _item_sets = generate_item_states(GRAMMAR)
-    display_item_states(_item_sets)
+    _item_states = generate_item_states(GRAMMAR)
+    display_item_states(_item_states)
+
+    _goto_mapping = generate_goto_mapping(_item_states)
     # display_goto_mapping(GOTO_MAPPING)
 
 
-    # # Create parse table, used to guide the LR(0) automaton that makes
-    # # up the design for the shift/reduce parser
+    # Create parse table, used to guide the LR(0) automaton that makes
+    # up the design for the shift/reduce parser
     # _parse_table = generate_parse_table(GRAMMAR)
 
-    # # Display parse table
+    # Display parse table
     # display_table(_parse_table)
 
 
-    # # Instantiate parser back-end (actual parsing implementation)
-    # # _parser_impl = ShiftReduceParser()
+    # Instantiate parser back-end (actual parsing implementation)
+    # _parser_impl = ShiftReduceParser()
     # _parser_impl = None
 
-    # # Instantiate parser front-end (bridge between different parser designs)
+    # Instantiate parser front-end (bridge between different parser designs)
     # parser = Parser(parser=_parser_impl)
 
 
-    # # Initialize source file
-    # _source_file = SourceFile(path=r"/Users/mickey/Desktop/Python/custom_packages/pyparse/files/data/example_grammar_input_2024_06_13.txt")
+    # Initialize source file object and get data contained within file
+    _source_file = SourceFile(path=TEST_INPUT)
+    _source_file_data = read_source(_source_file)
+    # display_test_data(_source_file_data)
+    
 
-    # # Parse input to verify that it adheres to the specified language (as
-    # # defined by the grammar)
-    # _source_file_data = read_source(_source_file)
+
     # _source_is_valid = parse_data(_source_file_data, parser)
 
     # # Display result

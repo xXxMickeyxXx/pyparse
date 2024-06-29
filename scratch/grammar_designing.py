@@ -44,6 +44,11 @@ class Grammar:
     def remove_rule(self, rule_head=None, rule_body=None):
         raise NotImplementedError
 
+    def symbols(self):
+        _symbols = self.non_terminals()
+        _symbols.extend(self.terminals())
+        return _symbols
+
     def rules(self):
         return self._rules
 

@@ -32,5 +32,8 @@ class TableConstructionEvent(StrEnum):
     UPDATE_GOTO_MAPPING = auto()
 
 
+TEST_INPUT = r"/Users/mickey/Desktop/Python/custom_packages/pyparse/files/data/example_grammar_input_2024_06_13.txt"
+
+
 if __name__ == "__main__":
     pass

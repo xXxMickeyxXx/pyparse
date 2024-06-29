@@ -129,10 +129,10 @@ class GrammarRule:
         return f"{self.__class__.__name__}(rule_head={self.rule_head}, rule_body={self.rule_body}, marker_symbol={self.marker_symbol})"
 
     def __eq__(self, other):
-        return self.rule_id == other.rule_id and (self.rule_head == other.rule_head) and (self.status() == other.status())
+        return self.rule_id == other.rule_id
 
-    # def __hash__(self):
-    #     return hash(self.rule_id)
+    def __hash__(self):
+        return hash(self.rule_id)
 
     def __len__(self):
         return self.rule_size
