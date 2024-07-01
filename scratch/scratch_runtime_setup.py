@@ -393,14 +393,13 @@ from pathlib import Path
 from pyprofiler import profile_callable, SortBy
 from pyevent import PyChannels, PyChannel, PySignal
 
-from pyparse import Parser
+# from pyparse import Parser
 from .test_automaton_design import Automaton
-from .scratch_init_grammar import grammar_factory, init_grammar_1, init_grammar_2
+from .scratch_init_grammar import grammar_factory, init_grammar_1, init_grammar_2, init_grammar_3
 from .source_descriptor import SourceFile
 from .scratch_utils import CircularBuffer, copy_items, copy_item
 from .utils import apply_color, bold_text, underline_text, center_text
 from .scratch_cons import GrammarRuleBy, TableConstructionEvent, TEST_INPUT
-
 
 
 """
@@ -512,9 +511,20 @@ def display_rules(grammar=None):
 
 
 def display_table(parse_table):
-    print()
+    _action_table, _goto_table = parse_table
     print(f"PARSE TABLE:")
-    print(parse_table)
+    print()
+    print(f"\tACTION TABLE:")
+    for ak, av in _action_table.items():
+        print(f"\t\t{ak} ---> {av}")
+
+    print()
+    print()
+
+    print(f"\tGOTO TABLE:")
+    for gk, gv in _goto_table.items():
+        print(f"\t\t{gk} ---> {gv}")
+    
     print()
 
 
@@ -552,11 +562,9 @@ def display_item_states(item_sets):
 
 def display_goto_mapping(goto_mapping):
     print()
-    for k, v in goto_mapping.items():
-        print(f"{k}")
-        for i, e in v.items():
-            print(f"\tON {i} GOTO ---> STATE: {e}")
-        print()
+    for i in goto_mapping:
+        print(f"{i}: {goto_mapping[i]}")
+
     print()
 
 
@@ -581,6 +589,14 @@ def display_result(input, parser_result):
     print(_result)
     print(apply_color(_color, _border_text))
     print()
+
+
+def find_next_state(item_states, item, symbol):
+    for state, items in item_states.items():
+        for itm in items:
+            if itm.augmented_item == item.augmented_item and itm.marker_pos == item.marker_pos + 1:
+                return state
+    return None
 
 
 def closure(rule, grammar):    
@@ -647,25 +663,28 @@ def generate_item_states(grammar, start_symbol="$") -> None:
     _init_item_set = init_I0(grammar)
     _item_sets = [_init_item_set]
 
+    _current_state = 0
+    _goto_mapping = {}
     _rule_queue = deque([_init_item_set])
     while _rule_queue:
         _next_item_set = _rule_queue.popleft()
-
+        _current_state = len(_item_sets)
         for _item in _next_item_set:
             _item = _item.copy()
             if _item.can_reduce:
                 continue
             _item.advance()
             if _item.next_symbol() in _non_terminals:
-                _closure_group = closure(_item, grammar)
-                if _closure_group not in _item_sets:
-                    _item_sets.append(_closure_group)
-                    _rule_queue.append(_closure_group)
+                _next_group = closure(_item, grammar)
+                if _next_group not in _item_sets:
+                    _item_sets.append(_next_group)
+                    _rule_queue.append(_next_group)
+
             else:
-                _new_state = [_item]
-                if _new_state not in _item_sets:
-                    _item_sets.append(_new_state)
-                    _rule_queue.append(_new_state)
+                _next_group = [_item]
+                if _next_group not in _item_sets:
+                    _item_sets.append(_next_group)
+                    _rule_queue.append(_next_group)
 
     _retval = {}
     for idx, i in enumerate(_item_sets):
@@ -676,36 +695,75 @@ def generate_item_states(grammar, start_symbol="$") -> None:
     return _retval
 
 
+# TODO: double check, but this can likely be deleted
 def generate_goto_mapping(item_states, grammar=GRAMMAR):
-    _all_symbols = grammar.symbols()
-    _goto_mapping = {_sym: {} for _sym in _all_symbols}
-    # for k, v in _goto_mapping.items():
-    #     print(f"{k}: {v}")
-    # print()
+    # _all_symbols = grammar.symbols()
+    # _goto_mapping = {_sym: {} for _sym in _all_symbols}
+    # # for k, v in _goto_mapping.items():
+    # #     print(f"{k}: {v}")
+    # # print()
 
-    _state_item_lst = []
-    for idx, (k, v) in enumerate(item_states.items()):
-        for _item in v:
-            _state_item_lst.append((k, _item))
+    # _state_item_lst = []
+    # for idx, (k, v) in enumerate(item_states.items()):
+    #     for _item in v:
+    #         _state_item_lst.append((k, _item))
 
-    _testtest = {}
-    # print(f"ITEM STATES LIST")
-    for i in _state_item_lst:
-        _state = i[0]
-        _item = i[1]
-        if _item not in _testtest:
-            _testtest[_item] = []
-        _testtest[_item].append(_state)
+    # _testtest = {}
+    # # print(f"ITEM STATES LIST")
+    # for i in _state_item_lst:
+    #     _state = i[0]
+    #     _item = i[1]
+    #     if _item not in _testtest:
+    #         _testtest[_item] = []
+    #     _testtest[_item].append(_state)
 
-    for k, v in _testtest.items():
+
+    _states = {}
+    _item_queue = deque([(k, v) for k, v in item_states.items()])
+    while _item_queue:
+        _next_item = _item_queue.popleft()
+        _state = _next_item[0]
+        _items = _next_item[1]
+        for _item in _items:
+            if _item.rule_id not in _states:
+                _states[_item.rule_id] = []
+            _states[_item.rule_id].append(_state)
+
+
+    for k, v in _states.items():
         print(f"{k}: {v}")
 
+    # return _testtest
 
-    return {}
+
+def generate_parse_table(grammar, item_states):
+    _rules = grammar.rules()
+    _init_rule = _rules[0]
+
+    _terminals = grammar.terminals()
+    _non_terminals = grammar.non_terminals()
 
 
-def generate_parse_table(grammar):
-    raise NotImplementedError
+    action_table = {}
+    goto_table = {}
+
+    for state, items in item_states.items():
+        for item in items:
+            next_symbol = item.next_symbol()
+            if next_symbol is None:  # Reduce action
+                if item.rule_head == _init_rule.rule_head:
+                    action_table[(state, _init_rule.rule_head)] = 'accept'
+                else:
+                    for terminal in _terminals:
+                        action_table[(state, terminal)] = f'reduce {item.rule_id}'
+            elif next_symbol in _terminals:
+                next_state = find_next_state(item_states, item, next_symbol)
+                action_table[(state, next_symbol)] = f'shift {next_state}'
+            else:
+                next_state = find_next_state(item_states, item, next_symbol)
+                goto_table[(state, next_symbol)] = next_state
+
+    return action_table, goto_table
 
 
 def read_source(source_file):
@@ -738,8 +796,9 @@ def parse_main():
     # this module, within the docstring under the
     # '__________SCRATCH GRAMMAR SPEC__________' section for grammar
     # spec)
-    init_grammar_1(GRAMMAR)
+    # init_grammar_1(GRAMMAR)
     # init_grammar_2(GRAMMAR)
+    init_grammar_3(GRAMMAR)
 
 
     ITEM_STATES = []
@@ -752,18 +811,23 @@ def parse_main():
     # automaton component of the shift-reduce parser)
     _item_states = generate_item_states(GRAMMAR)
     display_item_states(_item_states)
+    # for i in [(k, i.status()) for k, v in _item_states.items() for i in v]:
+    #     print(i)
+    # for k, v in _item_states.items():
+    #     print(f"{k}: {v.status()}")
+    # print()
 
 
-    _goto_mapping = generate_goto_mapping(_item_states)
-    # display_goto_mapping(GOTO_MAPPING)
+    # _goto_mapping = generate_goto_mapping(_item_states)
+    # display_goto_mapping(_goto_mapping)
 
 
     # Create parse table, used to guide the LR(0) automaton that makes
     # up the design for the shift/reduce parser
-    # _parse_table = generate_parse_table(GRAMMAR)
+    _parse_table = generate_parse_table(GRAMMAR, _item_states)
 
     # Display parse table
-    # display_table(_parse_table)
+    display_table(_parse_table)
 
 
     # Instantiate parser back-end (actual parsing implementation)
@@ -775,8 +839,8 @@ def parse_main():
 
 
     # Initialize source file object and get data contained within file
-    _source_file = SourceFile(path=TEST_INPUT)
-    _source_file_data = read_source(_source_file)
+    # _source_file = SourceFile(path=TEST_INPUT)
+    # _source_file_data = read_source(_source_file)
     # display_test_data(_source_file_data)
     
 

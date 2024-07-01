@@ -8,12 +8,14 @@ from .scratch_utils import generate_id
 
 
 class Grammar:
-    # NOTE: this would replace the original implementation of "Grammar"
 
-    __slots__ = ("_grammar_id", "_rules")
+    # NOTE: this will replace the original 'Grammar' implementation
 
-    def __init__(self, grammar_id=None):
+    __slots__ = ("_grammar_id", "_rule_factory", "_rules")
+
+    def __init__(self, grammar_id=None, rule_factory=GrammarRule):
         self._grammar_id = grammar_id or generate_id()
+        self._rule_factory = rule_factory
         self._rules = []
 
     @property
@@ -39,6 +41,9 @@ class Grammar:
     def __len__(self):
         return len(self._rules)
 
+    def __contains__(self, item):
+        return isinstance(item, GrammarRule) and item in self._rules
+
     def create_rule(self, *args, **kwargs):
         _new_rule = self.rule_factory(*args, **kwargs)
         if _new_rule in self._rules:
@@ -46,13 +51,23 @@ class Grammar:
             _error_details = f"invalid rule; grammar rule already exists within instance..."
             raise RuntimeError(_error_details)
         self.add_rule(_new_rule)
+        return _new_rule
 
     def rule_factory(self, rule_head, rule_body, marker_symbol=".", rule_id=None):
-        return GrammarRule(rule_head, rule_body, marker_symbol=marker_symbol, rule_id=rule_id)
+        return self._rule_factory(rule_head, rule_body, marker_symbol=marker_symbol, rule_id=rule_id)
     
     def add_rule(self, rule):
-        if rule not in self._rules:
-            self._rules.append(rule)
+        if rule in self._rules:
+            # TODO: create and raise custom error here
+            _error_details = f"invalid argument; rule object with head: {rule.rule_head} and body: {rule.rule_body} already exists within {self.__class__.__name__} ID: {self.grammar_id}..."
+            raise RuntimeError
+        self._rules.append(rule)
+
+    # def _add_starting_rule(self):
+    #     if not self._rules:
+    #         _rule_head = rule.rule_head
+    #         _aug_rule_head = f"[{_rule_head}]"
+    #         self.create_rule(_aug_rule_head, _rule_head, marker_symbol=rule.marker_symbol, rule_id=self.grammar_id)
 
     def remove_rule(self, rule_input, *, remove_by=GrammarRuleBy.HEAD):
         # TODO: fix this method as it doesn't work as intended

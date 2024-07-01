@@ -1,3 +1,6 @@
+# TODO: perhaps update name of class 'AugmentedGrammarRule' to 'GrammarItem' or 'AugmentedGrammarItem' or 'ParseTableItem' or 'ParseItem'
+
+
 class AugmentedGrammarRule:
 
     __slots__ = ("_grammar_rule",)
