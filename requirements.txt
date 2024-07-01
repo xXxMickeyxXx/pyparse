@@ -1,3 +1,7 @@
-build==1.0.3
-packaging==23.2
+build==1.2.1
+packaging==24.0
+pycustomerror @ git+https://github.com/xXxMickeyxXx/pycustomerror.git@5f8f9bffd4658307f842b82bd0c96c8388ee3082
+pyevent @ git+https://github.com/xXxMickeyxXx/pyevent.git@f711860e8adb6d3236ef0e3618bffa3d07382847
+pyprofiler @ git+https://github.com/xXxMickeyxXx/pyprofiler.git@89122d89d8a26b0f63af1331ddc00b007f7fee99
 pyproject_hooks==1.0.0
+pysynchrony @ git+https://github.com/xXxMickeyxXx/pysynchrony.git@5ef6d2aa0c2616fb5bf0f640f19269e70ea07040
