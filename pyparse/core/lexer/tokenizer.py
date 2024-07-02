@@ -76,14 +76,11 @@ class Tokenizer:
 					# TODO: create and raise custom error here
 					_error_details = f"call to 'consume_until' has timed out..."
 					raise TimeOutError(details=_error_details)
-			if not condition_callable(self):
+			_consumed_char = self.consume()
+			if not condition_callable(self) or (_consumed_char is None):
 				return _tmp_word
-				# _consume = self.consume()
-				# if _consume is None:
-				# 	break
-				# _tmp_word += _consume
-				# break
-			_tmp_word += self.consume()
+			elif isinstance(_consumed_char, str):
+				_tmp_word += _consumed_char
 		if len(_tmp_word) > 0:
 			return _tmp_word
 

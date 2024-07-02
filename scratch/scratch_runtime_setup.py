@@ -591,11 +591,12 @@ def display_result(input, parser_result):
     print()
 
 
-def find_next_state(item_states, item, symbol):
+def find_next_state(item_states, item):
+    _item_copy = item.copy()
+    _item_copy.advance()
     for state, items in item_states.items():
-        for itm in items:
-            if itm.augmented_item == item.augmented_item and itm.marker_pos == item.marker_pos + 1:
-                return state
+        if _item_copy in items:
+            return state
     return None
 
 
@@ -633,7 +634,7 @@ def init_I0(grammar):
     return closure(_augmented_item, grammar=grammar)
 
 
-def generate_item_states(grammar, start_symbol="$") -> None:
+def generate_item_states(grammar) -> None:
     """
     # TODO: create 'GOTO' table - after generating item sets/states,
     #       iterate through them, performing the searches 
@@ -757,10 +758,10 @@ def generate_parse_table(grammar, item_states):
                     for terminal in _terminals:
                         action_table[(state, terminal)] = f'reduce {item.rule_id}'
             elif next_symbol in _terminals:
-                next_state = find_next_state(item_states, item, next_symbol)
+                next_state = find_next_state(item_states, item)
                 action_table[(state, next_symbol)] = f'shift {next_state}'
             else:
-                next_state = find_next_state(item_states, item, next_symbol)
+                next_state = find_next_state(item_states, item)
                 goto_table[(state, next_symbol)] = next_state
 
     return action_table, goto_table
@@ -796,9 +797,9 @@ def parse_main():
     # this module, within the docstring under the
     # '__________SCRATCH GRAMMAR SPEC__________' section for grammar
     # spec)
-    # init_grammar_1(GRAMMAR)
+    init_grammar_1(GRAMMAR)
     # init_grammar_2(GRAMMAR)
-    init_grammar_3(GRAMMAR)
+    # init_grammar_3(GRAMMAR)
 
 
     ITEM_STATES = []

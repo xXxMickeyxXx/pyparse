@@ -24,7 +24,7 @@ class GrammarClassTestCase(TestCase):
 			self._grammar.add_rule(prod_head, prod_rule)
 
 	def setUp(self):
-
+		pass
 
 	def tearDown(self):
 		pass

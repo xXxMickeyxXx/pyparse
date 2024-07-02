@@ -1,4 +1,45 @@
 from pyparse import Tokenizer
+from .utils import underline_text, apply_color, bold_text
+
+
+class TestDateTokenizer(Tokenizer):
+
+    # _valid_years = {str(i) for i in range(1950, 2100)}
+    # _valid_months = [str(i) for i in range(0, 13)] + ["00", "01", "02", "03", "04", "05", "06", "07", "08", "09"]
+    # _valid_days = [str(i) for i in range(1, 32)] + ["00", "01", "02", "03", "04", "05", "06", "07", "08", "09"]
+    _valid_numbers = [str(i) for i in range(10)]
+
+    def __init__(self, input=None):
+        super().__init__(input=input)
+        self.on_loop(self._tokenize())
+
+    def _tokenize(self):
+
+        def _tokenize_():
+            if self.can_consume:
+                char = self.consume()
+                if char.isdigit():
+                    char += self.consume_until(lambda x: x.peek() in {"-", "/"})
+                    self.push_token(("YEAR", char))
+                    char = ""
+                if self.expect("-"):
+                    self.push_token(("DELIMITER", self.expect("-", consume=True)))
+                if self.peek() is not None and self.peek() in self._valid_numbers:
+                    char += self.consume_until(lambda x: x.peek() in ("-", "/"))
+                    self.push_token(("MONTH", char))
+                    char = ""
+                if self.expect("-"):
+                    self.push_token(("DELIMITER", self.expect("-", consume=True)))
+                if self.peek() is not None and self.peek() in self._valid_numbers:
+                    char += self.consume_until(lambda x: not x.can_consume)
+                    self.push_token(("DAY", char))
+                    char = ""
+            else:
+                _EOF_token = ("EOF", "")
+                self.push_token(_EOF_token)
+                self.quit()
+
+        return _tokenize_
 
 
 class TestMathTokenizer(Tokenizer):
@@ -50,21 +91,28 @@ class TestMathTokenizer(Tokenizer):
                 if _next_token is not None:
                     self.push_token(_next_token)
             else:
+                _EOF_token = ("EOF", "")
+                self.push_token(_EOF_token)
                 self.quit()
 
         return _tokenize_
 
-    @staticmethod
-    def _consume_words(tokenizer):
-        return tokenizer.peek() in {*tokenizer._words, *".,!@#$%^&*()_;:- "}
+    # @staticmethod
+    # def _consume_words(tokenizer):
+    #     return tokenizer.peek() in {*tokenizer._words, *".,!@#$%^&*()_;:- "}
 
-    @staticmethod
-    def _consume_numbers(tokenizer):
-        return tokenizer.peek() in tokenizer._numbers
+    # @staticmethod
+    # def _consume_numbers(tokenizer):
+    #     return tokenizer.peek() in tokenizer._numbers
 
 
-def create_test_tokens(input):
+def create_test_math_tokens(input):
     tokenizer = TestMathTokenizer(input=input)
+    return [i for i in tokenizer.tokenize()]
+
+
+def create_test_date_tokens(input):
+    tokenizer = TestDateTokenizer(input=input)
     return [i for i in tokenizer.tokenize()]
 
 
@@ -83,10 +131,21 @@ def display_test_tokens(tokens):
     print()
 
 
-if __name__ == "__main__":
+def test_math_token_runner():
     TEST_INPUT = "(1 + 7) * 8"
-    _test_tokens = create_test_tokens(TEST_INPUT)
+    _test_tokens = create_test_math_tokens(TEST_INPUT)
     display_test_tokens(_test_tokens)
+
+
+def test_date_token_runner():
+    TEST_INPUT = "2024-07-01"
+    _test_tokens = create_test_date_tokens(TEST_INPUT)
+    display_test_tokens(_test_tokens)
+
+
+if __name__ == "__main__":
+    # test_math_token_runner()
+    test_date_token_runner()
 
 
 # class Token:
