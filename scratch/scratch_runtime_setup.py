@@ -525,15 +525,29 @@ class ParserSettings:
 
 class ParserDesign:
 
+    # TODO: create a class representing the context of an input's given parse; this
+    #       is to avoid cluttering the 'ParserDesign' namespace, and should provide
+    #       better encapsulation, seperations of concerns, and so on. It would also
+    #       provide for the ability to add handling different parses from different
+    #       inputs/input sources using the same parser and/or the ability to add
+    #       undo/redo (or backtracking) operations
+
     def __init__(self, grammar=None, parse_table=None, parser_id=None):
         self._parser_id = parser_id or generate_id()
         self._grammar = grammar
         self._parse_table = parse_table
-        self._stack = [(0, None)]
+        self._stack = None
+        self._input_queue = None
         self._validator_chain = None
         self._parser_settings = ParserSettings(self)
         self._channel = PyChannel(channel_id=self.parser_id)
+        
+        self._current_state = None
+        self._next_state = None
+        self._next_symbol = None
+        self._previous_symbol = None
         self._continue_parsing = False
+        self._input_valid = None
 
     @property
     def parser_id(self):
@@ -555,29 +569,94 @@ class ParserDesign:
             raise RuntimeError(_error_details)
         return self._parse_table
 
+    @property
+    def stack(self):
+        if self._stack is None:
+            self._stack = self.stack_factory()
+        return self._stack
+
+    @property
+    def input_queue(self):
+        if self._input_queue is None:
+            self._input_queue = self.queue_factory()
+        return self._input_queue
+
+    @property
+    def current_state(self):
+        if self._current_state is None:
+            # TODO: create and raise custom error here
+            _error_details = f"parsing state has not yet been established..."
+            raise RuntimeError(_error_details)
+        return self._current_state
+
+    @property
+    def next_state(self):
+        if self._next_state is None:
+            # TODO: create and raise custom error here
+            _error_details = f"next parsing state has not yet been established..."
+            raise RuntimeError(_error_details)
+        return self._next_state
+
+    @property
+    def next_symbol(self):
+        if self._next_symbol is None:
+            # TODO: create and raise custom error here
+            _error_details = f"next input symbol has not yet been established..."
+            raise RuntimeError(_error_details)
+        return self._next_symbol
+
+    @property
+    def previous_symbol(self):
+        if self._previous_symbol is None:
+            # TODO: create and raise custom error here
+            _error_details = f"previous input symbol has not yet been established..."
+            raise RuntimeError(_error_details)
+        return self._previous_symbol
+
+    @property
+    def is_valid(self):
+        return self._input_valid in {True, False}
+
+    def stack_factory(self, *args, **kwargs):
+        return deque(*args, **kwargs)
+
+    def queue_factory(self, *args, **kwargs):
+        return deque(*args, **kwargs)
+
+    def stack_push(self, element):
+        self.stack.append(element)
+        return True
+
+    def stack_pop(self):
+        return self.stack.pop()
+
+    def stack_top(self):
+        return self.stack[-1] if self.stack else None
+
+    def stack_bottom(self):
+        return self.stack[0] if self.stack else None
+
+    def queue_extend(self, elements):
+        self.input_queue.extend(elements)
+        return True
+
+    def enqueue_input(self, element):
+        self.input_queue.append(element)
+        return True
+
+    def dequeue_input(self):
+        return self.input_queue.popleft()
+
+    def queue_peek(self, start=0, stop=None, step=1):
+        _input_queue_len = len(self.input_queue)
+        _stop = _input_queue_len if (stop is None or stop > _input_queue_len - 1) else stop
+        return [self.input_queue[i] for i in range(start, _stop, step)]
+
     def setting(self, setting_key, default=None):
         return self._parser_settings.get_setting(setting_key, default=default)
 
     def config(self, setting_key, setting_value, overwrite=False):
         return self._parser_settings.add_setting(setting_key, setting_value, overwrite=overwrite)
-
-    @staticmethod
-    def _parser_shift_():
-        _quitting_in = 0
-        def _call(parser):
-            nonlocal _quitting_in
-            print(f"--------------------")
-            # parser.stop()
-        return _call
-
-    @staticmethod
-    def _parser_reduce_(parser, stack, parse_table):
-        print(f"STACK:")
-        print(stack)
-        # stack.pop()
-        # stack.pop()
-        # _goto = parse_table.goto()
-        # stack.append()
 
     def register(self, event_id, receiver=None, receiver_id=None):
         self._channel.register(event_id, receiver=receiver, receiver_id=receiver_id)
@@ -585,117 +664,59 @@ class ParserDesign:
     def set_table(self, parse_table):
         self._parse_table = parse_table
 
+    def input_valid(self, bool_val):
+        self._input_valid = bool_val
+
     def reset(self):
         raise NotImplementedError
 
     def stop(self):
         self._continue_parsing = False
 
-    def parse(self, input_string):
-        # input_string += "$"
-        _index = 0
-        print(f"Parsing input: {input_string}")
+    def action(self, state, symbol):
+        _action_search = self._parse_table.action(state, symbol)
+        if not bool(_action_search):
+            # TODO: create and raise custom error here
+            return ParserAction.ERROR, None
+        return _action_search
 
-        _input_str_queue = deque([i for i in input_string])
-        _input_len = len(_input_str_queue)
-        stack = [(0, None)]
-        while _input_str_queue:
-        # _counter = 0
-        # while _index < _input_len:
-            # if _counter > _input_len:
-            #     _error_details = f"PLEASE REVIEW CODE ---> CRITICAL ERROR HAS OCCURRED"
-            #     raise RuntimeError(_error_details)
-            state = stack[-1][0]
-            symbol = _input_str_queue.popleft()
-
-            print()
-            print(f"------------------------------")
-            print(underline_text(bold_text(f"TOP OF 'while' LOOP")))
-            print(f"SYMBOL: {symbol} (index: {_index})")
-            print(f"STACK:")
-            for _element in stack:
-                print(f"• {_element}")
-            print()
-
-            action = self._parse_table.action(state, symbol)
-            if action is None:
-                print(f"Error: Unexpected symbol '{symbol}' at position {_index}")
-                return False
-            print(f"ACTION: {action}")
-            if action[0] == ParserAction.SHIFT:
-                new_state = action[1]
-                stack.append((new_state, symbol))
-                _index += 1
-                print(f"SHIFT to state {new_state}, stack: {stack}")
-            elif action[0] == ParserAction.REDUCE:
-                rule = action[1]
-                if rule == 'S':
-                    stack.pop()  # Pop A
-                    stack.pop()  # Pop 'a'
-                    state = stack[-1][0]
-                    new_state = self._parse_table.goto(state, 'S')
-                elif rule == 'A':
-                    stack.pop()  # Pop 'b'
-                    state = stack[-1][0]
-                    new_state = self._parse_table.goto(state, 'A')
-                stack.append((new_state, ''))
-                print(f"REDUCE by {rule}, stack: {stack}")
-            elif action[0] == ParserAction.ACCEPT:
-                print("ACCEPT: Parsing successful")
-                return True
-
-
-            print(f"------------------------------")
+    def init_input(self, input_string):
+        self.queue_extend([i for i in input_string])
 
     def parse(self, input_string):
         self._continue_parsing = True
-        _shifts = 0
-        _reduces = 0
-        # _terminals = self.grammar.terminals()
-        _input_str_queue = deque([i for i in input_string])
-        _input_len = len(_input_str_queue)
+        # _shifts = 0
+        # _reduces = 0
+        self.init_input(input_string)
+        _input_len = len(self.input_queue)
         
-        _init_input = (0, _input_str_queue[0])
-        _stack = [_init_input]
-        # _current_state = _stack[0][0]
-        # _check_next_ = _stack[0][1]
-        while True:
-            _current_state, _prev_element = _stack[-1]
-            if _input_str_queue:
-                _next_symbol = _input_str_queue.popleft()
-            else:
-                break
-            
-            _action_search = self._parse_table.action(_current_state, _next_symbol)
-            if not bool(_action_search):
-                # TODO: create and raise custom error here
-                _error_details = f"invalid action table lookup; '({_current_state}, {_next_symbol})' does not exist within table..."
-                raise RuntimeError(_error_details)
+        print(f"QUEUE PEEK: {self.queue_peek()}")
+        _init_input = (0, self.queue_peek(0, 1)[0])
+        self.stack_push(_init_input)
+        while self.is_valid or True:
+            self._current_state, self._previous_symbol = self.stack_top()
+            if self.input_queue:
+                self._next_symbol = self.dequeue_input()
+            print(f"\tSTACK:")
+            print(f"\t{self.stack}")
+            print()
 
-            _next_action, next_state = _action_search
+            _next_action, self._next_state = _action = self.action(self.current_state, self.next_symbol)
             if _next_action == ParserAction.SHIFT:
                 self._channel.emit(ParserAction.SHIFT, self)  # This emits 'SHIFT' event, passing a single argument, the parser itself
-                _stack.append((next_state, _next_symbol))
-                _shifts += 1
             elif _next_action == ParserAction.ACCEPT:
                 self._channel.emit(ParserAction.ACCEPT, self)  # This emits 'REDUCE' event, passing a single argument, the parser itself
-                self._continue_parsing = False
-                return True
             elif _next_action == ParserAction.ERROR:
-                # TODO: create and raise custom error here (possibly adding a mechanism to
-                #       customize this behaviour more easily or emit an error event and handle
-                #       it that way, maybe handle it the exact same way as handling the rest;
-                #       interact with the parser within a registered handler) 
-                _error_details = f"a parsing error occurred; parser has stopped running on shift #: {_shifts -1 if _shifts > 0 else 0}...parser will now exit..."
-                raise RuntimeError(_error_details)
+                self._channel.emit(ParserAction.ERROR, self)
             elif _next_action == ParserAction.REDUCE:
-                # TODO: this block will likely change so that the parser (i.e. 'self') is the
-                #       only thing that will be passed to the event receiver
-                self._channel.emit(ParserAction.REDUCE, self, _stack, self.parse_table)  # This emits 'REDUCE' event, passing a single argument, the parser itself
-                _reduces += 1
-            
+                self._channel.emit(ParserAction.REDUCE, self)  # This emits 'REDUCE' event, passing a single argument, the parser itself
             if not self._continue_parsing:
                 break
+            print(f"\t--------------------")
+            print()
+        return 
+
+
 
 
 def display_grammar(grammar):
@@ -998,17 +1019,60 @@ def parse_data(source_data, parser):
     return parser.parse(source_data)
 
 
-def parse_and_display(test_data, parser):
-    for _test_input in test_data:
-        _parse_result = parse_data(_test_input, parser)
-        display_result(_test_input, _parse_result)
+def parse_and_display(test_data, parser, count=-1):
+    _test_data_queue = deque(test_data)
+    _counter = 0
+    while _test_data_queue and (_counter < count if (isinstance(count, int) and count > 0) else True):
+        _next_test_data_piece = _test_data_queue.popleft()
+        _text = underline_text(bold_text(apply_color(11, f"NEXT TEST DATA PIECE"))) + bold_text(" ---> ") + underline_text(bold_text(apply_color(11, f"{_next_test_data_piece}"))) + "\n"
+        print(_text)
+        _parse_result = parse_data(_next_test_data_piece, parser)
+        display_result(_next_test_data_piece, _parse_result)
         for _ in range(2):
             print()
+        _counter += 1
+
+
+class ParseActionEvents:
+
+    @staticmethod
+    def _parser_shift_(parser):
+        parser.stack_push((parser.next_state, parser.next_symbol))
+        print(f"\tSTACK IN SHIFT HANDLER:")
+        print(f"\t{parser.stack}")
+        if not parser.stack or not parser.input_queue:
+            parser.stop()
+        print()
+        print(f"INPUT QUEUE PEEK:")
+        print(parser.queue_peek())
+
+    @staticmethod
+    def _parser_reduce_(parser):
+        print(f"\tSTACK IN REDUCE HANDLER:")
+        print(f"\t{parser.stack}")
+        if not parser.stack or not parser.input_queue:
+            parser.stop()
+        print(f"INPUT QUEUE PEEK:")
+        print(parser.queue_peek())
+
+    @staticmethod
+    def _parser_error_(parser):
+        parser.input_valid(False)
+        _error_details = f"a parsing error occurred; parser has stopped running on shift #: {_shifts -1 if _shifts > 0 else 0}...parser will now exit..."
+        raise RuntimeError(_error_details)
+
+    @staticmethod
+    def _parser_accept_(parser):
+        _text = f"PARSE IS VALID"
+        parser.input_valid(True)
 
 
 def _init_parser_events(parser):
-    parser.register(ParserAction.SHIFT, parser._parser_shift_())  # NOTE: currently, this will quit the parser after one cycle
-    parser.register(ParserAction.REDUCE, parser._parser_reduce_)
+
+    parser.register(ParserAction.SHIFT, ParseActionEvents._parser_shift_)
+    parser.register(ParserAction.REDUCE, ParseActionEvents._parser_reduce_)
+    parser.register(ParserAction.ACCEPT, ParseActionEvents._parser_accept_)
+    parser.register(ParserAction.ERROR, ParseActionEvents._parser_error_)
 
 
 # @profile_callable(sort_by=SortBy.TIME)
@@ -1040,7 +1104,7 @@ def parse_main():
     _parse_table = generate_parse_table(GRAMMAR, _item_states)
 
     # Display parse table
-    display_table(_parse_table)
+    # display_table(_parse_table)
 
 
     # Instantiate parser back-end (actual parsing implementation)
@@ -1067,7 +1131,7 @@ def parse_main():
     # 'pyparse' files (taking the concepts contained with this module and the
     # 'scratch' sub-package in general), re-organize git, and then use and see how
     # I can make it better, more robust, etc.
-    parse_and_display(_source_file_data, parser)
+    parse_and_display(_source_file_data, parser, count=None)
 
 
 if __name__ == "__main__":
