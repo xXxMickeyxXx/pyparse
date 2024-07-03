@@ -566,13 +566,18 @@ class ParserDesign:
         _quitting_in = 0
         def _call(parser):
             nonlocal _quitting_in
-            print(f"QUITTING IN: {_quitting_in}")
-            parser.stop()
+            print(f"--------------------")
+            # parser.stop()
         return _call
 
     @staticmethod
-    def _parser_reduce_(parser):
-        raise NotImplementedError
+    def _parser_reduce_(parser, stack, parse_table):
+        print(f"STACK:")
+        print(stack)
+        # stack.pop()
+        # stack.pop()
+        # _goto = parse_table.goto()
+        # stack.append()
 
     def register(self, event_id, receiver=None, receiver_id=None):
         self._channel.register(event_id, receiver=receiver, receiver_id=receiver_id)
@@ -656,7 +661,10 @@ class ParserDesign:
         # _check_next_ = _stack[0][1]
         while True:
             _current_state, _prev_element = _stack[-1]
-            _next_symbol = _input_str_queue[0]
+            if _input_str_queue:
+                _next_symbol = _input_str_queue.popleft()
+            else:
+                break
             
             _action_search = self._parse_table.action(_current_state, _next_symbol)
             if not bool(_action_search):
@@ -667,7 +675,12 @@ class ParserDesign:
             _next_action, next_state = _action_search
             if _next_action == ParserAction.SHIFT:
                 self._channel.emit(ParserAction.SHIFT, self)  # This emits 'SHIFT' event, passing a single argument, the parser itself
+                _stack.append((next_state, _next_symbol))
                 _shifts += 1
+            elif _next_action == ParserAction.ACCEPT:
+                self._channel.emit(ParserAction.ACCEPT, self)  # This emits 'REDUCE' event, passing a single argument, the parser itself
+                self._continue_parsing = False
+                return True
             elif _next_action == ParserAction.ERROR:
                 # TODO: create and raise custom error here (possibly adding a mechanism to
                 #       customize this behaviour more easily or emit an error event and handle
@@ -676,12 +689,10 @@ class ParserDesign:
                 _error_details = f"a parsing error occurred; parser has stopped running on shift #: {_shifts -1 if _shifts > 0 else 0}...parser will now exit..."
                 raise RuntimeError(_error_details)
             elif _next_action == ParserAction.REDUCE:
-                self._channel.emit(ParserAction.REDUCE, self)  # This emits 'REDUCE' event, passing a single argument, the parser itself
+                # TODO: this block will likely change so that the parser (i.e. 'self') is the
+                #       only thing that will be passed to the event receiver
+                self._channel.emit(ParserAction.REDUCE, self, _stack, self.parse_table)  # This emits 'REDUCE' event, passing a single argument, the parser itself
                 _reduces += 1
-            elif _next_action == ParserAction.ACCEPT:
-                self._channel.emit(ParserAction.ACCEPT, self)  # This emits 'REDUCE' event, passing a single argument, the parser itself
-                self._continue_parsing = False
-                return True
             
             if not self._continue_parsing:
                 break
