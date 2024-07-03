@@ -7,6 +7,7 @@ class ParserAction(IntEnum):
     ERROR = auto()
     SHIFT = auto()
     REDUCE = auto()
+    UPDATE = auto()
 
 
 class  GrammarRuleBy(IntEnum):

@@ -566,6 +566,7 @@ class ParserDesign:
         self._channel = PyChannel(channel_id=self.parser_id)        
         self._continue_parsing = False
         self._input_valid = False
+        self._state = None
 
     @property
     def parser_id(self):
@@ -602,6 +603,16 @@ class ParserDesign:
     @property
     def is_valid(self):
         return bool(self._input_valid)
+
+    def state(self):
+        # NOTE: this could be an abstract method for a 'Parser' interface/base class
+        return self.stack_top() or ()
+
+    def update_state(self, state):
+        # TODO: determine how this can/should be used
+        # NOTE: this could be an abstract method for a 'Parser' interface/base class
+        self._state = state
+        self._channel.emit(ParserAction.UPDATE, self)
 
     def stack_factory(self, *args, **kwargs):
         return deque(*args, **kwargs)
@@ -692,6 +703,7 @@ class ParserDesign:
             print()
 
             _next_action, _next_state = _action = self.action(_current_state, _next_symbol)
+            self.update_state(_next_state)
             _next_event = ParserEvent(_event_counter, parser=self, current_state=_current_state, next_symbol=_next_symbol, next_action=_next_action, next_state=_next_state, previous_symbol=_previous_symbol)
             self._channel.emit(_next_action, _next_event)
             # if _next_action == ParserAction.SHIFT:
@@ -1066,6 +1078,10 @@ class ParseActionEvents:
         _text = f"PARSE IS VALID"
         parser.input_valid(True)
 
+    @staticmethod
+    def _parser_update_(parser):
+        print(f"HELLO MOTO!")
+
 
 def _init_parser_events(parser):
 
@@ -1073,6 +1089,7 @@ def _init_parser_events(parser):
     parser.register(ParserAction.REDUCE, ParseActionEvents._parser_reduce_)
     parser.register(ParserAction.ACCEPT, ParseActionEvents._parser_accept_)
     parser.register(ParserAction.ERROR, ParseActionEvents._parser_error_)
+    parser.register(ParserAction.UPDATE, ParseActionEvents._parser_update_)
 
 
 # @profile_callable(sort_by=SortBy.TIME)
