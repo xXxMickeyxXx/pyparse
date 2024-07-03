@@ -445,6 +445,24 @@ TERMINALS = GRAMMAR.terminals()
 SYMBOLS = NON_TERMINALS + TERMINALS
 
 
+ITEM_STATES_TEXT = """
+#########################################################################################################################
+#                                                                                                                       #
+# • -------------------------------------------------- ITEM STATES -------------------------------------------------- • #
+#                                                                                                                       #
+#########################################################################################################################
+"""
+
+
+TEST_PARSING_TEXT = """
+##########################################################################################################################
+#                                                                                                                        #
+# • -------------------------------------------------- TEST PARSING -------------------------------------------------- • #
+#                                                                                                                        #
+##########################################################################################################################
+"""
+
+
 class Chain:
 
     def __init__(self, chain_id=None):
@@ -694,8 +712,6 @@ class ParserDesign:
         return _input_valid
 
 
-
-
 def display_grammar(grammar):
     print()
     print(grammar)
@@ -789,8 +805,8 @@ def display_test_data(test_data):
 
 
 def display_item_states(item_sets):
+    print(ITEM_STATES_TEXT)
     print()
-    print(f"ITEM STATES:")
     for item_state, _items in item_sets.items():
         print(f"STATE: {item_state}")
         for _item in _items:
@@ -997,6 +1013,8 @@ def parse_data(source_data, parser):
 
 
 def parse_and_display(test_data, parser, count=-1):
+    print(TEST_PARSING_TEXT)
+    print()
     _test_data_queue = deque(test_data)
     _counter = 0
     while _test_data_queue and (_counter < count if (isinstance(count, int) and count > 0) else True):
@@ -1008,6 +1026,7 @@ def parse_and_display(test_data, parser, count=-1):
         for _ in range(2):
             print()
         _counter += 1
+    print()
 
 
 class ParseActionEvents:
@@ -1112,7 +1131,7 @@ def parse_main():
     # 'pyparse' files (taking the concepts contained with this module and the
     # 'scratch' sub-package in general), re-organize git, and then use and see how
     # I can make it better, more robust, etc.
-    parse_and_display(_source_file_data, parser, count=None)
+    parse_and_display(_source_file_data, parser, count=1)
 
 
 if __name__ == "__main__":
