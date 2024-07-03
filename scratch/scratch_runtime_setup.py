@@ -394,6 +394,7 @@ from pyprofiler import profile_callable, SortBy
 from pyevent import PyChannels, PyChannel, PySignal
 
 from pyparse import Parser
+from pysynchrony import PySynchronyEvent
 from .scratch_parse_table import ParseTable
 from .test_automaton_design import Automaton
 from .scratch_init_grammar import grammar_factory, init_grammar_1, init_grammar_2, init_grammar_3
@@ -523,6 +524,10 @@ class ParserSettings:
         return self._settings.get(setting_key, default)
 
 
+class ParserEvent(PySynchronyEvent):
+    pass
+
+
 class ParserDesign:
 
     # TODO: create a class representing the context of an input's given parse; this
@@ -540,14 +545,9 @@ class ParserDesign:
         self._input_queue = None
         self._validator_chain = None
         self._parser_settings = ParserSettings(self)
-        self._channel = PyChannel(channel_id=self.parser_id)
-        
-        self._current_state = None
-        self._next_state = None
-        self._next_symbol = None
-        self._previous_symbol = None
+        self._channel = PyChannel(channel_id=self.parser_id)        
         self._continue_parsing = False
-        self._input_valid = None
+        self._input_valid = False
 
     @property
     def parser_id(self):
@@ -582,40 +582,8 @@ class ParserDesign:
         return self._input_queue
 
     @property
-    def current_state(self):
-        if self._current_state is None:
-            # TODO: create and raise custom error here
-            _error_details = f"parsing state has not yet been established..."
-            raise RuntimeError(_error_details)
-        return self._current_state
-
-    @property
-    def next_state(self):
-        if self._next_state is None:
-            # TODO: create and raise custom error here
-            _error_details = f"next parsing state has not yet been established..."
-            raise RuntimeError(_error_details)
-        return self._next_state
-
-    @property
-    def next_symbol(self):
-        if self._next_symbol is None:
-            # TODO: create and raise custom error here
-            _error_details = f"next input symbol has not yet been established..."
-            raise RuntimeError(_error_details)
-        return self._next_symbol
-
-    @property
-    def previous_symbol(self):
-        if self._previous_symbol is None:
-            # TODO: create and raise custom error here
-            _error_details = f"previous input symbol has not yet been established..."
-            raise RuntimeError(_error_details)
-        return self._previous_symbol
-
-    @property
     def is_valid(self):
-        return self._input_valid in {True, False}
+        return bool(self._input_valid)
 
     def stack_factory(self, *args, **kwargs):
         return deque(*args, **kwargs)
@@ -668,7 +636,10 @@ class ParserDesign:
         self._input_valid = bool_val
 
     def reset(self):
-        raise NotImplementedError
+        self._stack = None
+        self._input_queue = None
+        self._continue_parsing = False
+        self._input_valid = False
 
     def stop(self):
         self._continue_parsing = False
@@ -693,28 +664,34 @@ class ParserDesign:
         print(f"QUEUE PEEK: {self.queue_peek()}")
         _init_input = (0, self.queue_peek(0, 1)[0])
         self.stack_push(_init_input)
+        _event_counter = 0
         while self.is_valid or True:
-            self._current_state, self._previous_symbol = self.stack_top()
+            _current_state, _previous_symbol = self.stack_top()
             if self.input_queue:
-                self._next_symbol = self.dequeue_input()
+                _next_symbol = self.dequeue_input()
             print(f"\tSTACK:")
             print(f"\t{self.stack}")
             print()
 
-            _next_action, self._next_state = _action = self.action(self.current_state, self.next_symbol)
-            if _next_action == ParserAction.SHIFT:
-                self._channel.emit(ParserAction.SHIFT, self)  # This emits 'SHIFT' event, passing a single argument, the parser itself
-            elif _next_action == ParserAction.ACCEPT:
-                self._channel.emit(ParserAction.ACCEPT, self)  # This emits 'REDUCE' event, passing a single argument, the parser itself
-            elif _next_action == ParserAction.ERROR:
-                self._channel.emit(ParserAction.ERROR, self)
-            elif _next_action == ParserAction.REDUCE:
-                self._channel.emit(ParserAction.REDUCE, self)  # This emits 'REDUCE' event, passing a single argument, the parser itself
+            _next_action, _next_state = _action = self.action(_current_state, _next_symbol)
+            _next_event = ParserEvent(_event_counter, parser=self, current_state=_current_state, next_symbol=_next_symbol, next_action=_next_action, next_state=_next_state, previous_symbol=_previous_symbol)
+            self._channel.emit(_next_action, _next_event)
+            # if _next_action == ParserAction.SHIFT:
+            #     self._channel.emit(ParserAction.SHIFT, _next_event)  # This emits 'SHIFT' event, passing a single argument, the parser itself
+            # elif _next_action == ParserAction.ACCEPT:
+            #     self._channel.emit(ParserAction.ACCEPT, _next_event)  # This emits 'REDUCE' event, passing a single argument, the parser itself
+            # elif _next_action == ParserAction.ERROR:
+            #     self._channel.emit(ParserAction.ERROR, _next_event)
+            # elif _next_action == ParserAction.REDUCE:
+            #     self._channel.emit(ParserAction.REDUCE, _next_event)  # This emits 'REDUCE' event, passing a single argument, the parser itself
             if not self._continue_parsing:
                 break
             print(f"\t--------------------")
             print()
-        return 
+            _event_counter += 1
+        _input_valid = self.is_valid
+        self.reset()
+        return _input_valid
 
 
 
@@ -1036,8 +1013,9 @@ def parse_and_display(test_data, parser, count=-1):
 class ParseActionEvents:
 
     @staticmethod
-    def _parser_shift_(parser):
-        parser.stack_push((parser.next_state, parser.next_symbol))
+    def _parser_shift_(event):
+        parser = event.data("parser", default=None)
+        parser.stack_push((event.data("next_state", default=None), event.data("next_symbol", default=None)))
         print(f"\tSTACK IN SHIFT HANDLER:")
         print(f"\t{parser.stack}")
         if not parser.stack or not parser.input_queue:
@@ -1047,7 +1025,8 @@ class ParseActionEvents:
         print(parser.queue_peek())
 
     @staticmethod
-    def _parser_reduce_(parser):
+    def _parser_reduce_(event):
+        parser = event.data("parser", default=None)
         print(f"\tSTACK IN REDUCE HANDLER:")
         print(f"\t{parser.stack}")
         if not parser.stack or not parser.input_queue:
@@ -1056,13 +1035,15 @@ class ParseActionEvents:
         print(parser.queue_peek())
 
     @staticmethod
-    def _parser_error_(parser):
+    def _parser_error_(event):
+        parser = event.data("parser", default=None)
         parser.input_valid(False)
-        _error_details = f"a parsing error occurred; parser has stopped running on shift #: {_shifts -1 if _shifts > 0 else 0}...parser will now exit..."
-        raise RuntimeError(_error_details)
+        # _error_details = f"a parsing error occurred; parser has stopped running and will now exit..."
+        # raise RuntimeError(_error_details)
 
     @staticmethod
-    def _parser_accept_(parser):
+    def _parser_accept_(event):
+        parser = event.data("parser", default=None)
         _text = f"PARSE IS VALID"
         parser.input_valid(True)
 
