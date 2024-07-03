@@ -1,6 +1,14 @@
 from enum import StrEnum, IntEnum, auto
 
 
+class ParserAction(IntEnum):
+
+    ACCEPT = auto()
+    ERROR = auto()
+    SHIFT = auto()
+    REDUCE = auto()
+
+
 class  GrammarRuleBy(IntEnum):
 
     HEAD = auto()

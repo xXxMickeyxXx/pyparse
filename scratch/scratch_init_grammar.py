@@ -28,8 +28,11 @@ def init_grammar_1(grammar, augmented_rule=GrammarRule("$", ["S"], rule_id="INIT
     _S_rule = GrammarRule("S", ["a", "A"], rule_id="S_rule")
     grammar.add_rule(_S_rule)
 
-    _S_rule = GrammarRule("A", ["b"], rule_id="A_rule")
+    _S_rule = GrammarRule("A", ["b"], rule_id="A_rule_1")
     grammar.add_rule(_S_rule)
+
+    # _S_rule = GrammarRule("A", ["b", "b"], rule_id="A_rule_2")
+    # grammar.add_rule(_S_rule)
 
 
 def init_grammar_2(grammar, augmented_rule=GrammarRule("$", ["S"], rule_id="INIT_ITEM")):
