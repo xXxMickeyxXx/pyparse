@@ -133,7 +133,7 @@ class GrammarRule:
         return self.__repr__()
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(rule_head={self.rule_head}, rule_body={self.rule_body}, marker_symbol={self.marker_symbol})"
+        return f"{self.__class__.__name__}(rule_head={self.rule_head}, rule_body={self.rule_body}, marker_symbol={self.marker_symbol}, rule_id={self.rule_id})"
 
     def __eq__(self, other):
         # return isinstance(self, type(other)) and (self.rule_id == other.rule_id and self.rule_body == other.rule_body)  # NOTE: this is how 'GrammarRule' should identify equality

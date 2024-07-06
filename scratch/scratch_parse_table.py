@@ -1,8 +1,18 @@
+from .scratch_utils import generate_id
+from .scratch_cons import ParserAction
+
+
 class ParseTable:
-    def __init__(self, grammar=None):
+    def __init__(self, grammar=None, table_id=None):
+        self._table_id = table_id or generate_id()
+        # self._item_states = item_states
         self._grammar = grammar
         self._action = {}
         self._goto = {}
+
+    @property
+    def table_id(self):
+        return self._table_id
 
     @property
     def grammar(self):
@@ -12,21 +22,30 @@ class ParseTable:
             raise AttributeError(_error_details)
         return self._grammar
 
+    def set_grammar(self, grammar):
+        self._grammar = grammar
+
     def add_action(self, state, symbol, action):
-        if state not in self._action:
-            self._action[state] = {}
-        self._action[state][symbol] = action
+        _action_key = (state, symbol)
+        if _action_key not in self._action:
+            self._action[_action_key] = action
+            return True
+        return False
 
     def add_goto(self, state, non_terminal, next_state):
-        if state not in self._goto:
-            self._goto[state] = {}
-        self._goto[state][non_terminal] = next_state
+        _goto_key = (state, non_terminal)
+        if _goto_key not in self._goto:
+            self._goto[_goto_key] = next_state
+            return True
+        return False
 
-    def action(self, state, symbol):
-        return self._action.get(state, {}).get(symbol, None)
+    def action(self, state, symbol, default=None):
+        _action_key = (state, symbol)
+        return self._action.get(_action_key, default)
 
-    def goto(self, state, non_terminal):
-        return self._goto.get(state, {}).get(non_terminal, None)
+    def goto(self, state, non_terminal, default=None):
+        _goto_key = (state, non_terminal)
+        return self._goto.get(_goto_key, default)
 
     def table(self):
         raise NotImplementedError
@@ -34,14 +53,25 @@ class ParseTable:
     def print(self):
         print()
         print(f"ACTION TABLE:")
-        for _astate, actions in self._action.items():
-            for sym, action in actions.items():
-                print(f"  ACTION({_astate}, '{sym}') = {action}")
+        for action_key, action_value in self._action.items():
+            if ParserAction.ACCEPT in action_value:
+                print(f"  ACTION({action_key[0]}, {action_key[1]}) ---> {action_value[0]} {ParserAction.ACCEPT}")
+            elif ParserAction.ERROR in action_value:
+                print(f"  ACTION({action_key[0]}, {action_key[1]}) ---> {ParserAction.ERROR}")
+            elif ParserAction.SHIFT in action_value:
+                print(f"  ACTION({action_key[0]}, {action_key[1]}) ---> {action_value[0]} TO {action_value[1]}")
+            elif ParserAction.REDUCE in action_value:
+                # print(f"  IN STATE: {action_key[0]} ON SYMBOL: {action_key[1]} {action_value[0]} TO {action_value[1]}")
+                print(f"  ACTION({action_key[0]}, {action_key[1]}) --->  {action_value[0]} TO {action_value[1]}")
+            else:
+                # TODO: create and raise custom error here
+                _error_details = f"invalid parser action; must be one of either 'SHIFT', 'REDUCE', 'ACCEPT' or 'ERROR'..."
+                raise RuntimeError(_error_details)
+
         print()
         print(f"GOTO TABLE:")
-        for _gstate, gotos in self._goto.items():
-            for non_t, next_state in gotos.items():
-                print(f"  GOTO({_gstate}, '{non_t}') = {next_state}")
+        for goto_key, goto_value in self._goto.items():
+            print(f"  GOTO({goto_key[0]}, {goto_key[1]}) ---> {goto_value}")
         print()
 
 

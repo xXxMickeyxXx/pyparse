@@ -1,7 +1,7 @@
 from enum import StrEnum, IntEnum, auto
 
 
-class ParserAction(IntEnum):
+class ParserAction(StrEnum):
 
     ACCEPT = auto()
     ERROR = auto()
@@ -12,6 +12,7 @@ class ParserAction(IntEnum):
 
 class  GrammarRuleBy(IntEnum):
 
+    ID = auto()
     HEAD = auto()
     BODY = auto()
 
