@@ -1,6 +1,11 @@
 from enum import StrEnum, IntEnum, auto
 
 
+class PyParseLoggerID(StrEnum):
+
+    PARSER = auto()
+
+
 class ParserAction(StrEnum):
 
     ACCEPT = auto()

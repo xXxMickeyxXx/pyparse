@@ -12,17 +12,15 @@ class Grammar:
 
     # NOTE: this will replace the original 'Grammar' implementation
 
-    __slots__ = ("_grammar_id", "_rule_factory", "_rules", "_terminals_cache", "_terminals_cache_invalid", "_non_terminals_cache", "_non_terminals_cache_invalid", "_augmented_item_added", "_init_symbol")
+    __slots__ = ("_grammar_id", "_rule_factory", "_rules", "_item_states_cache", "_terminals_cache", "_non_terminals_cache")
 
     def __init__(self, grammar_id=None, rule_factory=GrammarRule):
         self._grammar_id = grammar_id or generate_id()
         self._rule_factory = rule_factory
         self._rules = []
+        self._item_states_cache = None
         self._terminals_cache = None
-        self._terminals_cache_invalid = True
         self._non_terminals_cache = None
-        self._non_terminals_cache_invalid = True
-        self._augmented_item_added = False
 
     @property
     def grammar_id(self):
@@ -32,7 +30,7 @@ class Grammar:
     def init_symbol(self):
         if self._rules:
             return self._rules[0].rule_head
-        return None
+        return ""
 
     @property
     def rule_count(self):
@@ -57,7 +55,64 @@ class Grammar:
         return isinstance(item, GrammarRule) and item in self._rules
 
     def generate_states(self):
-        raise NotImplementedError
+        if self._item_states_cache is None:
+            _terminals = self.terminals()
+            _non_terminals = self.non_terminals()
+            _rules = self.rules()
+            _augmented_item = _rules[0]
+
+            _init_item_set = self.closure(_augmented_item)
+            _item_sets = [_init_item_set]
+
+            _current_state = 0
+            _goto_mapping = {}
+            _rule_queue = deque([_init_item_set])
+            while _rule_queue:
+                _next_item_set = _rule_queue.popleft()
+                _current_state = len(_item_sets)
+                for _item in _next_item_set:
+                    _item = _item.copy()
+                    if _item.can_reduce:
+                        continue
+                    _item.advance()
+                    if _item.next_symbol() in _non_terminals:
+                        _next_group = self.closure(_item)
+                        if _next_group not in _item_sets:
+                            _item_sets.append(_next_group)
+                            _rule_queue.append(_next_group)
+
+                    else:
+                        _next_group = [_item]
+                        if _next_group not in _item_sets:
+                            _item_sets.append(_next_group)
+                            _rule_queue.append(_next_group)
+
+            _retval = {}
+            for idx, i in enumerate(_item_sets):
+                _retval[idx] = []
+                for k in i:
+                    _retval[idx].append(k)
+            self._item_states_cache = _retval
+        else:
+            _retval = self._item_states_cache
+        return _retval
+
+    def closure(self, rule):
+        _non_terminals = self.non_terminals()
+        _closure_group = [rule]
+        _break = False
+        _rule_queue = deque(_closure_group)
+        while _rule_queue:
+            _next_rule = _rule_queue.popleft()
+            _next_symbol = _next_rule.next_symbol(default=None)
+            if _next_symbol in _non_terminals:
+                _rule = self.rule(_next_symbol, search_by=GrammarRuleBy.HEAD)
+                for _check_rule in _rule:
+                    if _check_rule in _closure_group:
+                        continue
+                    _closure_group.append(_check_rule)
+                    _rule_queue.append(_check_rule)
+        return tuple([i.copy(deepcopy=True) for i in _closure_group])
 
     def create_rule(self, *args, **kwargs):
         _new_rule = self.rule_factory(*args, **kwargs)
@@ -68,17 +123,6 @@ class Grammar:
         self.add_rule(_new_rule)
         return _new_rule
 
-    # def _create_augmented_item(self, start_symbol):
-    #     if not self._augmented_item_added:
-    #         _rules = self.rules()
-    #         _first_rule = _rules[0] if _rules else None
-    #         if _first_rule is None:
-    #             # TODO: create and raise custom error here
-    #             _error_details = f"unable to create augmented rule as instance of {self.__class__.__name__} has not yet added any rules..."
-    #             raise RuntimeError(_error_details)
-    #         _starting_rule = self.create_rule(start_symbol, [_first_rule.rule_head], rule_id=f"{self.grammar_id}")
-    #         self._augmented_item_added = True
-
     def rule_factory(self, rule_head, rule_body, marker_symbol=MarkerSymbol("•"), rule_id=None):
         return self._rule_factory(rule_head, rule_body, marker_symbol=marker_symbol, rule_id=rule_id)
     
@@ -88,24 +132,11 @@ class Grammar:
             _error_details = f"invalid argument; rule object with head: {rule.rule_head} and body: {rule.rule_body} already exists within {self.__class__.__name__} ID: {self.grammar_id}..."
             raise RuntimeError(_error_details)
         self._rules.append(rule)
-        self._terminals_cache_invalid = True
-        self._non_terminals_cache_invalid = True
-
-
-    # def _add_starting_rule(self):
-    #     if not self._rules:
-    #         _rule_head = rule.rule_head
-    #         _aug_rule_head = f"[{_rule_head}]"
-    #         self.create_rule(_aug_rule_head, _rule_head, marker_symbol=rule.marker_symbol, rule_id=self.grammar_id)
+        self._terminals_cache = None
+        self._non_terminals_cache = None
+        self._item_states_cache = None
 
     def remove_rule(self, rule_input, *, remove_by=GrammarRuleBy.HEAD):
-        # TODO: fix this method as it doesn't work as intended
-        # TODO: determine how this method should actually work
-        # if remove_by == GrammarRuleBy.HEAD:
-        #     _remove_by = self._remove_rule_by_head
-        # else:
-        #     _remove_by = remove_by
-        # return _remove_by(rule_input, self)
         raise NotImplementedError()
 
     @staticmethod
@@ -162,21 +193,19 @@ class Grammar:
         raise NotImplementedError
 
     def non_terminals(self):
-        if self._non_terminals_cache_invalid:
+        if self._non_terminals_cache is None or not self._non_terminals_cache:
             _rules = self.rules()
             _non_terminals = []
             for _rule in _rules:
                 _rule_head = _rule.rule_head
                 _non_terminals.append(_rule_head)
             self._non_terminals_cache = _non_terminals
-            self._non_terminals_cache_invalid = False
         else:
             _non_terminals = self._non_terminals_cache
-            print(f"USING CACHED NON-TERMINALS")
         return _non_terminals
 
     def terminals(self):
-        if self._terminals_cache_invalid:
+        if self._terminals_cache is None or not self._terminals_cache:
             _rules = self._rules
             _non_terminals = self.non_terminals()
             _terminals = []
@@ -187,10 +216,9 @@ class Grammar:
                             continue
                         _terminals.append(_rule_body)
             self._terminals_cache = _terminals
-            self._terminals_cache_invalid = False
         else:
             _terminals = self._terminals_cache
-            print(f"USING CACHED TERMINALS")
+            # print(f"USING CACHED TERMINALS")
         return _terminals
 
     def _inverted_rules(self):
@@ -213,4 +241,24 @@ class Grammar:
 
 
 if __name__ == "__main__":
-    pass
+    _test_grammar = Grammar(grammar_id="[ • -- TEST_GRAMMR -- • ]")
+    _test_grammar.create_rule("$", ["S"], rule_id="INIT_RULE")
+    _test_grammar.create_rule("S", ["a", "A"], rule_id="S_rule_1")
+    _test_grammar.create_rule("A", ["b"], rule_id="A_rule_1")
+
+    _item_states = _test_grammar.generate_states()
+    for k, v in _item_states.items():
+        print(f"STATE: {k}")
+        for i in v:
+            print(f"\tRULE: {i.rule_head}")
+            print(f"\t{i.status()}")
+        print()
+
+    _item_states_2 = _test_grammar.generate_states()
+    for k, v in _item_states_2.items():
+        print(f"STATE: {k}")
+        for i in v:
+            print(f"\tRULE: {i.rule_head}")
+            print(f"\t{i.status()}")
+        print()
+

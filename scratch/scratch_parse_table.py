@@ -1,14 +1,17 @@
 from .scratch_utils import generate_id
 from .scratch_cons import ParserAction
+from .utils import apply_color, bold_text, underline_text
 
 
 class ParseTable:
     def __init__(self, grammar=None, table_id=None):
         self._table_id = table_id or generate_id()
-        # self._item_states = item_states
         self._grammar = grammar
+        self._item_states = None
         self._action = {}
         self._goto = {}
+        if self._grammar:
+            self.init_table()
 
     @property
     def table_id(self):
@@ -18,12 +21,19 @@ class ParseTable:
     def grammar(self):
         if self._grammar is None:
             # TODO: create and raise custom error here
-            _error_details = f"unable to access 'grammar' attribute as one has not yet been associated with instance of {self.__class__.__name__}..."
-            raise AttributeError(_error_details)
+            _error_details = f"unable to access 'grammar' as it has not yet been assigned to this parse table..."
+            raise RuntimeError(_error_details)
         return self._grammar
+
+    @property
+    def item_states(self):
+        if self._item_states is None:
+            self._item_states = self.grammar.generate_states()
+        return self._item_states
 
     def set_grammar(self, grammar):
         self._grammar = grammar
+        self.init_table()
 
     def add_action(self, state, symbol, action):
         _action_key = (state, symbol)
@@ -47,29 +57,44 @@ class ParseTable:
         _goto_key = (state, non_terminal)
         return self._goto.get(_goto_key, default)
 
-    def table(self):
-        raise NotImplementedError
+    def find_next_state(self, item_states, item):
+        _item_copy = item.copy()
+        _item_copy.advance()
+        for state, items in item_states.items():
+            if _item_copy in items:
+                return state
+        return None
+
+    def init_table(self):
+        _rules = self.grammar.rules()
+        item_states = self.item_states
+        _init_rule = _rules[0]
+        _init_rule_head = _init_rule.rule_head
+        _terminals = self.grammar.terminals()
+        for state, items in item_states.items():
+            for item in items:
+                next_symbol = item.next_symbol()
+                if item.can_reduce:
+                    _aug_start_rule_head = _init_rule.rule_head
+                    if item.rule_head == _aug_start_rule_head:
+                        self.add_action(state, _aug_start_rule_head, (ParserAction.ACCEPT, item))
+                    else:
+                        for terminal in _terminals:
+                            self.add_action(state, terminal, (ParserAction.REDUCE, item))
+                elif next_symbol in _terminals:
+                    next_state = self.find_next_state(item_states, item)
+                    self.add_action(state, next_symbol, (ParserAction.SHIFT, next_state, item))
+                else:
+                    next_state = self.find_next_state(item_states, item)
+                    self.add_goto(state, next_symbol, (next_state, item))
 
     def print(self):
         print()
-        print(f"ACTION TABLE:")
+        print(underline_text(bold_text(apply_color(208, f"ACTION TABLE:"))))
         for action_key, action_value in self._action.items():
-            if ParserAction.ACCEPT in action_value:
-                print(f"  ACTION({action_key[0]}, {action_key[1]}) ---> {action_value[0]} {ParserAction.ACCEPT}")
-            elif ParserAction.ERROR in action_value:
-                print(f"  ACTION({action_key[0]}, {action_key[1]}) ---> {ParserAction.ERROR}")
-            elif ParserAction.SHIFT in action_value:
-                print(f"  ACTION({action_key[0]}, {action_key[1]}) ---> {action_value[0]} TO {action_value[1]}")
-            elif ParserAction.REDUCE in action_value:
-                # print(f"  IN STATE: {action_key[0]} ON SYMBOL: {action_key[1]} {action_value[0]} TO {action_value[1]}")
-                print(f"  ACTION({action_key[0]}, {action_key[1]}) --->  {action_value[0]} TO {action_value[1]}")
-            else:
-                # TODO: create and raise custom error here
-                _error_details = f"invalid parser action; must be one of either 'SHIFT', 'REDUCE', 'ACCEPT' or 'ERROR'..."
-                raise RuntimeError(_error_details)
-
+            print(f"  ACTION({action_key})={action_value}")
         print()
-        print(f"GOTO TABLE:")
+        print(underline_text(bold_text(apply_color(208, f"GOTO TABLE:"))))
         for goto_key, goto_value in self._goto.items():
             print(f"  GOTO({goto_key[0]}, {goto_key[1]}) ---> {goto_value}")
         print()
@@ -92,20 +117,8 @@ def _parse_table_main():
     parse_table.add_goto(0, 'S', 1)
     parse_table.add_goto(2, 'A', 3)
 
-    # Function to display the parse table
-    def display_parse_table(parse_table):
-        print("ACTION TABLE:")
-        for state, actions in parse_table.action.items():
-            for symbol, action in actions.items():
-                print(f"  ACTION({state}, '{symbol}') = {action}")
-
-        print("\nGOTO TABLE:")
-        for state, gotos in parse_table.goto.items():
-            for non_terminal, next_state in gotos.items():
-                print(f"  GOTO({state}, '{non_terminal}') = {next_state}")
-
-    # Display the constructed parse table
-    display_parse_table(parse_table)
+    # Display parse table (ACTION + GOTO tables)
+    parse_table.print()
 
 
 if __name__ == "__main__":

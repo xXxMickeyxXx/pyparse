@@ -396,14 +396,14 @@ from pyprofiler import profile_callable, SortBy
 from pyevent import PyChannels, PyChannel, PySignal
 
 from pyparse import Parser
-from pysynchrony import PySynchronyEvent
+from pysynchrony import PySynchronyEvent, PySynchronyContext
 from .scratch_parse_table import ParseTable
 from .test_automaton_design import Automaton
 from .scratch_init_grammar import grammar_factory, init_grammar_1, init_grammar_2, init_grammar_3, init_grammar_4
 from .source_descriptor import SourceFile
 from .scratch_utils import generate_id, CircularBuffer, copy_items, copy_item
 from .utils import apply_color, bold_text, underline_text, center_text
-from .scratch_cons import ParserAction, GrammarRuleBy, TableConstructionEvent, TEST_INPUT
+from .scratch_cons import PyParseLoggerID, ParserAction, GrammarRuleBy, TableConstructionEvent, TEST_INPUT
 
 
 """
@@ -440,7 +440,7 @@ from .scratch_cons import ParserAction, GrammarRuleBy, TableConstructionEvent, T
         #####################################################################################################################
 
 
-_PARSER_HANDLER = PyLogger.get
+_PARSER_LOGGER = PyLogger.get(PyParseLoggerID.PARSER)
 GRAMMAR = grammar_factory()
 GRAMMAR_RULES = GRAMMAR.rules()
 NON_TERMINALS = GRAMMAR.non_terminals()
@@ -513,16 +513,16 @@ class Chain:
         return False
 
 
-class ParseContext:
+class ParserHandle:
 
-    __slots__ = ("_init_state", "_parser", "_parse_id", "_stack", "_previous_states")
+    __slots__ = ("_state", "_parser", "_context_id", "_stack", "_input_pointer")
 
-    def __init__(self, init_state=None, parser=None, parse_id=None):
-        self._init_state = init_state
+    def __init__(self, init_state=None, parser=None, context_id=None):
+        self._state = init_state
         self._parser = parser
-        self._parse_id = parse_id or generate_id()
+        self._context_id = context_id or generate_id()
         self._stack = None
-        self._previous_states = None
+        self._input_pointer = 0
 
     @property
     def init_state(self):
@@ -533,53 +533,41 @@ class ParseContext:
         return self._parser
 
     @property
-    def parse_id(self):
-        return self._parse_id
+    def context_id(self):
+        return self._context_id
 
     @property
     def stack(self):
-        if self._stack is None:
-            self._stack = self.stack_factory()
         return self._stack
 
-    @property
-    def previous_states(self):
-        if self._previous_states is None:
-            self._previous_states = self.stack_factory()
-        return self._previous_states
+    def add_listener(self, receiver, receiver_id=None, overwrite=False):
+        self.signal.register(receiver, receiver_id=receiver_id, overwrite=overwrite)
+        return True
+
+    def remove_listener(self, receiver_id):
+        return self.signal.remove(receiver_id)
 
     def state(self):
-        return self.stack[-1] if self.stack else self.init_state
+        return self._state
+
+    def set_state(self, state):
+        self._state = state
 
     def stack_factory(self):
         return deque()
 
     def set_parser(self, parser):
+        if self._parser is not None:
+            # TODO: create and raise custom error here
+            _error_details = f"unable to set parser as one has already been associated with instance of {self.__class__.__name__}..."
+            raise RuntimeError(_error_details)
         self._parser = parser
 
-    def update_state(self, state):
-        self.stack.append(state)
+    def save(self, parser):
+        raise NotImplementedError
 
-    def undo(self):
-        if self.stack:
-            _current_state = self.stack.pop()
-            self.previous_states.append(_current_state)
-        else:
-            # TODO: create and raise custom error here
-            _error_details = f"unable to perform 'undo' operation as context has reached it's initial state of {self._init_state}..."
-            raise RuntimeError(_error_details)
-
-    def redo(self):
-        if self.previous_states:
-            _prev_state = self.previous_states.pop()
-            self.stack.append(_prev_state)
-        else:
-            # TODO: create and raise custom error here
-            _error_details = f"unable to perform 'redo' operation as context has been brought to it's current state..."
-            raise RuntimeError(_error_details)
-
-    def clear_previous(self):
-        self._previous_states = None
+    def restore(self, parser):
+        raise NotImplementedError
 
 
 class ParserSettings:
@@ -676,19 +664,16 @@ class ParserDesign:
     #       inputs/input sources using the same parser and/or the ability to add
     #       undo/redo (or backtracking) operations
 
-    def __init__(self, item_states=None, grammar=None, parse_table=None, parser_id=None):
-        self._item_states = item_states
+    __slots__ = ("_parser_id", "_grammar", "_parse_table", "_parser_settings", "_channel", "_logger", "_init_state", "_state")
+
+    def __init__(self, init_state=0, grammar=None, parse_table=None, parser_id=None):
         self._parser_id = parser_id or generate_id()
         self._grammar = grammar
         self._parse_table = parse_table
-        self._stack = None
-        self._input_queue = None
-        self._validator_chain = None
         self._parser_settings = ParserSettings(self)
-        self._channel = PyChannel(channel_id=self.parser_id)        
-        self._continue = False
-        self._input_valid = False
+        self._init_state = init_state
         self._state = None
+        self._channel = None
         self._logger = None
 
     @property
@@ -704,14 +689,6 @@ class ParserDesign:
         return self._grammar
 
     @property
-    def item_states(self):
-        if not bool(self._item_states):
-            # TODO: create and raise custom error here
-            _error_details = f"unable to access 'item_states' as one has not yet been associated with instance of {self.__class__.__name__}..."
-            raise RuntimeError(_error_details)
-        return self._grammar
-
-    @property
     def parse_table(self):
         if self._parse_table is None:
             # TODO: create and raise custom error here
@@ -720,29 +697,34 @@ class ParserDesign:
         return self._parse_table
 
     @property
-    def stack(self):
-        if self._stack is None:
-            self._stack = self.stack_factory()
-        return self._stack
+    def init_state(self):
+        return self._init_state
 
     @property
-    def input_queue(self):
-        if self._input_queue is None:
-            self._input_queue = self.queue_factory()
-        return self._input_queue
+    def channel(self):
+        if self._channel is None:
+            self._channel = PyChannel(channel_id=self.parser_id)
+        return self._channel
 
     @property
-    def is_valid(self):
-        return bool(self._input_valid)
+    def logger(self):
+        if self._logger is None:
+            self._logger = _PARSER_LOGGER
+        return self._logger
 
     def __str__(self):
         return f"{self.__class__.__name__}"
 
+    def register(self, signal_id, receiver=None, receiver_id=None):
+        return self.channel.register(signal_id, receiver=receiver, receiver_id=receiver_id)
+
     def set_grammar(self, grammar):
+        # TODO: perhaps create and raise custom error here if '_grammar' has already been set
         self._grammar = grammar
 
-    def set_states(self, item_states):
-        self._item_states = item_states
+    def set_logger(self, logger):
+        # TODO: perhaps create and raise custom error here if '_grammar' has already been set
+        self._logger = logger
 
     def state(self):
         # NOTE: this could be an abstract method for a 'Parser' interface/base class
@@ -753,41 +735,10 @@ class ParserDesign:
         # TODO: determine how this can/should be used
         # NOTE: this could be an abstract method for a 'Parser' interface/base class
         self._state = state
-        self._channel.emit(ParserAction.UPDATE, self)
+        # self.channel.emit(ParserAction.UPDATE, self)
 
     def stack_factory(self, *args, **kwargs):
         return deque(*args, **kwargs)
-
-    def queue_factory(self, *args, **kwargs):
-        return deque(*args, **kwargs)
-
-    def stack_push(self, element):
-        self.stack.append(element)
-        self.update_state(element)
-        return True
-
-    def stack_pop(self):
-        if self.stack:
-            _retval = self.stack.pop()
-            self.update_state(self.stack_top)
-            return _retval
-
-    def stack_top(self):
-        return self.stack[-1] if self.stack else None
-
-    def stack_bottom(self):
-        return self.stack[0] if self.stack else None
-
-    def queue_extend(self, elements):
-        self.input_queue.extend(elements)
-        return True
-
-    def enqueue_input(self, element):
-        self.input_queue.append(element)
-        return True
-
-    def dequeue_input(self):
-        return self.input_queue.popleft()
 
     def setting(self, setting_key, default=None):
         return self._parser_settings.get_setting(setting_key, default=default)
@@ -795,117 +746,90 @@ class ParserDesign:
     def config(self, setting_key, setting_value, overwrite=False):
         return self._parser_settings.add_setting(setting_key, setting_value, overwrite=overwrite)
 
-    def register(self, event_id, receiver=None, receiver_id=None):
-        self._channel.register(event_id, receiver=receiver, receiver_id=receiver_id)
-
     def set_table(self, parse_table):
+        # TODO: perhaps create and raise custom error here if '_grammar' has already been set
         self._parse_table = parse_table
-
-    def input_valid(self, bool_val):
-        self._input_valid = bool_val
-
-    def reset(self):
-        self._stack = None
-        self._input_queue = None
-        self._continue = False
-        self._input_valid = False
 
     def stop(self):
         self._continue = False
 
-    def action(self, state, symbol):
-        _action_search = self._parse_table.action(state, symbol)
-        if not bool(_action_search):
-            # TODO: create and raise custom error here
-            return ParserAction.ERROR, None
-        return _action_search
+    def action(self, state, symbol, default=None):
+        return self._parse_table.action(state, symbol, default=default)
 
-    def goto(self, state, non_terminal):
-        _goto_state = self._parse_table.goto(state, non_terminal)
+    def goto(self, state, non_terminal, default=None):
+        _goto_state = self._parse_table.goto(state, non_terminal, default=default)
         return _goto_state
 
-    def init_input(self, input_string):
-        self.queue_extend([i for i in input_string])
+    def init_input(self, input):
+        raise NotImplementedError
 
-    def parse(self, input_string):
-        _aug_start_rule_head = self.grammar.rules()[0].rule_head
-        _current_state = None
-        _prev_symbol = None
-        _next_symbol = None
-        _action = None
-        _next_state = None
-        _symbol_stack = self.stack_factory()
-        self.init_parse(input_string)
-        _count = 0
-        while self._continue:
-            _current_state = self.stack_top()
-            # if _current_state == 1 and 
-
-            _prev_symbol = _symbol_stack[-1] if _symbol_stack else None
-            if self.input_queue:
-                _next_symbol = self.input_queue[0]
-            _current_state = self.state()
-
-            _action_selection_result = self.action(_current_state, _next_symbol)
-            if not all(_action_selection_result):
-                _next_symbol = "$"
-                print(f"INPUT STACK: {self.input_queue}")
-                
-
-            _action, _next_state = _action_selection_result
-
+    def parse(self, input):
+        # input = "$" + input + "$"
+        # input += "$"
+        _input_pointer = 0
+        _input_len = len(input)
+        _state_stack = self.stack_factory()
+        _parser_action = None
+        _state_stack.append(self.init_state)
+        _current_state = self._get_current_state(_state_stack, end_symbol="$")
+        _current_symbol = None
+        _next_symbol = input[_input_pointer]
+        # _parser_handle = ParserHandle()
+        print(f"INPUT STRING PRE-PARSE ---> {input}")
+        while True:
             print()
-            print(underline_text(bold_text(apply_color(166, f"PRE-ACTION EMISSION"))))
+            print(f"MAINLOOP TOP:")
             print()
-            print(f"\tSTACK ---> {self.stack}")
-            print(f"\tSYMBOL STACK ---> {_symbol_stack}")
-            print(f"\tCURRENT STATE ---> {_current_state}")
-            print(f"\tNEXT SYMBOL ---> {_next_symbol}")
-            print(f"\tPREVIOUS SYMBOL ---> {_prev_symbol}")
-            print(f"\tACTION ---> {_action}")
-            print(f"\tNEXT STATE ---> {_next_state}")
-            print()
+            print(f"STATE STACK: {_state_stack}")
+            print(f"CURRENT STATE: {_current_state}")
+            print(f"NEXT SYMBOL: {_next_symbol}")
 
+            if _current_state == 1 and _input_pointer == _input_len -1:
+                return True
 
+            _parser_action = self.action(_current_state, _next_symbol, default=None)
+            print(f"PARSER ACTION ---> {_parser_action}")
+            if _parser_action is None:
+                _action = ParserAction.ERROR
+            else:
+                _action = _parser_action[0]
             if _action == ParserAction.SHIFT:
-                print(underline_text(bold_text(apply_color(161, f"PARSER ACTION: {_action}"))))
-                _symbol_stack.append(_next_symbol)
-                self.stack_push(_next_state)
-                self.dequeue_input()
-                print(f"INPUT STACK: {self.input_queue}")
+                _next_ = _parser_action[1]
+                _item = _parser_action[2]
+                print(f"ITEM ---> {_item.status()}")
+                _state_stack.append(_next_)
+                print(f"ON {_next_symbol}, IN STATE: {_current_state}, SHIFTING TO STATE: {_next_}")
             elif _action == ParserAction.REDUCE:
-                print(underline_text(bold_text(apply_color(161, f"PARSER ACTION: {_action}"))))
-                _grammar_rule_matches = self.grammar.rule(_next_state)
-                _item = _grammar_rule_matches[0] if _grammar_rule_matches else None
-                if _item:
-                    for _ in range(_item.rule_size):
-                        _popped_symbol = self.stack_pop()
-                    _cur_state = self.stack_top()
-                    _goto_next_state = self.goto(_cur_state, _next_state)
-                    print(f"GOTO STATE WITHIN REDUCE: {_goto_next_state}")
-                    self.stack_push(_goto_next_state)
-            elif _action == ParserAction.ACCEPT:
-                print(underline_text(bold_text(apply_color(161, f"PARSER ACTION: {_action}"))))
-                self.input_valid(True)
-                self.stop()
+                _item = _parser_action[1]
+                for _ in range(_item.rule_size):
+                    _state_stack.pop()
+                _current_state = self._get_current_state(_state_stack, end_symbol="$")
+                _next_ = self.goto(_current_state, _item.rule_head, default=None)
+                _state_stack.append(_next_[0])
+                print(f"IN STATE: {_current_state}, AFTER REDUCING SYMBOL(S): {', '.join(_item.look_behind())} TO SYMBOL: {_item.rule_head}, GOTO STATE: {_next_[0]}")
+                # break
             elif _action == ParserAction.ERROR:
-                print(underline_text(bold_text(apply_color(161, f"PARSER ACTION: {_action}"))))
-                self.input_valid(False)
-                self.stop()
+                print(f"ON {_next_symbol}, IN STATE: {_current_state} -- (•<*!!ERROR!!*>•)")
+                return False
+            elif _action == ParserAction.ACCEPT:
+                print(f"INPUT VALID!!!")
+                return True
 
-            # _new_event = ParserEvent(event_id=_action, parser=self, next_state=_next_state, current_state=_current_state, next_symbol=_next_symbol, previous_symbol=_prev_symbol, action=_action, symbol_stack=_symbol_stack)
-            # self._channel.emit(_action, _new_event)
-            # _count += 1
+            if _input_len - 1 > _input_pointer:
+                _input_pointer += 1
+                _next_symbol = input[_input_pointer]
+            _current_state = self._get_current_state(_state_stack, end_symbol="$")
 
+    def _get_current_state(self, stack, end_symbol=None):
+        if stack:
+            _stack_top = stack[-1]
+            self.update_state(_stack_top)
+            return _stack_top
+        return end_symbol
 
-
-        _input_valid = self.is_valid
-        self.reset()
-        return _input_valid
-
-    def init_parse(self, input_string):
-        # input_string += "$"
-        self.init_input(input_string)
+    def init_parse(self, input):
+        # input += "$"
+        self.init_input(input)
         # self.parse_table.add_action(0, "", ParserAction.SHIFT)
         self.stack_push(0)                
         self._continue = True
@@ -1045,134 +969,134 @@ def display_result(input, parser_result):
     print()
 
 
-def find_next_state(item_states, item):
-    _item_copy = item.copy()
-    _item_copy.advance()
-    for state, items in item_states.items():
-        if _item_copy in items:
-            return state
-    return None
+# def find_next_state(item_states, item):
+#     _item_copy = item.copy()
+#     _item_copy.advance()
+#     for state, items in item_states.items():
+#         if _item_copy in items:
+#             return state
+#     return None
 
 
-def closure(rule, grammar):    
-    _non_terminals = grammar.non_terminals()
-    _closure_group = [rule]
-    _break = False
-    _rule_queue = deque(_closure_group)
-    while _rule_queue:
-        _next_rule = _rule_queue.popleft()
-        _next_symbol = _next_rule.next_symbol(default=None)
-        if _next_symbol in _non_terminals:
-            _rule = grammar.rule(_next_symbol, search_by=GrammarRuleBy.HEAD)
-            for _check_rule in _rule:
-                if _check_rule in _closure_group:
-                    continue
-                _closure_group.append(_check_rule)
-                _rule_queue.append(_check_rule)
-    return tuple(copy_items(_closure_group, deepcopy=True))
+# def closure(rule, grammar):    
+#     _non_terminals = grammar.non_terminals()
+#     _closure_group = [rule]
+#     _break = False
+#     _rule_queue = deque(_closure_group)
+#     while _rule_queue:
+#         _next_rule = _rule_queue.popleft()
+#         _next_symbol = _next_rule.next_symbol(default=None)
+#         if _next_symbol in _non_terminals:
+#             _rule = grammar.rule(_next_symbol, search_by=GrammarRuleBy.HEAD)
+#             for _check_rule in _rule:
+#                 if _check_rule in _closure_group:
+#                     continue
+#                 _closure_group.append(_check_rule)
+#                 _rule_queue.append(_check_rule)
+#     return tuple(copy_items(_closure_group, deepcopy=True))
 
 
-def goto(rule):
-    pass
+# def goto(rule):
+#     pass
 
 
-def init_I0(grammar):
-    _g_rules = grammar.rules()
+# def init_I0(grammar):
+#     _g_rules = grammar.rules()
 
-    if not _g_rules:
-        # TODO: create and raise custom error here
-        _error_details = f"unable to create item set as no grammar rules have been added to grammar object..."
-        raise RuntimeError(_error_details)
+#     if not _g_rules:
+#         # TODO: create and raise custom error here
+#         _error_details = f"unable to create item set as no grammar rules have been added to grammar object..."
+#         raise RuntimeError(_error_details)
     
-    _augmented_item = _g_rules[0]
-    return closure(_augmented_item, grammar=grammar)
+#     _augmented_item = _g_rules[0]
+#     return closure(_augmented_item, grammar=grammar)
 
 
-def generate_item_states(grammar) -> None:
-    """
-    # TODO: create 'GOTO' table - after generating item sets/states,
-    #       iterate through them, performing the searches 
+# def generate_item_states(grammar) -> None:
+#     """
+#     # TODO: create 'GOTO' table - after generating item sets/states,
+#     #       iterate through them, performing the searches 
 
-    # TODO: be wary of how the below logic (as well as the lib logic
-    #       in general) handles concurrency/parallelism
+#     # TODO: be wary of how the below logic (as well as the lib logic
+#     #       in general) handles concurrency/parallelism
 
-    # TODO: ?? possibly create a stack implementation (possibly
-    #       optimized for this lib, perhaps implement in the c
-    #       programming language) ??
+#     # TODO: ?? possibly create a stack implementation (possibly
+#     #       optimized for this lib, perhaps implement in the c
+#     #       programming language) ??
 
-    # TODO: ?? create a buffer design (possibly optimized for this
-    #       lib, perhaps implement in the c programming language) ??
+#     # TODO: ?? create a buffer design (possibly optimized for this
+#     #       lib, perhaps implement in the c programming language) ??
 
-    # TODO: fix goto logic as current implementation is missing some of the
-    #       goto transitions for certain state/symbol combinations
+#     # TODO: fix goto logic as current implementation is missing some of the
+#     #       goto transitions for certain state/symbol combinations
 
-    # TODO: add small runtime optimizations (like aliases for methods to reduce
-    #       lookup times)
-
-
-    """
-
-    _terminals = grammar.terminals()
-    _non_terminals = grammar.non_terminals()
-
-    _init_item_set = init_I0(grammar)
-    _item_sets = [_init_item_set]
-
-    _current_state = 0
-    _goto_mapping = {}
-    _rule_queue = deque([_init_item_set])
-    while _rule_queue:
-        _next_item_set = _rule_queue.popleft()
-        _current_state = len(_item_sets)
-        for _item in _next_item_set:
-            _item = _item.copy()
-            if _item.can_reduce:
-                continue
-            _item.advance()
-            if _item.next_symbol() in _non_terminals:
-                _next_group = closure(_item, grammar)
-                if _next_group not in _item_sets:
-                    _item_sets.append(_next_group)
-                    _rule_queue.append(_next_group)
-
-            else:
-                _next_group = [_item]
-                if _next_group not in _item_sets:
-                    _item_sets.append(_next_group)
-                    _rule_queue.append(_next_group)
-
-    _retval = {}
-    for idx, i in enumerate(_item_sets):
-        _retval[idx] = []
-        for k in i:
-            _retval[idx].append(k)
-
-    return _retval
+#     # TODO: add small runtime optimizations (like aliases for methods to reduce
+#     #       lookup times)
 
 
-def generate_parse_table(grammar, item_states):
-    _parse_table = ParseTable()
-    _rules = grammar.rules()
-    _init_rule = _rules[0]
-    _init_rule_head = _init_rule.rule_head
-    _terminals = grammar.terminals()
-    for state, items in item_states.items():
-        for item in items:
-            next_symbol = item.next_symbol()
-            if item.can_reduce:
-                _aug_start_rule_head = _init_rule.rule_head
-                if item.rule_head == _aug_start_rule_head:
-                    _parse_table.add_action(state, _aug_start_rule_head, (ParserAction.ACCEPT, item.rule_head, item.rule_id))
-                else:
-                    for terminal in _terminals:
-                        _parse_table.add_action(state, terminal, (ParserAction.REDUCE, item.rule_head, item.rule_id))
-            elif next_symbol in _terminals:
-                next_state = find_next_state(item_states, item)
-                _parse_table.add_action(state, next_symbol, (ParserAction.SHIFT, next_state, item.rule_head, item.rule_id))
-            else:
-                next_state = find_next_state(item_states, item)
-                _parse_table.add_goto(state, next_symbol, (next_state, item.rule_head, item.rule_id))
-    return _parse_table
+#     """
+
+#     _terminals = grammar.terminals()
+#     _non_terminals = grammar.non_terminals()
+
+#     _init_item_set = init_I0(grammar)
+#     _item_sets = [_init_item_set]
+
+#     _current_state = 0
+#     _goto_mapping = {}
+#     _rule_queue = deque([_init_item_set])
+#     while _rule_queue:
+#         _next_item_set = _rule_queue.popleft()
+#         _current_state = len(_item_sets)
+#         for _item in _next_item_set:
+#             _item = _item.copy()
+#             if _item.can_reduce:
+#                 continue
+#             _item.advance()
+#             if _item.next_symbol() in _non_terminals:
+#                 _next_group = closure(_item, grammar)
+#                 if _next_group not in _item_sets:
+#                     _item_sets.append(_next_group)
+#                     _rule_queue.append(_next_group)
+
+#             else:
+#                 _next_group = [_item]
+#                 if _next_group not in _item_sets:
+#                     _item_sets.append(_next_group)
+#                     _rule_queue.append(_next_group)
+
+#     _retval = {}
+#     for idx, i in enumerate(_item_sets):
+#         _retval[idx] = []
+#         for k in i:
+#             _retval[idx].append(k)
+
+#     return _retval
+
+
+# def generate_parse_table(grammar, item_states):
+#     _parse_table = ParseTable()
+#     _rules = grammar.rules()
+#     _init_rule = _rules[0]
+#     _init_rule_head = _init_rule.rule_head
+#     _terminals = grammar.terminals()
+#     for state, items in item_states.items():
+#         for item in items:
+#             next_symbol = item.next_symbol()
+#             if item.can_reduce:
+#                 _aug_start_rule_head = _init_rule.rule_head
+#                 if item.rule_head == _aug_start_rule_head:
+#                     _parse_table.add_action(state, _aug_start_rule_head, (ParserAction.ACCEPT, item.rule_head, item.rule_id))
+#                 else:
+#                     for terminal in _terminals:
+#                         _parse_table.add_action(state, terminal, (ParserAction.REDUCE, item.rule_head, item.rule_id))
+#             elif next_symbol in _terminals:
+#                 next_state = find_next_state(item_states, item)
+#                 _parse_table.add_action(state, next_symbol, (ParserAction.SHIFT, next_state, item.rule_head, item.rule_id))
+#             else:
+#                 next_state = find_next_state(item_states, item)
+#                 _parse_table.add_goto(state, next_symbol, (next_state, item.rule_head, item.rule_id))
+#     return _parse_table
 
 
 def read_source(source_file):
@@ -1231,62 +1155,20 @@ class TestParserActionEvents(ParserActionEvents):
         parser.register(ParserAction.UPDATE, self._parser_update_)        
 
     @staticmethod
-    def _parser_shift_(event):
-        print(bold_text(apply_color(87, f" • --- SHIFTING --- • ")))
-        print(f"EVENT IN SHIFTING")
-        print(event)
-        print()
-        # parser = event.data("parser", default=None)
-        # _symbol_stack = event.data("symbol_stack", default=None)
-        # if not parser.stack or not parser.input_queue:
-        #     parser.stop()
-        #     return
-        parser = event.data("parser", default=None)
-        _symbol = parser.dequeue_input()
-        _symbol_stack = event.data("symbol_stack", default=None)
-        if _symbol_stack is not None:
-            _symbol_stack.append(_symbol)
-        _next_state = event.data("next_state", default=None)
-        parser.stack_push(_next_state)
+    def _parser_shift_(handle):
+        pass
 
     @staticmethod
-    def _parser_reduce_(event):
-        print(bold_text(apply_color(87, f" • --- REDUCING --- • ")))
-        print(f"EVENT IN REDUCING")
-        print(event)
-        print()
-        parser = event.data("parser", default=None)
-        _next_state, _item = event.data("next_state", default=(None, None))
-        for _ in range(_item.rule_size):
-            _stack_pop_val = parser.stack_pop()
-            print(f"POPPING STACK: {_stack_pop_val}")
-        _new_state = parser.stack_top()
-        _reduced_item_head = _item.rule_head
-        _symbol_stack = event.data("symbol_stack", default=None)
-        if _symbol_stack is not None:
-            _symbol_stack.append(_reduced_item_head)
-        _goto_ = parser.parse_table.goto(_new_state, _reduced_item_head)
-        print(f"PUSHING...\n\t• STATE: {_goto_}\n\t• ITEM HEAD: {_reduced_item_head}\n\t• ITEM STATUS: {_item.status()}")
-        parser.stack_push(_goto_)
-        print(f"ITEM ---> {_item}")
-        print(f"ITEM HEAD @ REDUCE ---> {_reduced_item_head}")
-        print(f"STACK AFTER REDUCTION ---> {parser.stack}")
+    def _parser_reduce_(handle):
+        pass
 
     @staticmethod
-    def _parser_error_(event):
-        print(bold_text(apply_color(9, f" • --- ERROR --- • ")))
-        parser = event.data("parser", default=None)
-        parser.stop()
-        parser.input_valid(False)
-        for _ in range(3):
-            print()
+    def _parser_error_(handle):
+        pass
 
     @staticmethod
-    def _parser_accept_(event):
-        print(bold_text(apply_color(10, f" • --- INPUT VALID --- • ")))
-        parser = event.data("parser", default=None)
-        parser.stop()
-        parser.input_valid(True)
+    def _parser_accept_(handle):
+        pass
 
     @staticmethod
     def _parser_update_(parser):
@@ -1309,71 +1191,44 @@ def parse_main():
     # mapping which together when combined with an enumeration of the all
     # grammar symbols, build the parse table (which is used to guid the LR(0)
     # automaton component of the shift-reduce parser)
-    _item_states = generate_item_states(GRAMMAR)
+    _item_states = GRAMMAR.generate_states()
     display_item_states(_item_states)
 
 
     # Create parse table, used to guide the LR(0) automaton that makes
     # up the design for the shift/reduce parser
-    _parse_table = generate_parse_table(GRAMMAR, _item_states)
-    # _parse_table_2 = ParseTable(table_id="TEST_PARSE_TABLE")
-    # _parse_table_2.add_action(1, "$", (ParserAction.ACCEPT, "$"))
-    # _parse_table_2.add_action(0, "a", (ParserAction.SHIFT, 2))
-    # _parse_table_2.add_action(2, "b", (ParserAction.SHIFT, 4))
-    # _parse_table_2.add_action(3, "a", (ParserAction.REDUCE, "S"))
-    # _parse_table_2.add_action(3, "b", (ParserAction.REDUCE, "S"))
-    # _parse_table_2.add_action(3, "c", (ParserAction.SHIFT, 7))
-    # _parse_table_2.add_action(4, "a", (ParserAction.REDUCE, "A"))
-    # _parse_table_2.add_action(4, "b", (ParserAction.REDUCE, "A"))
-
-    # _parse_table_2.add_goto(0, "S", 1)
-    # _parse_table_2.add_goto(2, "A", 3)
+    _parse_table = ParseTable(grammar=GRAMMAR, table_id="[ • -- TEST_PARSE_TABLE -- • ]")
 
     # Display parse table
     display_table(_parse_table)
-    # display_table(_parse_table_2)
 
-    print()
-    print(f"--------------------")
-    print()
-    _test_val = _parse_table.action(1, "$")
-    print(f"TEST VAL ---> {_test_val}")
-    if _test_val:
-        _test_val_rule_id = GRAMMAR.rule(_test_val[2], search_by=GrammarRuleBy.HEAD, all=False)
-        print(_test_val_rule_id)
-    else:
-        print(f"ERROR - unable to retrieve grammar rule as associated action does not exists within parse table instance...")
-    print()
-    print(f"--------------------")
-    print()
 
     # Instantiate parser back-end (actual parsing implementation)
-    # _parser_impl = ShiftReduceParser()
-    # _parser_impl = ParserDesign()
+    _parser_impl = ParserDesign(init_state=0, grammar=GRAMMAR, parse_table=_parse_table)
     # _parser_impl.set_table(_parse_table)
     # _parser_impl.set_grammar(GRAMMAR)
 
 
-    # # Initialize parser events
-    # _parser_events = TestParserActionEvents()
-    # _parser_events.init_events(_parser_impl)
+    # Initialize parser events
+    _parser_events = TestParserActionEvents()
+    _parser_events.init_events(_parser_impl)
 
-    # # Instantiate parser front-end (bridge between different parser designs)
-    # parser = Parser(parser=_parser_impl)
+    # Instantiate parser front-end (bridge between different parser designs)
+    parser = Parser(parser=_parser_impl)
 
 
-    # # Initialize source file object and get data contained within file
-    # _source_file = SourceFile(path=TEST_INPUT)
-    # _source_file_data = read_source(_source_file)
-    # # display_test_data(_source_file_data)
+    # Initialize source file object and get data contained within file
+    _source_file = SourceFile(path=TEST_INPUT)
+    _source_file_data = read_source(_source_file)
+    # display_test_data(_source_file_data)
     
 
-    # # Parse and display results; once this works, the next step(s) will be to
-    # # finilize design (implement additional design/concepts as needed), organize
-    # # 'pyparse' files (taking the concepts contained with this module and the
-    # # 'scratch' sub-package in general), re-organize git, and then use and see how
-    # # I can make it better, more robust, etc.
-    # parse_and_display(_source_file_data, parser, count=-1)
+    # Parse and display results; once this works, the next step(s) will be to
+    # finilize design (implement additional design/concepts as needed), organize
+    # 'pyparse' files (taking the concepts contained with this module and the
+    # 'scratch' sub-package in general), re-organize git, and then use and see how
+    # I can make it better, more robust, etc.
+    parse_and_display(_source_file_data, parser, count=-1)
 
 
 if __name__ == "__main__":
