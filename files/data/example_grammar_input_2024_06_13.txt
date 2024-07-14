@@ -1,4 +1,3 @@
-ab
-abc
-aab
-abb
+id * id
+id + id
+id + id * id -- id
