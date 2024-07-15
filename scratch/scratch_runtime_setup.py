@@ -396,14 +396,14 @@ from pyprofiler import profile_callable, SortBy
 from pyevent import PyChannels, PyChannel, PySignal
 
 from pyparse import Parser, Tokenizer
-from pysynchrony import PySynchronyEvent, PySynchronyContext
+from pysynchrony import PySynchronyEventLoop, PySynchronyContext, PySynchronyPort, PySynchronyEvent
 from .scratch_parse_table import ParseTable
 from .test_automaton_design import Automaton
 from .scratch_init_grammar import grammar_factory, init_grammar_1, init_grammar_2, init_grammar_3, init_grammar_4, init_grammar_5, init_grammar_6
 from .source_descriptor import SourceFile
 from .scratch_utils import generate_id, CircularBuffer, copy_items, copy_item
 from .utils import apply_color, bold_text, underline_text, center_text
-from .scratch_cons import PyParseLoggerID, ParserAction, GrammarRuleBy, TableConstructionEvent, TEST_INPUT
+from .scratch_cons import PyParsePortID, PyParseEventID, PyParseLoggerID, ParserAction, GrammarRuleBy, TableConstructionEvent, TEST_INPUT
 
 
 """
@@ -656,6 +656,8 @@ class ParserEvent:
 
 
 class TestGrammar6(Tokenizer):
+
+    # TODO/NOTE: use some sort of chain which has handlers to work with input stream
 
     def __init__(self, input=None):
         super().__init__(input=input)
@@ -940,6 +942,339 @@ class CoreParser:
         _action = _parser_action[0]
         print(f"ACTION AT VERY END: {_action}")
         return _action == ParserAction.ACCEPT
+
+
+class CoreParser2(PySynchronyContext):
+
+    def __init__(self, init_state=0, grammar=None, parse_table=None, parser_id=None):
+        super().__init__(event_loop=None, context_id=None)
+        self._parser_id = parser_id or generate_id()
+        self._grammar = grammar
+        self._parse_table = parse_table
+        self._parser_settings = ParserSettings(self)
+        self._init_state = init_state
+        self._state = None
+        self._channel = None
+        self._logger = None
+        self.__initialize__()
+
+    # TODO: interface should include (as 'NotImplementedError' until implemented)
+    @property
+    def parser_id(self):
+        return self._parser_id
+
+    # TODO: interface should include (as 'NotImplementedError' until implemented)
+    @property
+    def grammar(self):
+        if not bool(self._grammar):
+            # TODO: create and raise custom error here
+            _error_details = f"unable to access 'grammar' as one has not yet been associated with instance of {self.__class__.__name__}..."
+            raise RuntimeError(_error_details)
+        return self._grammar
+
+    @property
+    def parse_table(self):
+        if self._parse_table is None:
+            # TODO: create and raise custom error here
+            _error_details = f"unable to access 'parse_table' as one has not yet been associated with instance of {self.__class__.__name__}..."
+            raise RuntimeError(_error_details)
+        return self._parse_table
+
+    # TODO: interface should include (as 'NotImplementedError' until implemented)
+    @property
+    def init_state(self):
+        return self._init_state
+
+    @property
+    def channel(self):
+        if self._channel is None:
+            self._channel = PyChannel(channel_id=self.parser_id)
+        return self._channel
+
+    @property
+    def logger(self):
+        if self._logger is None:
+            self._logger = _PARSER_LOGGER
+        return self._logger
+
+    def __initialize__(self):
+        _event_loop = PySynchronyEventLoop(loop_id=self.parser_id)
+        self.set_loop(_event_loop)
+
+    def __str__(self):
+        return f"{self.__class__.__name__}"
+
+    # TODO: interface should include this as an 'abstractmethod' 
+    def register(self, signal_id, receiver=None, receiver_id=None):
+        return self.channel.register(signal_id, receiver=receiver, receiver_id=receiver_id)
+
+    # TODO: interface should include this as an 'abstractmethod' 
+    def setting(self, setting_key, default=None):
+        return self._parser_settings.get_setting(setting_key, default=default)
+
+    # TODO: interface should include this as an 'abstractmethod' 
+    def config(self, setting_key, setting_value, overwrite=False):
+        return self._parser_settings.add_setting(setting_key, setting_value, overwrite=overwrite)
+
+    # TODO: interface should include this as an 'abstractmethod' 
+    def set_grammar(self, grammar):
+        # TODO: perhaps create and raise custom error here if '_grammar' has already been set
+        self._grammar = grammar
+
+    def set_table(self, parse_table):
+        # TODO: perhaps create and raise custom error here if '_grammar' has already been set
+        self._parse_table = parse_table
+
+    # TODO: interface should include this as an 'abstractmethod' 
+    def set_logger(self, logger):
+        # TODO: perhaps create and raise custom error here if '_grammar' has already been set
+        self._logger = logger
+
+    # TODO: interface should include this as an 'abstractmethod' 
+    def state(self):
+        # NOTE: this could be an abstract method for a 'Parser' interface/base class
+        # return self.stack_top() or ()
+        return self._state
+
+    # TODO: interface should include this as an 'abstractmethod' 
+    def update_state(self, state):
+        # TODO: determine how this can/should be used
+        # NOTE: this could be an abstract method for a 'Parser' interface/base class
+        self._state = state
+        self.channel.emit(ParserAction.UPDATE, self)
+
+    # TODO: interface should include this as an 'abstractmethod' 
+    def stack_factory(self, *args, **kwargs):
+        return deque(*args, **kwargs)
+
+    # TODO: interface should include this as an 'abstractmethod' 
+    def action(self, state, symbol, default=None):
+        return self._parse_table.action(state, symbol, default=default)
+
+    # TODO: interface should include this as an 'abstractmethod' 
+    def goto(self, state, non_terminal, default=None):
+        _goto_state = self._parse_table.goto(state, non_terminal, default=default)
+        return _goto_state
+
+    def run(self):
+        self.event_loop.on_loop(self._parse)
+        _parser_channel = self.channel()
+        _ctx_channel.register(PySynchronyEventID.EVENT, self._new_event)
+        self.register_handler(PySynchronyPortID.EVENT_QUEUE, self._event_port_handler)
+        self.register_handler(PySynchronyPortID.SLEEP_QUEUE, self._sleep_port_handler)
+        self.register_handler(PySynchronyPortID.READY_QUEUE, self._ready_port_handler)
+        return self.event_loop.run()
+
+    def _parse(self, input):
+        _input_pointer = 0
+        _input_len = len(input)
+        _pointer_max = _input_len - 1
+        _end_of_input = False
+        _state_stack = self.stack_factory()
+        _state_stack.append(self.init_state)
+        self.update_state(_state_stack[-1])
+        _next_symbol = input[_input_pointer][1]
+        _parser_action = self.action(self.state(), _next_symbol, default=None)
+        _action = _parser_action[0] if _parser_action else ParserAction.ERROR
+        while not _end_of_input:
+            print()
+            print(f"MAINLOOP TOP:")
+            print()
+            print(f"STATE STACK: {_state_stack}")
+            print(f"INPUT LENGTH: {_input_len}")
+            print(f"NEXT SYMBOL: {_next_symbol}")
+            print(f"POINTER AT: {_input_pointer} (POINTER MAX: {_pointer_max})")
+            print(f"AT END OF INPUT: {_end_of_input is True}")
+            print(f"CURRENT STATE: {self.state()}")
+            print(f"PARSER ACTION: {_parser_action}")
+            print(f"ACTION: {_action}")
+            print()
+
+            # NOTE: perhaps this goes at the bottom of the loop; that way we can avoid
+            #       another cycle if input parse is valid (or not valid)
+            if _action == ParserAction.SHIFT:
+                _next_ = _parser_action[1]
+                _item = _parser_action[2]
+                _state_stack.append(_next_)
+                self.update_state(_next_)
+                # NOTE: may need to re-add that 'else' block to make sure the '_end_of_input' gets set
+                if _pointer_max > _input_pointer:
+                    _input_pointer += 1
+                    _next_symbol = input[_input_pointer][1]
+                    if _input_pointer == _pointer_max:
+                        _end_of_input = True
+            elif _action == ParserAction.REDUCE:
+                _item = _parser_action[1]
+                for _ in range(_item.rule_size):
+                    _state_stack.pop()
+                    self.update_state(_state_stack[-1] if _state_stack else None)
+                _next_ = self.goto(self.state(), _item.rule_head, default=None)
+                print(f"GOTO: {_next_}")
+                _state_stack.append(_next_[0])
+                self.update_state(_state_stack[-1] if _state_stack else None)
+            elif _action == ParserAction.ERROR:
+                print()
+                print()
+                print(f"STATE STACK @ ERROR: {_state_stack}")
+                print(f"INPUT LENGTH @ ERROR: {_input_len}")
+                print(f"NEXT SYMBOL @ ERROR: {_next_symbol}")
+                print(f"POINTER AT @ ERROR: {_input_pointer} (POINTER MAX: {_pointer_max})")
+                print(f"AT END OF INPUT @ ERROR: {_end_of_input is True}")
+                print(f"CURRENT STATE @ ERROR: {self.state()}")
+                print(f"PARSER ACTION @ ERROR: {_parser_action}")
+                print(f"ACTION @ ERROR: {repr(_action)}")
+                print()
+                print()
+                break
+            elif _action == ParserAction.ACCEPT:
+                return True
+
+            _parser_action = self.action(self.state(), _next_symbol, default=None)
+            _action = _parser_action[0] if _parser_action else ParserAction.ERROR
+
+
+            # # TODO: this part of the method isn't correct; once all the input is read, an
+            # #       additional 'while' loop will need to run, attempting to reduce further
+            # if self.state() == 1 and _end_of_input:
+            #     return True
+
+        # print(f"HERE @ break")
+        # print(f"CURRENT STATE @ break: {self.state()}")
+        # print(f"NEXT SYMBOL @ break: {_next_symbol}")
+        _top_level_rule_head = self.grammar.init_symbol
+        _parser_action = self.action(self.state(), _next_symbol, default=(ParserAction.ERROR,))
+        _action = _parser_action[0]
+        _continue = True
+        while _continue:
+            _continue = False
+            print()
+            print(f"2nd MAINLOOP TOP:")
+            print()
+            print(f"STATE STACK: {_state_stack}")
+            print(f"INPUT LENGTH: {_input_len}")
+            print(f"NEXT SYMBOL: {_next_symbol}")
+            print(f"POINTER AT: {_input_pointer} (POINTER MAX: {_pointer_max})")
+            print(f"AT END OF INPUT: {_end_of_input is True}")
+            print(f"CURRENT STATE: {self.state()}")
+            print(f"PARSER ACTION: {_parser_action}")
+            print(f"ACTION: {_action}")
+
+            if _action == ParserAction.REDUCE:
+                _item = _parser_action[1]
+                for _ in range(_item.rule_size):
+                    _state_stack.pop()
+                    self.update_state(_state_stack[-1] if _state_stack else None)
+                _next_ = self.goto(self.state(), _item.rule_head, default=None)
+                _state_stack.append(_next_[0])
+                self.update_state(_state_stack[-1] if _state_stack else None)
+                _continue = True
+
+            _parser_action = self.action(self.state(), _next_symbol, default=(ParserAction.ERROR,))
+            _action = _parser_action[0]
+        _next_symbol = _top_level_rule_head
+        _parser_action = self.action(self.state(), _next_symbol, default=(ParserAction.ERROR,))
+        _action = _parser_action[0]
+        print(f"ACTION AT VERY END: {_action}")
+        return _action == ParserAction.ACCEPT
+    
+    def _new_event(self, event):
+        _event_port = self.port(PyParsePortID.EVENT_QUEUE)
+        return _event_port.send(event)
+
+    # TODO: interface should include this as an 'abstractmethod' 
+    def parse(self, input):
+        """
+        @NOTE: need to make it so that I can have '_next_symbol' be either 'None' or
+               use some default value (such as '$') (in order to do this, I may have to break
+               out of the first, top-level loop, then go into another 'while' loop that
+               reduces until a reduction can no longer occur, so maybe there's always two
+               while loops, with one being an inner while loop to the top-level while loop,
+               or maybe two different top-level while loops, one after the other).
+               Basically, I want to be able to use the 'ParseAction.ERROR' and
+               'ParAction.ACCEPT', because as it stands right now, I can't due to how the
+               parser works with the next symbol being 'None' or a default value
+               (such as '$') when it reaches the end of the input (i.e. the input pointer
+               reaches the length of input minus 1, or the last index of the input
+               list/array/container/whatever)
+
+        """
+
+        self.run()
+
+
+class ParseContext:
+
+    def __init__(self, parser=None):
+        self._parser = parser
+        self._pointer = 0
+        self._input_buffer = None
+        self._state_stack = None
+        self._symbol_stack = None
+
+    @property
+    def parser(self):
+        if self._parser is None:
+            _error_details = f"unable to access 'parser' attribute as one has not yet been associated with instance of '{self.__class__.__name__}'..."
+            raise RuntimeError(_error_details)
+        return self._parser
+
+    @property
+    def input_buffer(self):
+        if self._input_buffer is None:
+            self._input_buffer = self.queue_factory()
+        return self._input_buffer
+
+    @property
+    def state_stack(self):
+        if self._state_stack is None:
+            self._state_stack = self.stack_factory()
+        return self._state_stack
+
+    @property
+    def symbol_stack(self):
+        if self._symbol_stack is None:
+            self._symbol_stack = self.stack_factory()
+        return self._symbol_stack
+
+    def feed(self, input):
+        for _i_ in input:
+            self.input_buffer.append(_i_)
+        return self.input
+
+    def stack_factory(self):
+        return deque()
+
+    def queue_factory(self):
+        return deque()
+
+    def set_parser(self, parser):
+        if self._parser is None:
+            self._parser = parser
+
+    def reset(self):
+        self._parser = parser
+        self._pointer = 0
+        self._input_buffer = None
+        self._state_stack = None
+        self._symbol_stack = None
+
+    def copy(self, *, deepcopy=False):
+        _cls_type = type(self)
+        return self._deepcopy(_cls_type) if deepcopy else self._copy(_cls_type)
+
+    def _copy(self, cls_type):
+        return cls_type(parser=self.parser)
+
+    def _deepcopy(self, cls_type):
+        raise NotImplementedError
+
+    def save(self, **mapping):
+        # NOTE: perhaps add a 'classmethod', named, 'save_to'
+        raise NotImplementedError
+
+    def load(self, parser):
+        # NOTE: perhaps add a 'classmethod', named, 'load_from'
+        raise NotImplementedError
 
 
 def display_grammar(grammar):

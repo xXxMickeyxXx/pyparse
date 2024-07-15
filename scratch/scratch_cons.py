@@ -1,6 +1,20 @@
 from enum import StrEnum, IntEnum, auto
 
 
+class PyParsePortID(IntEnum):
+
+    EVENT_QUEUE = auto()
+    SLEEP_QUEUE = auto()
+    READY_QUEUE = auto()
+
+
+class PyParseEventID(IntEnum):
+
+    PARSE = auto()
+    EVENT = auto()
+    UPDATE_PARSE = auto()
+
+
 class PyParseLoggerID(StrEnum):
 
     PARSER = auto()
