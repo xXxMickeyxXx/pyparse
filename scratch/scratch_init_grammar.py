@@ -2,7 +2,7 @@ from .grammar_rule import GrammarRule
 from .grammar_designing import Grammar
 
 
-def grammar_factory():
+def test_grammar_factory():
     return Grammar(grammar_id="[ • -^- • TEST_GRAMMAR • -^- • ]")
 
 
@@ -28,21 +28,21 @@ def init_grammar_1(grammar):
 
 def init_grammar_2(grammar):
     grammar.create_rule("$", ["S"], rule_id="INIT_RULE")
-    grammar.create_rule("S", ["a", "A"], rule_id="S_rule_1")
-    grammar.create_rule("S", ["a", "A", "B"], rule_id="S_rule_2")
-    grammar.create_rule("S", ["a", "A", "C"], rule_id="S_rule_3")
+    grammar.create_rule("S", ["a", "A"], rule_id="S_rule_2")
+    grammar.create_rule("S", ["a", "A", "A"], rule_id="S_rule_1")
     grammar.create_rule("A", ["b"], rule_id="A_rule_1")
-    grammar.create_rule("B", ["c"], rule_id="B_rule_1")
-    grammar.create_rule("C", ["T"], rule_id="C_rule_1")
-    grammar.create_rule("T", ["S"], rule_id="T_rule_1")
 
 
 def init_grammar_3(grammar):
-    grammar.create_rule("S", ["a", "A"], rule_id="S_rule")
-    grammar.create_rule("A", ["b", "B"], rule_id="A_rule")
-    grammar.create_rule("B", ["c", "C"], rule_id="B_rule")
-    grammar.create_rule("C", ["d", "D"], rule_id="C_rule")
-    grammar.create_rule("D", ["e"], rule_id="D_rule")
+    grammar.create_rule("$", ["S"], rule_id="INIT_RULE")
+    grammar.create_rule("S", ["Z"], rule_id="S_rule_1")
+    grammar.create_rule("S", ["T"], rule_id="S_rule_2")
+    grammar.create_rule("S", ["D"], rule_id="S_rule_3")
+    grammar.create_rule("T", ["a", "A", "B"], rule_id="T_rule_1")
+    grammar.create_rule("D", ["a", "b", "c"], rule_id="D_rule_1")
+    grammar.create_rule("Z", ["a", "A"], rule_id="Z_rule_1")
+    grammar.create_rule("A", ["b"], rule_id="A_rule")
+    grammar.create_rule("B", ["c"], rule_id="B_rule")
 
 
 def init_grammar_4(grammar):

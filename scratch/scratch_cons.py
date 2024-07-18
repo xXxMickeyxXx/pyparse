@@ -4,7 +4,7 @@ from enum import StrEnum, IntEnum, auto
 class PyParsePortID(IntEnum):
 
     EVENT_QUEUE = auto()
-    SLEEP_QUEUE = auto()
+    AWAIT_MAPPING = auto()
     READY_QUEUE = auto()
 
 
@@ -61,7 +61,8 @@ class TableConstructionEvent(StrEnum):
     UPDATE_GOTO_MAPPING = auto()
 
 
-TEST_INPUT = r"/Users/mickey/Desktop/Python/custom_packages/pyparse/files/data/example_grammar_input_2024_06_13.txt"
+TEST_INPUT_1 = r"/Users/mickey/Desktop/Python/custom_packages/pyparse/files/data/example_grammar_input_2024_06_13.txt"
+TEST_INPUT_2 = r"/Users/mickey/Desktop/Python/custom_packages/pyparse/files/data/example_grammar_input_2024_07_16.txt"
 
 
 if __name__ == "__main__":

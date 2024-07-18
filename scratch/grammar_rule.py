@@ -23,6 +23,9 @@ class GrammarRule:
         #######################################################
 
 
+    -•- Maybe make some sort of rule id so that no rule can have the same ID (i.e. upon
+    creation of the object so that it fails to instantiate if a rule with that ID alread exists)
+
     -•- Perhaps utilize the 'flyweight' pattern in order to better manage memory/space
     complexity (though this should not be done until after implementation, testing,
     documentation, benchmarking and pretty much everything else have been completed)

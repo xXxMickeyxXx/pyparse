@@ -118,7 +118,7 @@ class Grammar:
         _new_rule = self.rule_factory(*args, **kwargs)
         if _new_rule in self._rules:
             # TODO: create and raise custom error here
-            _error_details = f"invalid rule; grammar rule already exists within instance..."
+            _error_details = f"invalid rule; grammar rule already exists within instance ({_new_rule.rule_head} ---> {_new_rule.rule_body})..."
             raise RuntimeError(_error_details)
         self.add_rule(_new_rule)
         return _new_rule

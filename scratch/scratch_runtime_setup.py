@@ -399,11 +399,11 @@ from pyparse import Parser, Tokenizer
 from pysynchrony import PySynchronyEventLoop, PySynchronyContext, PySynchronyPort, PySynchronyEvent
 from .scratch_parse_table import ParseTable
 from .test_automaton_design import Automaton
-from .scratch_init_grammar import grammar_factory, init_grammar_1, init_grammar_2, init_grammar_3, init_grammar_4, init_grammar_5, init_grammar_6
+from .scratch_init_grammar import test_grammar_factory, init_grammar_1, init_grammar_2, init_grammar_3, init_grammar_4, init_grammar_5, init_grammar_6
 from .source_descriptor import SourceFile
 from .scratch_utils import generate_id, CircularBuffer, copy_items, copy_item
 from .utils import apply_color, bold_text, underline_text, center_text
-from .scratch_cons import PyParsePortID, PyParseEventID, PyParseLoggerID, ParserAction, GrammarRuleBy, TableConstructionEvent, TEST_INPUT
+from .scratch_cons import PyParsePortID, PyParseEventID, PyParseLoggerID, ParserAction, GrammarRuleBy, TableConstructionEvent, TEST_INPUT_1, TEST_INPUT_2
 
 
 """
@@ -441,7 +441,7 @@ from .scratch_cons import PyParsePortID, PyParseEventID, PyParseLoggerID, Parser
 
 
 _PARSER_LOGGER = PyLogger.get(PyParseLoggerID.PARSER)
-GRAMMAR = grammar_factory()
+GRAMMAR = test_grammar_factory()
 GRAMMAR_RULES = GRAMMAR.rules()
 NON_TERMINALS = GRAMMAR.non_terminals()
 TERMINALS = GRAMMAR.terminals()
@@ -944,10 +944,11 @@ class CoreParser:
         return _action == ParserAction.ACCEPT
 
 
-class CoreParser2(PySynchronyContext):
+class CoreParser2:
+    
+    __slots__ = ("_parser_id", "_grammar", "_parse_table", "_parser_settings", "_init_state", "_state", "_channel", "_logger")
 
     def __init__(self, init_state=0, grammar=None, parse_table=None, parser_id=None):
-        super().__init__(event_loop=None, context_id=None)
         self._parser_id = parser_id or generate_id()
         self._grammar = grammar
         self._parse_table = parse_table
@@ -956,7 +957,6 @@ class CoreParser2(PySynchronyContext):
         self._state = None
         self._channel = None
         self._logger = None
-        self.__initialize__()
 
     # TODO: interface should include (as 'NotImplementedError' until implemented)
     @property
@@ -996,10 +996,6 @@ class CoreParser2(PySynchronyContext):
         if self._logger is None:
             self._logger = _PARSER_LOGGER
         return self._logger
-
-    def __initialize__(self):
-        _event_loop = PySynchronyEventLoop(loop_id=self.parser_id)
-        self.set_loop(_event_loop)
 
     def __str__(self):
         return f"{self.__class__.__name__}"
@@ -1056,131 +1052,6 @@ class CoreParser2(PySynchronyContext):
         _goto_state = self._parse_table.goto(state, non_terminal, default=default)
         return _goto_state
 
-    def run(self):
-        self.event_loop.on_loop(self._parse)
-        _parser_channel = self.channel()
-        _ctx_channel.register(PySynchronyEventID.EVENT, self._new_event)
-        self.register_handler(PySynchronyPortID.EVENT_QUEUE, self._event_port_handler)
-        self.register_handler(PySynchronyPortID.SLEEP_QUEUE, self._sleep_port_handler)
-        self.register_handler(PySynchronyPortID.READY_QUEUE, self._ready_port_handler)
-        return self.event_loop.run()
-
-    def _parse(self, input):
-        _input_pointer = 0
-        _input_len = len(input)
-        _pointer_max = _input_len - 1
-        _end_of_input = False
-        _state_stack = self.stack_factory()
-        _state_stack.append(self.init_state)
-        self.update_state(_state_stack[-1])
-        _next_symbol = input[_input_pointer][1]
-        _parser_action = self.action(self.state(), _next_symbol, default=None)
-        _action = _parser_action[0] if _parser_action else ParserAction.ERROR
-        while not _end_of_input:
-            print()
-            print(f"MAINLOOP TOP:")
-            print()
-            print(f"STATE STACK: {_state_stack}")
-            print(f"INPUT LENGTH: {_input_len}")
-            print(f"NEXT SYMBOL: {_next_symbol}")
-            print(f"POINTER AT: {_input_pointer} (POINTER MAX: {_pointer_max})")
-            print(f"AT END OF INPUT: {_end_of_input is True}")
-            print(f"CURRENT STATE: {self.state()}")
-            print(f"PARSER ACTION: {_parser_action}")
-            print(f"ACTION: {_action}")
-            print()
-
-            # NOTE: perhaps this goes at the bottom of the loop; that way we can avoid
-            #       another cycle if input parse is valid (or not valid)
-            if _action == ParserAction.SHIFT:
-                _next_ = _parser_action[1]
-                _item = _parser_action[2]
-                _state_stack.append(_next_)
-                self.update_state(_next_)
-                # NOTE: may need to re-add that 'else' block to make sure the '_end_of_input' gets set
-                if _pointer_max > _input_pointer:
-                    _input_pointer += 1
-                    _next_symbol = input[_input_pointer][1]
-                    if _input_pointer == _pointer_max:
-                        _end_of_input = True
-            elif _action == ParserAction.REDUCE:
-                _item = _parser_action[1]
-                for _ in range(_item.rule_size):
-                    _state_stack.pop()
-                    self.update_state(_state_stack[-1] if _state_stack else None)
-                _next_ = self.goto(self.state(), _item.rule_head, default=None)
-                print(f"GOTO: {_next_}")
-                _state_stack.append(_next_[0])
-                self.update_state(_state_stack[-1] if _state_stack else None)
-            elif _action == ParserAction.ERROR:
-                print()
-                print()
-                print(f"STATE STACK @ ERROR: {_state_stack}")
-                print(f"INPUT LENGTH @ ERROR: {_input_len}")
-                print(f"NEXT SYMBOL @ ERROR: {_next_symbol}")
-                print(f"POINTER AT @ ERROR: {_input_pointer} (POINTER MAX: {_pointer_max})")
-                print(f"AT END OF INPUT @ ERROR: {_end_of_input is True}")
-                print(f"CURRENT STATE @ ERROR: {self.state()}")
-                print(f"PARSER ACTION @ ERROR: {_parser_action}")
-                print(f"ACTION @ ERROR: {repr(_action)}")
-                print()
-                print()
-                break
-            elif _action == ParserAction.ACCEPT:
-                return True
-
-            _parser_action = self.action(self.state(), _next_symbol, default=None)
-            _action = _parser_action[0] if _parser_action else ParserAction.ERROR
-
-
-            # # TODO: this part of the method isn't correct; once all the input is read, an
-            # #       additional 'while' loop will need to run, attempting to reduce further
-            # if self.state() == 1 and _end_of_input:
-            #     return True
-
-        # print(f"HERE @ break")
-        # print(f"CURRENT STATE @ break: {self.state()}")
-        # print(f"NEXT SYMBOL @ break: {_next_symbol}")
-        _top_level_rule_head = self.grammar.init_symbol
-        _parser_action = self.action(self.state(), _next_symbol, default=(ParserAction.ERROR,))
-        _action = _parser_action[0]
-        _continue = True
-        while _continue:
-            _continue = False
-            print()
-            print(f"2nd MAINLOOP TOP:")
-            print()
-            print(f"STATE STACK: {_state_stack}")
-            print(f"INPUT LENGTH: {_input_len}")
-            print(f"NEXT SYMBOL: {_next_symbol}")
-            print(f"POINTER AT: {_input_pointer} (POINTER MAX: {_pointer_max})")
-            print(f"AT END OF INPUT: {_end_of_input is True}")
-            print(f"CURRENT STATE: {self.state()}")
-            print(f"PARSER ACTION: {_parser_action}")
-            print(f"ACTION: {_action}")
-
-            if _action == ParserAction.REDUCE:
-                _item = _parser_action[1]
-                for _ in range(_item.rule_size):
-                    _state_stack.pop()
-                    self.update_state(_state_stack[-1] if _state_stack else None)
-                _next_ = self.goto(self.state(), _item.rule_head, default=None)
-                _state_stack.append(_next_[0])
-                self.update_state(_state_stack[-1] if _state_stack else None)
-                _continue = True
-
-            _parser_action = self.action(self.state(), _next_symbol, default=(ParserAction.ERROR,))
-            _action = _parser_action[0]
-        _next_symbol = _top_level_rule_head
-        _parser_action = self.action(self.state(), _next_symbol, default=(ParserAction.ERROR,))
-        _action = _parser_action[0]
-        print(f"ACTION AT VERY END: {_action}")
-        return _action == ParserAction.ACCEPT
-    
-    def _new_event(self, event):
-        _event_port = self.port(PyParsePortID.EVENT_QUEUE)
-        return _event_port.send(event)
-
     # TODO: interface should include this as an 'abstractmethod' 
     def parse(self, input):
         """
@@ -1198,83 +1069,133 @@ class CoreParser2(PySynchronyContext):
                list/array/container/whatever)
 
         """
+        _parse_context = ParseContext(input=input, start_symbol="$")
+        _parse_context.append(0)
+        
 
-        self.run()
+        _action_search = None
+        _previous_action = None
+        _action = None
+        _previous_symbol = None
+        _current_symbol = _parse_context.current_symbol()
+        _current_state = _parse_context.state
+        _break_time = False
+        while not _parse_context.done_parsing:
+            _action_search = self.action(_current_state, _current_symbol, default=(ParserAction.ERROR, None, None))
+            _action = _action_search[0]
+            print()
+            print(f"CURRENT STATE: {_current_state}")
+            print(f"CURRENT SYMBOL: {_current_symbol}")
+            print(f"PREVIOUS SYMBOL: {_previous_symbol}")
+            print(f"ACTION SEARCH: {_action_search}")
+            print(f"ACTION: {_action}")
+            if _action == ParserAction.SHIFT:
+                _next_state_ = _action_search[1]
+                _item = _action_search[2]
+                _parse_context.append(_next_state_)
+                _previous_symbol = _current_symbol
+                _parse_context.advance()
+                print(f"STATE AFTER SHIFT: {_parse_context.state}")
+            elif _action == ParserAction.REDUCE:
+                _item = _action_search[1]
+                for _ in range(_item.rule_size):
+                    _popped_state = _parse_context.pop()
+                _goto_state = self.goto(_parse_context.state, _item.rule_head)
+                _next_state = _goto_state[0]
+                _parse_context.append(_next_state)
+                print(f"ON GOTO IN REDUCE ({_parse_context.state}, {_item.rule_head}): {_goto_state}")
+            elif _action == ParserAction.ERROR:
+                _parse_context.set_done()
+            elif _action == ParserAction.ACCEPT:
+                return True
+
+            _current_symbol = _parse_context.current_symbol()
+            _current_state = _parse_context.state            
+        
+        return False
 
 
 class ParseContext:
 
-    def __init__(self, parser=None):
-        self._parser = parser
+    def __init__(self, input=None, start_symbol="$"):
+        self._input = input
+        self._input_len = len(input)
+        self._start_symbol = start_symbol
+        self._done_parsing = False
         self._pointer = 0
-        self._input_buffer = None
-        self._state_stack = None
-        self._symbol_stack = None
+        self._state = None
+        self._stack = None
 
     @property
-    def parser(self):
-        if self._parser is None:
-            _error_details = f"unable to access 'parser' attribute as one has not yet been associated with instance of '{self.__class__.__name__}'..."
+    def input(self):
+        if not bool(self._input):
+            _error_details = f"input has not yet been set for instance of '{self.__class__.__name__}'..."
             raise RuntimeError(_error_details)
-        return self._parser
+        return self._input
 
     @property
-    def input_buffer(self):
-        if self._input_buffer is None:
-            self._input_buffer = self.queue_factory()
-        return self._input_buffer
+    def stack(self):
+        if self._stack is None:
+            self._stack = self.stack_factory()
+        return self._stack
 
     @property
-    def state_stack(self):
-        if self._state_stack is None:
-            self._state_stack = self.stack_factory()
-        return self._state_stack
+    def can_advance(self):
+        return self._pointer < self._input_len
 
     @property
-    def symbol_stack(self):
-        if self._symbol_stack is None:
-            self._symbol_stack = self.stack_factory()
-        return self._symbol_stack
+    def at_end(self):
+        return not self.can_advance
 
-    def feed(self, input):
-        for _i_ in input:
-            self.input_buffer.append(_i_)
-        return self.input
+    @property
+    def state(self):
+        return self.stack[-1] if self.stack else None
+
+    @property
+    def done_parsing(self):
+        return self._done_parsing
+
+    def set_done(self):
+        if not self._done_parsing:
+            self._done_parsing = True
+
+    def append(self, element):
+        self.stack.append(element)
+        self.update(element)
+
+    def pop(self):
+        _retval = self.stack.pop()
+        self.update(self.stack[-1] if self.stack else None)
+        return _retval
+
+    def update(self, state):
+        self._state = state
 
     def stack_factory(self):
         return deque()
 
-    def queue_factory(self):
-        return deque()
+    def set_input(self, input):
+        if not bool(self._input):
+            self._input = input
 
-    def set_parser(self, parser):
-        if self._parser is None:
-            self._parser = parser
+    def current_symbol(self):
+        if self._pointer < self._input_len:
+            return self.input[self._pointer]
+        return self._start_symbol
 
-    def reset(self):
-        self._parser = parser
-        self._pointer = 0
-        self._input_buffer = None
-        self._state_stack = None
-        self._symbol_stack = None
+    def advance(self):
+        if not self.can_advance:
+            _error_details = f"unable to consume any further symbols as the end of input has been reached..."
+            raise RuntimeError(_error_details)
+        self._pointer += 1
 
-    def copy(self, *, deepcopy=False):
-        _cls_type = type(self)
-        return self._deepcopy(_cls_type) if deepcopy else self._copy(_cls_type)
-
-    def _copy(self, cls_type):
-        return cls_type(parser=self.parser)
-
-    def _deepcopy(self, cls_type):
-        raise NotImplementedError
-
-    def save(self, **mapping):
-        # NOTE: perhaps add a 'classmethod', named, 'save_to'
-        raise NotImplementedError
-
-    def load(self, parser):
-        # NOTE: perhaps add a 'classmethod', named, 'load_from'
-        raise NotImplementedError
+    def consume(self):
+        if not self.can_advance:
+            _error_details = f"unable to consume any further symbols as the end of input has been reached..."
+            raise RuntimeError(_error_details)
+        _retval = self.current_symbol()
+        self.advance()
+        return _retval
 
 
 def display_grammar(grammar):
@@ -1438,24 +1359,35 @@ def parse_data(source_data, parser):
 
 
 def parse_and_display(test_data, tokenizer, parser, count=-1):
-    print(TEST_PARSING_TEXT)
     _test_data_queue = deque(test_data)
     _counter = 0
     while _test_data_queue and (_counter < count if (isinstance(count, int) and count > 0) else True):
         _next_test_data_piece = _test_data_queue.popleft()
-        _request_input_tokens = tokenize(_next_test_data_piece, tokenizer)
-        _text = bold_text(apply_color(14, f"NEXT TEST DATA PIECE")) + bold_text(" ---> ") + bold_text(apply_color(14, f"{_next_test_data_piece}")) + bold_text(apply_color(48, f"\nTOKENS"))
-        # _parse_result = parse_data(_next_test_data_piece, parser)
-        _parse_result = parse_data(_request_input_tokens, parser)
-        print(_text)
-        for _token in _request_input_tokens:
-            print(f"• {_token}")
+        # _request_input_tokens = tokenize(_next_test_data_piece, tokenizer)
+        _text = bold_text(apply_color(14, f"NEXT TEST DATA PIECE")) + bold_text(" ---> ") + bold_text(apply_color(14, f"{_next_test_data_piece}"))
+        # _text += bold_text(apply_color(48, f"\nTOKENS"))
         print()
+        print(_text)
+        # for _token in _request_input_tokens:
+        #     print(f"• {_token}")
+        print()
+        _parse_result = parse_data(_next_test_data_piece, parser)
+        # _parse_result = parse_data(_request_input_tokens, parser)
         display_result(_next_test_data_piece, _parse_result)
         for _ in range(2):
             print()
         _counter += 1
     print()
+
+
+def parse_and_display_custom_input(tokenizer, parser, count=-1):
+    _tokenizer = TestGrammar6()
+    print(TEST_PARSING_TEXT)
+    while True:
+        _input = input(">>> ")
+        if not _input:
+            break
+        parse_and_display([_input], tokenizer, parser, count=count)
 
 
 class ParserActionEvents(ABC):
@@ -1505,11 +1437,11 @@ def parse_main():
     # '__________SCRATCH GRAMMAR SPEC__________' section for grammar
     # spec)
     # init_grammar_1(GRAMMAR)
-    # init_grammar_2(GRAMMAR)
+    init_grammar_2(GRAMMAR)
     # init_grammar_3(GRAMMAR)
-    # init_grammar_4(GRAMMAR)
+    ## init_grammar_4(GRAMMAR)
     # init_grammar_5(GRAMMAR)
-    init_grammar_6(GRAMMAR)
+    ## init_grammar_6(GRAMMAR)
 
 
     # Generate (and display) item sets/states then create GOTO and actions
@@ -1522,14 +1454,15 @@ def parse_main():
 
     # Create parse table, used to guide the LR(0) automaton that makes
     # up the design for the shift/reduce parser
-    _parse_table = ParseTable(grammar=GRAMMAR, table_id="[ • -- TEST_PARSE_TABLE -- • ]")
+    _parse_table = ParseTable(grammar=GRAMMAR, table_id="[ • -- TEST_PARSE_TABLE -- • ]", start_symbol="$")
 
     # Display parse table
     display_table(_parse_table)
 
 
     # Instantiate parser back-end (actual parsing implementation)
-    _parser_impl = CoreParser(init_state=0, grammar=GRAMMAR, parse_table=_parse_table)
+    # _parser_impl = CoreParser(init_state=0, grammar=GRAMMAR, parse_table=_parse_table)
+    _parser_impl = CoreParser2(init_state=0, grammar=GRAMMAR, parse_table=_parse_table)
     # _parser_impl.set_table(_parse_table)
     # _parser_impl.set_grammar(GRAMMAR)
 
@@ -1544,7 +1477,7 @@ def parse_main():
 
 
     # Initialize source file object and get data contained within file
-    _source_file = SourceFile(path=TEST_INPUT)
+    _source_file = SourceFile(path=TEST_INPUT_1)
     _source_file_data = read_source(_source_file)
     # display_test_data(_source_file_data)
 
@@ -1559,6 +1492,7 @@ def parse_main():
     # 'scratch' sub-package in general), re-organize git, and then use and see how
     # I can make it better, more robust, etc.
     parse_and_display(_source_file_data, _tokenizer, _parser, count=-1)
+    # parse_and_display_custom_input(_tokenizer, _parser)
 
 
 if __name__ == "__main__":

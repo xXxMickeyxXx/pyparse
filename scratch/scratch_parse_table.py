@@ -4,9 +4,10 @@ from .utils import apply_color, bold_text, underline_text
 
 
 class ParseTable:
-    def __init__(self, grammar=None, table_id=None):
+    def __init__(self, grammar=None, table_id=None, start_symbol="$"):
         self._table_id = table_id or generate_id()
         self._grammar = grammar
+        self._start_symbol = start_symbol
         self._item_states = None
         self._action = {}
         self._goto = {}
@@ -81,6 +82,7 @@ class ParseTable:
                     else:
                         for terminal in _terminals:
                             self.add_action(state, terminal, (ParserAction.REDUCE, item))
+                        self.add_action(state, self._start_symbol, (ParserAction.REDUCE, item))
                 elif next_symbol in _terminals:
                     next_state = self.find_next_state(item_states, item)
                     self.add_action(state, next_symbol, (ParserAction.SHIFT, next_state, item))
