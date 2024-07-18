@@ -1055,6 +1055,15 @@ class CoreParser2:
     # TODO: interface should include this as an 'abstractmethod' 
     def parse(self, input):
         """
+        @TODO: need to update this method to make it so that it favors reducing the longer
+               grammar rule, in the event that multiple apply or that multiple COULD apply
+               if a reduction was skipped until the next cycle. To do this, I'm thinking
+               that adding a copy of where the stack is at pre-reduce so that it can revert
+               to that, or something where the stack is kept as each state occurs. There would
+               also need to be some mechanism that I could add that would allow me to manaully
+               intervene if/when I want to have a rule take precedence over another (aside from
+               just relying on the ordering of the grammar definition rule order)
+
         @NOTE: need to make it so that I can have '_next_symbol' be either 'None' or
                use some default value (such as '$') (in order to do this, I may have to break
                out of the first, top-level loop, then go into another 'while' loop that
@@ -1070,7 +1079,7 @@ class CoreParser2:
 
         """
         _parse_context = ParseContext(input=input, start_symbol="$")
-        _parse_context.append(0)
+        _parse_context.append_state(self.init_state)
         
 
         _action_search = None
@@ -1079,11 +1088,15 @@ class CoreParser2:
         _previous_symbol = None
         _current_symbol = _parse_context.current_symbol()
         _current_state = _parse_context.state
-        _break_time = False
         while not _parse_context.done_parsing:
+            _current_symbol = _parse_context.current_symbol()
+            _current_state = _parse_context.state            
+
             _action_search = self.action(_current_state, _current_symbol, default=(ParserAction.ERROR, None, None))
             _action = _action_search[0]
             print()
+            print(f"STATE STACK: {_parse_context.stack}")
+            print(f"SYMBOL STACK: {_parse_context.symbol_stack}")
             print(f"CURRENT STATE: {_current_state}")
             print(f"CURRENT SYMBOL: {_current_symbol}")
             print(f"PREVIOUS SYMBOL: {_previous_symbol}")
@@ -1092,27 +1105,28 @@ class CoreParser2:
             if _action == ParserAction.SHIFT:
                 _next_state_ = _action_search[1]
                 _item = _action_search[2]
-                _parse_context.append(_next_state_)
+                _parse_context.append_state(_next_state_)
                 _previous_symbol = _current_symbol
+                _parse_context.append_symbol(_current_symbol)
                 _parse_context.advance()
                 print(f"STATE AFTER SHIFT: {_parse_context.state}")
             elif _action == ParserAction.REDUCE:
                 _item = _action_search[1]
                 for _ in range(_item.rule_size):
-                    _popped_state = _parse_context.pop()
+                    _popped_state = _parse_context.pop_state()
+                    _popped_symbol = _parse_context.pop_symbol()
                 _goto_state = self.goto(_parse_context.state, _item.rule_head)
                 _next_state = _goto_state[0]
-                _parse_context.append(_next_state)
+                _parse_context.append_state(_next_state)
+                _parse_context.append_symbol(_item.rule_head)
                 print(f"ON GOTO IN REDUCE ({_parse_context.state}, {_item.rule_head}): {_goto_state}")
             elif _action == ParserAction.ERROR:
-                _parse_context.set_done()
+                _parse_context.set_result(False)
             elif _action == ParserAction.ACCEPT:
-                return True
+                _parse_context.set_result(True)
 
-            _current_symbol = _parse_context.current_symbol()
-            _current_state = _parse_context.state            
         
-        return False
+        return _parse_context
 
 
 class ParseContext:
@@ -1121,10 +1135,12 @@ class ParseContext:
         self._input = input
         self._input_len = len(input)
         self._start_symbol = start_symbol
-        self._done_parsing = False
+        self._result = None
+        self._result_set = False
         self._pointer = 0
         self._state = None
         self._stack = None
+        self._symbol_stack = None
 
     @property
     def input(self):
@@ -1140,6 +1156,12 @@ class ParseContext:
         return self._stack
 
     @property
+    def symbol_stack(self):
+        if self._symbol_stack is None:
+            self._symbol_stack = self.stack_factory()
+        return self._symbol_stack
+
+    @property
     def can_advance(self):
         return self._pointer < self._input_len
 
@@ -1153,20 +1175,30 @@ class ParseContext:
 
     @property
     def done_parsing(self):
-        return self._done_parsing
+        return self._result_set and self._result is not None
 
-    def set_done(self):
-        if not self._done_parsing:
-            self._done_parsing = True
+    def result(self):
+        return self._result
 
-    def append(self, element):
+    def set_result(self, result):
+        if not self._result_set and self._result is None:
+            self._result = result
+            self._result_set = True
+
+    def append_state(self, element):
         self.stack.append(element)
         self.update(element)
 
-    def pop(self):
+    def pop_state(self):
         _retval = self.stack.pop()
         self.update(self.stack[-1] if self.stack else None)
         return _retval
+
+    def append_symbol(self, element):
+        self.symbol_stack.append(element)
+
+    def pop_symbol(self):
+        return self.symbol_stack.pop()
 
     def update(self, state):
         self._state = state
@@ -1355,7 +1387,11 @@ def tokenize(input, tokenizer):
 
 
 def parse_data(source_data, parser):
-    return parser.parse(source_data)
+    _parse_context = parser.parse(source_data)
+    print()
+    print(f"SYMBOL STACK:")
+    print(_parse_context.symbol_stack)
+    return _parse_context.result()
 
 
 def parse_and_display(test_data, tokenizer, parser, count=-1):
