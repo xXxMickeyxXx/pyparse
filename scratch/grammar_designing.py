@@ -1,5 +1,6 @@
 from collections import deque
 
+from .utils import apply_color, bold_text, underline_text  # TODO: remove this once I solve an issue in this module (item states aren't being created correctly if two items have the same 'rule_head' and have the their 'look_behinds' and 'look_aheads' method calls match)
 # from pyparse import Grammar
 from .grammar_rule import GrammarRule
 from .scratch_marker_symbol import MarkerSymbol
@@ -33,6 +34,12 @@ class Grammar:
         return ""
 
     @property
+    def init_item(self):
+        if self._rules:
+            return self._rules[0]
+        return None
+
+    @property
     def rule_count(self):
         return len(self._rules)
 
@@ -54,44 +61,141 @@ class Grammar:
     def __contains__(self, item):
         return isinstance(item, GrammarRule) and item in self._rules
 
+    # NOTE: currently saved/committed implementation (as of 2024-07-24)
+    # def generate_states(self):
+    #     if self._item_states_cache is None:
+    #         _terminals = self.terminals()
+    #         _non_terminals = self.non_terminals()
+    #         _rules = self.rules()
+    #         _augmented_item = _rules[0]
+
+    #         _current_state = 0
+    #         _init_item_set = self.closure(_augmented_item, _current_state)
+    #         _item_sets = [_init_item_set]
+
+    #         # _goto_mapping = {}
+    #         _rule_queue = deque([_init_item_set])
+    #         while _rule_queue:
+    #             _next_item_set = _rule_queue.popleft()
+    #             _current_state = len(_item_sets)
+    #             for _item in _next_item_set:
+    #                 _item = _item.copy()
+    #                 # if _item.can_reduce:
+    #                 #     continue
+    #                 _item.advance()
+    #                 if _item.next_symbol() in _non_terminals:
+    #                     _next_group = self.closure(_item, _current_state)
+    #                     if _next_group not in _item_sets:
+    #                         _item_sets.append(_next_group)
+    #                         _rule_queue.append(_next_group)
+
+    #                 else:
+    #                     _next_group = [_item]
+    #                     if _next_group not in _item_sets:
+    #                         _item_sets.append(_next_group)
+    #                         _rule_queue.append(_next_group)
+
+    #         _retval = {}
+    #         for idx, i in enumerate(_item_sets):
+    #             _retval[idx] = []
+    #             for k in i:
+    #                 _retval[idx].append(k)
+    #         self._item_states_cache = _retval
+    #     else:
+    #         _retval = self._item_states_cache
+    #     return _retval
+
+    # NOTE: newest implementation (as of 2024-07-24)
+    # def generate_states(self):
+    #     if self._item_states_cache is None:
+    #         _terminals = self.terminals()
+    #         _non_terminals = self.non_terminals()
+    #         _rules = self.rules()
+    #         _augmented_item = self.rule("$", search_by=GrammarRuleBy.HEAD)[0]
+
+    #         # Initialize the item set with the closure of the augmented item
+    #         _init_item_set = self.closure(_augmented_item)
+    #         _item_sets = [_init_item_set]
+
+    #         _goto_mapping = {}
+    #         _rule_queue = deque([_init_item_set])
+    #         while _rule_queue:
+    #             _current_item_set = _rule_queue.popleft()
+    #             for symbol in _terminals + _non_terminals:
+    #                 _next_item_set = set()
+    #                 for item in _current_item_set:
+    #                     if item.next_symbol() == symbol:
+    #                         next_item = item.copy()
+    #                         next_item.advance()
+    #                         _next_item_set.add(next_item)
+    #                 if _next_item_set:
+    #                     # Apply the closure to the new item set
+    #                     for _next_item in _next_item_set:
+    #                         _next_item_set = self.closure(_next_item)
+    #                     # _next_item_set = self.closure(_next_item_set)
+    #                         if _next_item_set not in _item_sets:
+    #                             _item_sets.append(_next_item_set)
+    #                             _rule_queue.append(_next_item_set)
+
+    #         _retval = {}
+    #         for idx, item_set in enumerate(_item_sets):
+    #             # _retval[idx] = sorted(item_set, key=lambda x: (x.rule_id, x.marker_pos))
+    #             _retval[idx] = item_set
+    #         self._item_states_cache = _retval
+    #     else:
+    #         _retval = self._item_states_cache
+    #     return _retval
+
+    # NOTE: current working/updated implementation (as of 2024-07-24)
     def generate_states(self):
         if self._item_states_cache is None:
-            _terminals = self.terminals()
-            _non_terminals = self.non_terminals()
-            _rules = self.rules()
-            _augmented_item = _rules[0]
-
-            _init_item_set = self.closure(_augmented_item)
-            _item_sets = [_init_item_set]
-
-            _current_state = 0
-            _goto_mapping = {}
-            _rule_queue = deque([_init_item_set])
-            while _rule_queue:
-                _next_item_set = _rule_queue.popleft()
-                _current_state = len(_item_sets)
-                for _item in _next_item_set:
-                    _item = _item.copy()
-                    if _item.can_reduce:
-                        continue
-                    _item.advance()
-                    if _item.next_symbol() in _non_terminals:
-                        _next_group = self.closure(_item)
-                        if _next_group not in _item_sets:
-                            _item_sets.append(_next_group)
-                            _rule_queue.append(_next_group)
-
-                    else:
-                        _next_group = [_item]
-                        if _next_group not in _item_sets:
-                            _item_sets.append(_next_group)
-                            _rule_queue.append(_next_group)
 
             _retval = {}
-            for idx, i in enumerate(_item_sets):
-                _retval[idx] = []
-                for k in i:
-                    _retval[idx].append(k)
+            _item_sets = []
+            _current_state = 0
+            _item_set_buffer = [self.closure(self.init_item)]
+            _item_set_queue = deque(_item_set_buffer)
+            while _item_set_buffer and _item_set_buffer:
+                print(f"ITEM SET BUFFER @ TOP ---> {_item_set_buffer}\n")
+                _retval.update({_current_state: _item_set_buffer})
+                _item_sets.append(_item_set_buffer)
+                _item_set_buffer.clear()
+
+                _next_item_sets = {}
+                _dequeued_item_set = _item_set_queue.popleft()
+                _possible_transitions = [(_item.next_symbol(default=None), _item.copy(deepcopy=True)) for _item in _dequeued_item_set if not _item.can_reduce]
+                _temp_buffer = deque(_possible_transitions)
+                while _temp_buffer:
+                    _items_next_sym, _item = _temp_buffer.popleft()
+                    print(f"NEXT SYMBOL FOR RULE ID: '{_item.rule_id}' ---> {_items_next_sym}")
+                    print(f"ITEM STATUS: {_item}\n")
+                    _next_set = []
+                    if _items_next_sym not in _next_item_sets:
+                        _next_item_sets[_items_next_sym] = _next_set
+                    else:
+                        _next_set = _next_item_sets[_items_next_sym]
+
+                    if _item not in _next_set:
+                        _next_set.append(_item)
+                        _item.advance()
+                print(f"NEXT ITEM SETS:")
+                for k, v in _next_item_sets.items():
+                    print(f"{k}")
+                    for i in v:
+                        print(f"\t• {i}")
+                        print(f"\t• {i.rule_head} ---> {i.rule_body}")
+                        print(f"\t• {i.status()}")
+                        print()
+                break
+
+
+
+
+
+
+
+
+
             self._item_states_cache = _retval
         else:
             _retval = self._item_states_cache
@@ -100,19 +204,21 @@ class Grammar:
     def closure(self, rule):
         _non_terminals = self.non_terminals()
         _closure_group = [rule]
-        _break = False
         _rule_queue = deque(_closure_group)
+
         while _rule_queue:
             _next_rule = _rule_queue.popleft()
             _next_symbol = _next_rule.next_symbol(default=None)
             if _next_symbol in _non_terminals:
-                _rule = self.rule(_next_symbol, search_by=GrammarRuleBy.HEAD)
-                for _check_rule in _rule:
+                _found_rules = self.rule(_next_symbol, search_by=GrammarRuleBy.HEAD)
+                _closure_group_rule_ids = [i.rule_id for i in _closure_group]
+                for _check_rule in _found_rules:
                     if _check_rule in _closure_group:
                         continue
                     _closure_group.append(_check_rule)
                     _rule_queue.append(_check_rule)
         return tuple([i.copy(deepcopy=True) for i in _closure_group])
+        # return tuple(sorted(_closure_group, key=lambda x: (x.rule_id, x.marker_pos)))
 
     def create_rule(self, *args, **kwargs):
         _new_rule = self.rule_factory(*args, **kwargs)
@@ -145,8 +251,8 @@ class Grammar:
         return [grammar._rules.pop(_remove_rule_queue.popleft()) for _ in range(len(_remove_rule_queue))]
 
     def symbols(self):
-        _symbols = self.non_terminals()
-        _symbols.extend(self.terminals())
+        _symbols = self.terminals()
+        _symbols.extend(self.non_terminals)
         return _symbols
 
     def rules(self):
@@ -229,15 +335,15 @@ class Grammar:
         _new_cls._rules = [i.copy(deepcopy=deepcopy) for i in self.rules()]
         return _new_cls
 
-    @classmethod
-    def from_rules(cls, *, grammar_id=None, **rules):
-        # TODO: fix this as it's not correctly adding rules to the object
+    # @classmethod
+    # def from_rules(cls, *, grammar_id=None, **rules):
+    #     # TODO: fix this as it's not correctly adding rules to the object
 
-        # _new_cls = cls(grammar_id=grammar_id)
-        # for rule_id, rule in rules.items():
-        #   _new_cls.add_rule(rule_id, rule)
-        # return _new_cls
-        raise NotImplementedError
+    #     # _new_cls = cls(grammar_id=grammar_id)
+    #     # for rule_id, rule in rules.items():
+    #     #   _new_cls.add_rule(rule_id, rule)
+    #     # return _new_cls
+    #     raise NotImplementedError
 
 
 if __name__ == "__main__":

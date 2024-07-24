@@ -28,9 +28,10 @@ def init_grammar_1(grammar):
 
 def init_grammar_2(grammar):
     grammar.create_rule("$", ["S"], rule_id="INIT_RULE")
-    grammar.create_rule("S", ["a", "A"], rule_id="S_rule_2")
     grammar.create_rule("S", ["a", "A", "A"], rule_id="S_rule_1")
-    grammar.create_rule("A", ["b"], rule_id="A_rule_1")
+    grammar.create_rule("S", ["a", "A"], rule_id="S_rule_2")
+    # grammar.create_rule("A", ["b", "b"], rule_id="A_rule_1")
+    grammar.create_rule("A", ["b"], rule_id="A_rule_2")
 
 
 def init_grammar_3(grammar):
@@ -46,12 +47,12 @@ def init_grammar_3(grammar):
 
 
 def init_grammar_4(grammar):
-    grammar.create_rule("E", ["E", "+", "T"], rule_id="E_rule_1")
-    grammar.create_rule("E", ["T"], rule_id="E_rule_2")
-    grammar.create_rule("E", ["id"], rule_id="E_rule_3")
-    grammar.create_rule("T", ["T", "*", "F"], rule_id="T_rule_1")
-    grammar.create_rule("T", ["F"], rule_id="T_rule_2")
-    grammar.create_rule("F", ["(", "E", ")"], rule_id="F_rule_1")
+    grammar.create_rule("$", ["E"], rule_id="INIT_RULE")
+    grammar.create_rule("E", ["E", "*", "T"], rule_id="E_rule_1")
+    grammar.create_rule("E", ["E", "+", "T"], rule_id="E_rule_2")
+    grammar.create_rule("E", ["B"], rule_id="E_rule_3")
+    grammar.create_rule("B", ["0"], rule_id="B_rule_1")
+    grammar.create_rule("B", ["1"], rule_id="B_rule_2")
 
 
 def init_grammar_5(grammar):

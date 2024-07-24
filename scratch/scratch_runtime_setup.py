@@ -396,9 +396,9 @@ from pyprofiler import profile_callable, SortBy
 from pyevent import PyChannels, PyChannel, PySignal
 
 from pyparse import Parser, Tokenizer
-from pysynchrony import PySynchronyEventLoop, PySynchronyContext, PySynchronyPort, PySynchronyEvent
+from pysynchrony import PySynchronyEventLoop, PySynchronyContext, PySynchronyPort, PySynchronyEvent, PySynchronySysCall
 from .scratch_parse_table import ParseTable
-from .test_automaton_design import Automaton
+# from .test_automaton_design import Automaton
 from .scratch_init_grammar import test_grammar_factory, init_grammar_1, init_grammar_2, init_grammar_3, init_grammar_4, init_grammar_5, init_grammar_6
 from .source_descriptor import SourceFile
 from .scratch_utils import generate_id, CircularBuffer, copy_items, copy_item
@@ -653,6 +653,16 @@ class ParserEvent:
         else:
             retval = self._data[key]
         return retval
+
+
+class ParserAction:
+
+    def __init__(self, action, action_id=None):
+        self._action = action
+        self._action_id = action_id or generate_id()
+
+    def execute(self):
+        raise NotImplementedError
 
 
 class TestGrammar6(Tokenizer):
@@ -944,24 +954,33 @@ class CoreParser:
         return _action == ParserAction.ACCEPT
 
 
-class CoreParser2:
-    
-    __slots__ = ("_parser_id", "_grammar", "_parse_table", "_parser_settings", "_init_state", "_state", "_channel", "_logger")
+class CoreParser2(PySynchronyContext):
 
-    def __init__(self, init_state=0, grammar=None, parse_table=None, parser_id=None):
-        self._parser_id = parser_id or generate_id()
+    __slots__ = ("_event_loop", "_parser_id", "_grammar", "_parse_table", "_parser_settings", "_init_state", "_state", "_channel", "_logger", "_action_cls")
+
+    def __init__(self, event_loop=None, init_state=0, grammar=None, parse_table=None, parser_id=None, action_cls=ParserAction):
+        super().__init__(event_loop=event_loop, context_id=parser_id)
+        self._event_loop = event_loop
         self._grammar = grammar
+        self._action_cls = action_cls
         self._parse_table = parse_table
         self._parser_settings = ParserSettings(self)
         self._init_state = init_state
         self._state = None
-        self._channel = None
         self._logger = None
 
     # TODO: interface should include (as 'NotImplementedError' until implemented)
     @property
     def parser_id(self):
-        return self._parser_id
+        return self.context_id
+
+    # # TODO: interface should include (as 'NotImplementedError' until implemented) ---> **DELETE** (most likely since the 'PySynchronyContext' interface handles it)
+    # @property
+    # def event_loop(self):
+    #     if self._event_loop is None:
+    #         _error_details = f"unable to access attribute as one has not yet been associated with this instance of '{self.__class__.__name__}'..."
+    #         raise AttributeError(_error_details)
+    #     return self._event_loop
 
     # TODO: interface should include (as 'NotImplementedError' until implemented)
     @property
@@ -987,9 +1006,7 @@ class CoreParser2:
 
     @property
     def channel(self):
-        if self._channel is None:
-            self._channel = PyChannel(channel_id=self.parser_id)
-        return self._channel
+        return self.event_loop.channel(channel_id=self.context_id)
 
     @property
     def logger(self):
@@ -1052,51 +1069,53 @@ class CoreParser2:
         _goto_state = self._parse_table.goto(state, non_terminal, default=default)
         return _goto_state
 
+    def submit_action(self, action, *args, action_id=None, **kwargs):
+        _action = self.create_action(action, action_id=action_id)
+        self.schedule_action(action)
+
+    def create_action(self, *args, **kwargs):
+        return ParserAction(*args, **kwargs)
+
+    def run(self, input):
+        # TODO: implement on behalf of 'PySynchronyContext'; each parse should be independent and this method is the one that will be exposed/called to handle input (i.e. the primary API)
+        return self.event_loop.run()
+
+    def parse_step(self):
+        self.handle_port(PyParsePortID.EVENTS)
+        self.handle_port(PyParsePortID.ACTIONS)
+
+    def parse_cycle(self):
+        self.step()
+
+    def schedule_action(self, action):
+        self.send(PyParsePortID.ACTIONS, action)
+        return True
+
+    def parse_mainloop(self, parse_context):
+        parse_context.append_state(self.init_state)
+
+
     # TODO: interface should include this as an 'abstractmethod' 
-    def parse(self, input):
-        """
-        @TODO: need to update this method to make it so that it favors reducing the longer
-               grammar rule, in the event that multiple apply or that multiple COULD apply
-               if a reduction was skipped until the next cycle. To do this, I'm thinking
-               that adding a copy of where the stack is at pre-reduce so that it can revert
-               to that, or something where the stack is kept as each state occurs. There would
-               also need to be some mechanism that I could add that would allow me to manaully
-               intervene if/when I want to have a rule take precedence over another (aside from
-               just relying on the ordering of the grammar definition rule order)
+    def parse(self, parse_context, execution_context=None):
+        # NOTE: passing 'None' argument to the 'event_id' until a consistent one is specified for this implementation/system
 
-        @NOTE: need to make it so that I can have '_next_symbol' be either 'None' or
-               use some default value (such as '$') (in order to do this, I may have to break
-               out of the first, top-level loop, then go into another 'while' loop that
-               reduces until a reduction can no longer occur, so maybe there's always two
-               while loops, with one being an inner while loop to the top-level while loop,
-               or maybe two different top-level while loops, one after the other).
-               Basically, I want to be able to use the 'ParseAction.ERROR' and
-               'ParAction.ACCEPT', because as it stands right now, I can't due to how the
-               parser works with the next symbol being 'None' or a default value
-               (such as '$') when it reaches the end of the input (i.e. the input pointer
-               reaches the length of input minus 1, or the last index of the input
-               list/array/container/whatever)
-
-        """
-        _parse_context = ParseContext(input=input, start_symbol="$")
-        _parse_context.append_state(self.init_state)
-        
+        _parse_event = self.event_factory(None, parser=self, parse_context=parse_context)
 
         _action_search = None
         _previous_action = None
         _action = None
         _previous_symbol = None
-        _current_symbol = _parse_context.current_symbol()
-        _current_state = _parse_context.state
-        while not _parse_context.done_parsing:
-            _current_symbol = _parse_context.current_symbol()
-            _current_state = _parse_context.state            
+        _current_symbol = parse_context.current_symbol()
+        _current_state = parse_context.state
+        while not parse_context.done_parsing:
+            _current_symbol = parse_context.current_symbol()
+            _current_state = parse_context.state            
 
             _action_search = self.action(_current_state, _current_symbol, default=(ParserAction.ERROR, None, None))
             _action = _action_search[0]
             print()
-            print(f"STATE STACK: {_parse_context.stack}")
-            print(f"SYMBOL STACK: {_parse_context.symbol_stack}")
+            print(f"STATE STACK: {parse_context.stack}")
+            print(f"SYMBOL STACK: {parse_context.symbol_stack}")
             print(f"CURRENT STATE: {_current_state}")
             print(f"CURRENT SYMBOL: {_current_symbol}")
             print(f"PREVIOUS SYMBOL: {_previous_symbol}")
@@ -1105,28 +1124,36 @@ class CoreParser2:
             if _action == ParserAction.SHIFT:
                 _next_state_ = _action_search[1]
                 _item = _action_search[2]
-                _parse_context.append_state(_next_state_)
+                parse_context.append_state(_next_state_)
                 _previous_symbol = _current_symbol
-                _parse_context.append_symbol(_current_symbol)
-                _parse_context.advance()
-                print(f"STATE AFTER SHIFT: {_parse_context.state}")
+                parse_context.append_symbol(_current_symbol)
+                parse_context.advance()
+                print(f"STATE AFTER SHIFT: {parse_context.state}")
             elif _action == ParserAction.REDUCE:
                 _item = _action_search[1]
                 for _ in range(_item.rule_size):
-                    _popped_state = _parse_context.pop_state()
-                    _popped_symbol = _parse_context.pop_symbol()
-                _goto_state = self.goto(_parse_context.state, _item.rule_head)
+                    _popped_state = parse_context.pop_state()
+                    _popped_symbol = parse_context.pop_symbol()
+                _goto_state = self.goto(parse_context.state, _item.rule_head)
                 _next_state = _goto_state[0]
-                _parse_context.append_state(_next_state)
-                _parse_context.append_symbol(_item.rule_head)
-                print(f"ON GOTO IN REDUCE ({_parse_context.state}, {_item.rule_head}): {_goto_state}")
+                parse_context.append_state(_next_state)
+                parse_context.append_symbol(_item.rule_head)
+                print(f"ON GOTO IN REDUCE ({parse_context.state}, {_item.rule_head}): {_goto_state}")
             elif _action == ParserAction.ERROR:
-                _parse_context.set_result(False)
+                parse_context.set_result(False)
             elif _action == ParserAction.ACCEPT:
-                _parse_context.set_result(True)
+                parse_context.set_result(True)
+        return parse_context
 
-        
-        return _parse_context
+    def event_factory(self, event_id, **data):
+        return PySynchronyEvent(event_id, **data)
+
+    @staticmethod
+    def _default_executor(parser, parse_context):
+        print()
+        print(f"PARSER ---> {parser}")
+        print(f"PARSE CONTEXT ---> {parse_context}")
+        print()
 
 
 class ParseContext:
@@ -1386,8 +1413,8 @@ def tokenize(input, tokenizer):
     return _tokens
 
 
-def parse_data(source_data, parser):
-    _parse_context = parser.parse(source_data)
+def parse_data(parse_context, parser):
+    _parse_context = parser.parse(parse_context)
     print()
     print(f"SYMBOL STACK:")
     print(_parse_context.symbol_stack)
@@ -1407,7 +1434,8 @@ def parse_and_display(test_data, tokenizer, parser, count=-1):
         # for _token in _request_input_tokens:
         #     print(f"• {_token}")
         print()
-        _parse_result = parse_data(_next_test_data_piece, parser)
+        _parse_context = ParseContext(input=input, start_symbol="$")
+        _parse_result = parse_data(_parse_context, parser)
         # _parse_result = parse_data(_request_input_tokens, parser)
         display_result(_next_test_data_piece, _parse_result)
         for _ in range(2):
@@ -1426,15 +1454,15 @@ def parse_and_display_custom_input(tokenizer, parser, count=-1):
         parse_and_display([_input], tokenizer, parser, count=count)
 
 
-class ParserActionEvents(ABC):
+class Configurator(ABC):
 
-    def init_events(self, parser):
+    def init(self, parser):
         raise NotImplementedError
 
 
-class TestParserActionEvents(ParserActionEvents):
+class TestParserActionEvents(Configurator):
 
-    def init_events(self, parser):
+    def init(self, parser):
         parser.register(ParserAction.SHIFT, self._parser_shift_)
         parser.register(ParserAction.REDUCE, self._parser_reduce_)
         parser.register(ParserAction.ACCEPT, self._parser_accept_)
@@ -1465,6 +1493,44 @@ class TestParserActionEvents(ParserActionEvents):
         print()
 
 
+class ParserConfig(Configurator):
+
+    _events_port_id = PyParsePortID.EVENTS
+    _actions_port_id = PyParsePortID.ACTIONS
+
+    def __init__(self):
+        self._events_port = None
+        self._actions_port = None
+
+    @property
+    def events_port(self):
+        if self._events_port is None:
+            self._events_port = self.create_port(port_id=self._events_port_id)
+        return self._events_port
+
+    @property
+    def actions_port(self):
+        if self._actions_port is None:
+            self._actions_port = self.create_port(port_id=self._actions_port_id)
+        return self._actions_port
+
+    def create_port(self, port_id=None):
+        return PySynchronyPort(port_id=port_id)
+
+    def init(self, parser):
+        parser.add_port(self.actions_port)
+        parser.register_handler(self._actions_port_id, self._actions_handler)
+        parser.register(PyParseEventID.NEW_ACTION)
+
+    @staticmethod
+    def _actions_handler(port):
+        while port.pending():
+            _next_event = port.receive()
+
+    def _emit_event(self, event):
+        self.events_port.send(event)
+
+
 # @profile_callable(sort_by=SortBy.TIME)
 def parse_main():
     # Initialize grammar object so that it contains all grammar rules
@@ -1473,11 +1539,11 @@ def parse_main():
     # '__________SCRATCH GRAMMAR SPEC__________' section for grammar
     # spec)
     # init_grammar_1(GRAMMAR)
-    init_grammar_2(GRAMMAR)
+    # init_grammar_2(GRAMMAR)
     # init_grammar_3(GRAMMAR)
-    ## init_grammar_4(GRAMMAR)
+    init_grammar_4(GRAMMAR)
     # init_grammar_5(GRAMMAR)
-    ## init_grammar_6(GRAMMAR)
+    # init_grammar_6(GRAMMAR)
 
 
     # Generate (and display) item sets/states then create GOTO and actions
@@ -1488,47 +1554,58 @@ def parse_main():
     display_item_states(_item_states)
 
 
-    # Create parse table, used to guide the LR(0) automaton that makes
-    # up the design for the shift/reduce parser
-    _parse_table = ParseTable(grammar=GRAMMAR, table_id="[ • -- TEST_PARSE_TABLE -- • ]", start_symbol="$")
+    # # Create parse table, used to guide the LR(0) automaton that makes
+    # # up the design for the shift/reduce parser
+    # _parse_table = ParseTable(grammar=GRAMMAR, table_id="[ • -- TEST_PARSE_TABLE -- • ]", start_symbol="$")
 
-    # Display parse table
-    display_table(_parse_table)
-
-
-    # Instantiate parser back-end (actual parsing implementation)
-    # _parser_impl = CoreParser(init_state=0, grammar=GRAMMAR, parse_table=_parse_table)
-    _parser_impl = CoreParser2(init_state=0, grammar=GRAMMAR, parse_table=_parse_table)
-    # _parser_impl.set_table(_parse_table)
-    # _parser_impl.set_grammar(GRAMMAR)
+    # # Display parse table
+    # display_table(_parse_table)
 
 
-    # Initialize parser events
-    # _parser_events = TestParserActionEvents()
-    # _parser_events.init_events(_parser_impl)
-    _parser_impl.register(ParserAction.UPDATE, TestParserActionEvents._parser_update_)
-
-    # Instantiate parser front-end (bridge between different parser designs)
-    _parser = Parser(parser=_parser_impl)
+    # # Instantiate parser back-end (actual parsing implementation) and configure as needed
+    # # _parser_impl = CoreParser(init_state=0, grammar=GRAMMAR, parse_table=_parse_table)
+    # _parser_impl = CoreParser2(init_state=0, grammar=GRAMMAR, parse_table=_parse_table)
+    # _parser_config = ParserConfig()
+    # _parser_config.init(_parser_impl)
 
 
-    # Initialize source file object and get data contained within file
-    _source_file = SourceFile(path=TEST_INPUT_1)
-    _source_file_data = read_source(_source_file)
-    # display_test_data(_source_file_data)
+    # # _parser_impl.set_table(_parse_table)
+    # # _parser_impl.set_grammar(GRAMMAR)
 
 
-    # Generate tokens to feed the parser
-    _tokenizer = TestGrammar6()
-    
+    # # Set event loop
+    # _event_loop = PySynchronyEventLoop(loop_id="[ • ---• TEST_PYPARSE_EVENT_LOOP • --- • ]")
+    # _parser_impl.set_loop(_event_loop)
 
-    # Parse and display results; once this works, the next step(s) will be to
-    # finilize design (implement additional design/concepts as needed), organize
-    # 'pyparse' files (taking the concepts contained with this module and the
-    # 'scratch' sub-package in general), re-organize git, and then use and see how
-    # I can make it better, more robust, etc.
-    parse_and_display(_source_file_data, _tokenizer, _parser, count=-1)
-    # parse_and_display_custom_input(_tokenizer, _parser)
+
+    # # Initialize parser events
+    # # _parser_events = TestParserActionEvents()
+    # # _parser_events.init(_parser_impl)
+
+    # # NOTE: what if I make the abstract component, 'Parser' (which takes a
+    # #       parser implementation) a sub-class of the 'PySynchronyContext'
+    # #       implementation, as opposed of the implementation itself?? Worth
+    # #       thinking about
+    # # Instantiate parser front-end (bridge between different parser designs)
+    # _parser = Parser(parser=_parser_impl)
+
+
+    # # Initialize source file object and get data contained within file
+    # _source_file = SourceFile(path=TEST_INPUT_1)
+    # _source_file_data = read_source(_source_file)
+    # # display_test_data(_source_file_data)
+
+
+    # # Generate tokens to feed the parser
+    # _tokenizer = TestGrammar6()
+
+    # # Parse and display results; once this works, the next step(s) will be to
+    # # finilize design (implement additional design/concepts as needed), organize
+    # # 'pyparse' files (taking the concepts contained with this module and the
+    # # 'scratch' sub-package in general), re-organize git, and then use and see how
+    # # I can make it better, more robust, etc.
+    # parse_and_display(_source_file_data, _tokenizer, _parser, count=2)
+    # # parse_and_display_custom_input(_tokenizer, _parser)
 
 
 if __name__ == "__main__":

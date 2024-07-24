@@ -1,0 +1,292 @@
+
+
+STATE: 0
+ITEM SETS:
+$ ---> [•, 'S']
+S ---> [•, 'a', 'A']
+S ---> [•, 'a', 'A', 'A']
+
+
+STATE: 1
+ITEM SETS:
+$ ---> [•, 'S']
+S ---> [•, 'a', 'A']
+S ---> [•, 'a', 'A', 'A']
+$ ---> ['S', •]
+S ---> ['a', •, 'A']
+A ---> [•, 'b']
+S ---> ['a', •, 'A', 'A']
+A ---> [•, 'b']
+
+
+STATE: 4
+ITEM SETS:
+$ ---> [•, 'S']
+S ---> [•, 'a', 'A']
+S ---> [•, 'a', 'A', 'A']
+$ ---> ['S', •]
+S ---> ['a', •, 'A']
+A ---> [•, 'b']
+S ---> ['a', •, 'A', 'A']
+A ---> [•, 'b']
+
+
+STATE: 4
+ITEM SETS:
+$ ---> [•, 'S']
+S ---> [•, 'a', 'A']
+S ---> [•, 'a', 'A', 'A']
+$ ---> ['S', •]
+S ---> ['a', •, 'A']
+A ---> [•, 'b']
+S ---> ['a', •, 'A', 'A']
+A ---> [•, 'b']
+S ---> ['a', 'A', •]
+A ---> ['b', •]
+
+
+STATE: 6
+ITEM SETS:
+$ ---> [•, 'S']
+S ---> [•, 'a', 'A']
+S ---> [•, 'a', 'A', 'A']
+$ ---> ['S', •]
+S ---> ['a', •, 'A']
+A ---> [•, 'b']
+S ---> ['a', •, 'A', 'A']
+A ---> [•, 'b']
+S ---> ['a', 'A', •]
+A ---> ['b', •]
+S ---> ['a', 'A', •, 'A']
+A ---> [•, 'b']
+
+
+STATE: 7
+ITEM SETS:
+$ ---> [•, 'S']
+S ---> [•, 'a', 'A']
+S ---> [•, 'a', 'A', 'A']
+$ ---> ['S', •]
+S ---> ['a', •, 'A']
+A ---> [•, 'b']
+S ---> ['a', •, 'A', 'A']
+A ---> [•, 'b']
+S ---> ['a', 'A', •]
+A ---> ['b', •]
+S ---> ['a', 'A', •, 'A']
+A ---> [•, 'b']
+
+
+STATE: 7
+ITEM SETS:
+$ ---> [•, 'S']
+S ---> [•, 'a', 'A']
+S ---> [•, 'a', 'A', 'A']
+$ ---> ['S', •]
+S ---> ['a', •, 'A']
+A ---> [•, 'b']
+S ---> ['a', •, 'A', 'A']
+A ---> [•, 'b']
+S ---> ['a', 'A', •]
+A ---> ['b', •]
+S ---> ['a', 'A', •, 'A']
+A ---> [•, 'b']
+
+
+STATE: 7
+ITEM SETS:
+$ ---> [•, 'S']
+S ---> [•, 'a', 'A']
+S ---> [•, 'a', 'A', 'A']
+$ ---> ['S', •]
+S ---> ['a', •, 'A']
+A ---> [•, 'b']
+S ---> ['a', •, 'A', 'A']
+A ---> [•, 'b']
+S ---> ['a', 'A', •]
+A ---> ['b', •]
+S ---> ['a', 'A', •, 'A']
+A ---> [•, 'b']
+S ---> ['a', 'A', 'A', •]
+
+[38;5;200m
+#########################################################################################################################
+#                                                                                                                       #
+# • -------------------------------------------------- ITEM STATES -------------------------------------------------- • #
+#                                                                                                                       #
+#########################################################################################################################
+[0m
+
+STATE: 0
+	$ ---> [•, 'S']
+	S ---> [•, 'a', 'A']
+	S ---> [•, 'a', 'A', 'A']
+
+STATE: 1
+	$ ---> ['S', •]
+
+STATE: 2
+	S ---> ['a', •, 'A']
+	A ---> [•, 'b']
+
+STATE: 3
+	S ---> ['a', •, 'A', 'A']
+	A ---> [•, 'b']
+
+STATE: 4
+	S ---> ['a', 'A', •]
+
+STATE: 5
+	A ---> ['b', •]
+
+STATE: 6
+	S ---> ['a', 'A', •, 'A']
+	A ---> [•, 'b']
+
+STATE: 7
+	S ---> ['a', 'A', 'A', •]
+
+
+
+[4m[1m[38;5;208mACTION TABLE:[0m[0m[0m
+  ACTION((0, 'a'))=(<ParserAction.SHIFT: 'shift'>, 2, GrammarRule(rule_head=S, rule_body=['a', 'A'], marker_symbol=•, rule_id=S_rule_2))
+  ACTION((1, '$'))=(<ParserAction.ACCEPT: 'accept'>, GrammarRule(rule_head=$, rule_body=['S'], marker_symbol=•, rule_id=INIT_RULE))
+  ACTION((2, 'b'))=(<ParserAction.SHIFT: 'shift'>, 5, GrammarRule(rule_head=A, rule_body=['b'], marker_symbol=•, rule_id=A_rule_1))
+  ACTION((3, 'b'))=(<ParserAction.SHIFT: 'shift'>, 5, GrammarRule(rule_head=A, rule_body=['b'], marker_symbol=•, rule_id=A_rule_1))
+  ACTION((4, 'a'))=(<ParserAction.REDUCE: 'reduce'>, GrammarRule(rule_head=S, rule_body=['a', 'A'], marker_symbol=•, rule_id=S_rule_2))
+  ACTION((4, 'b'))=(<ParserAction.REDUCE: 'reduce'>, GrammarRule(rule_head=S, rule_body=['a', 'A'], marker_symbol=•, rule_id=S_rule_2))
+  ACTION((4, '$'))=(<ParserAction.REDUCE: 'reduce'>, GrammarRule(rule_head=S, rule_body=['a', 'A'], marker_symbol=•, rule_id=S_rule_2))
+  ACTION((5, 'a'))=(<ParserAction.REDUCE: 'reduce'>, GrammarRule(rule_head=A, rule_body=['b'], marker_symbol=•, rule_id=A_rule_1))
+  ACTION((5, 'b'))=(<ParserAction.REDUCE: 'reduce'>, GrammarRule(rule_head=A, rule_body=['b'], marker_symbol=•, rule_id=A_rule_1))
+  ACTION((5, '$'))=(<ParserAction.REDUCE: 'reduce'>, GrammarRule(rule_head=A, rule_body=['b'], marker_symbol=•, rule_id=A_rule_1))
+  ACTION((6, 'b'))=(<ParserAction.SHIFT: 'shift'>, 5, GrammarRule(rule_head=A, rule_body=['b'], marker_symbol=•, rule_id=A_rule_1))
+  ACTION((7, 'a'))=(<ParserAction.REDUCE: 'reduce'>, GrammarRule(rule_head=S, rule_body=['a', 'A', 'A'], marker_symbol=•, rule_id=S_rule_1))
+  ACTION((7, 'b'))=(<ParserAction.REDUCE: 'reduce'>, GrammarRule(rule_head=S, rule_body=['a', 'A', 'A'], marker_symbol=•, rule_id=S_rule_1))
+  ACTION((7, '$'))=(<ParserAction.REDUCE: 'reduce'>, GrammarRule(rule_head=S, rule_body=['a', 'A', 'A'], marker_symbol=•, rule_id=S_rule_1))
+
+[4m[1m[38;5;208mGOTO TABLE:[0m[0m[0m
+  GOTO(0, S) ---> (1, GrammarRule(rule_head=$, rule_body=['S'], marker_symbol=•, rule_id=INIT_RULE))
+  GOTO(2, A) ---> (4, GrammarRule(rule_head=S, rule_body=['a', 'A'], marker_symbol=•, rule_id=S_rule_2))
+  GOTO(3, A) ---> (6, GrammarRule(rule_head=S, rule_body=['a', 'A', 'A'], marker_symbol=•, rule_id=S_rule_1))
+  GOTO(6, A) ---> (7, GrammarRule(rule_head=S, rule_body=['a', 'A', 'A'], marker_symbol=•, rule_id=S_rule_1))
+
+
+[1m[38;5;14mNEXT TEST DATA PIECE[0m[0m[1m ---> [0m[1m[38;5;14mab[0m[0m
+
+
+STATE STACK: deque([0])
+SYMBOL STACK: deque([])
+CURRENT STATE: 0
+CURRENT SYMBOL: a
+PREVIOUS SYMBOL: None
+ACTION SEARCH: (<ParserAction.SHIFT: 'shift'>, 2, GrammarRule(rule_head=S, rule_body=['a', 'A'], marker_symbol=•, rule_id=S_rule_2))
+ACTION: shift
+STATE AFTER SHIFT: 2
+
+STATE STACK: deque([0, 2])
+SYMBOL STACK: deque(['a'])
+CURRENT STATE: 2
+CURRENT SYMBOL: b
+PREVIOUS SYMBOL: a
+ACTION SEARCH: (<ParserAction.SHIFT: 'shift'>, 5, GrammarRule(rule_head=A, rule_body=['b'], marker_symbol=•, rule_id=A_rule_1))
+ACTION: shift
+STATE AFTER SHIFT: 5
+
+STATE STACK: deque([0, 2, 5])
+SYMBOL STACK: deque(['a', 'b'])
+CURRENT STATE: 5
+CURRENT SYMBOL: $
+PREVIOUS SYMBOL: b
+ACTION SEARCH: (<ParserAction.REDUCE: 'reduce'>, GrammarRule(rule_head=A, rule_body=['b'], marker_symbol=•, rule_id=A_rule_1))
+ACTION: reduce
+ON GOTO IN REDUCE (4, A): (4, GrammarRule(rule_head=S, rule_body=['a', 'A'], marker_symbol=•, rule_id=S_rule_2))
+
+STATE STACK: deque([0, 2, 4])
+SYMBOL STACK: deque(['a', 'A'])
+CURRENT STATE: 4
+CURRENT SYMBOL: $
+PREVIOUS SYMBOL: b
+ACTION SEARCH: (<ParserAction.REDUCE: 'reduce'>, GrammarRule(rule_head=S, rule_body=['a', 'A'], marker_symbol=•, rule_id=S_rule_2))
+ACTION: reduce
+ON GOTO IN REDUCE (1, S): (1, GrammarRule(rule_head=$, rule_body=['S'], marker_symbol=•, rule_id=INIT_RULE))
+
+STATE STACK: deque([0, 1])
+SYMBOL STACK: deque(['S'])
+CURRENT STATE: 1
+CURRENT SYMBOL: $
+PREVIOUS SYMBOL: b
+ACTION SEARCH: (<ParserAction.ACCEPT: 'accept'>, GrammarRule(rule_head=$, rule_body=['S'], marker_symbol=•, rule_id=INIT_RULE))
+ACTION: accept
+
+SYMBOL STACK:
+deque(['S'])
+[38;5;10m------------------------------------------------[0m
+[1m[38;5;10m[4m[1m[38;5;10mINPUT IS VALID!!![0m[0m[0m
+    |
+    |
+    • ----> [1m[38;5;11mab[0m[0m[0m[0m
+[38;5;10m------------------------------------------------[0m
+
+
+
+
+[1m[38;5;14mNEXT TEST DATA PIECE[0m[0m[1m ---> [0m[1m[38;5;14mabb[0m[0m
+
+
+STATE STACK: deque([0])
+SYMBOL STACK: deque([])
+CURRENT STATE: 0
+CURRENT SYMBOL: a
+PREVIOUS SYMBOL: None
+ACTION SEARCH: (<ParserAction.SHIFT: 'shift'>, 2, GrammarRule(rule_head=S, rule_body=['a', 'A'], marker_symbol=•, rule_id=S_rule_2))
+ACTION: shift
+STATE AFTER SHIFT: 2
+
+STATE STACK: deque([0, 2])
+SYMBOL STACK: deque(['a'])
+CURRENT STATE: 2
+CURRENT SYMBOL: b
+PREVIOUS SYMBOL: a
+ACTION SEARCH: (<ParserAction.SHIFT: 'shift'>, 5, GrammarRule(rule_head=A, rule_body=['b'], marker_symbol=•, rule_id=A_rule_1))
+ACTION: shift
+STATE AFTER SHIFT: 5
+
+STATE STACK: deque([0, 2, 5])
+SYMBOL STACK: deque(['a', 'b'])
+CURRENT STATE: 5
+CURRENT SYMBOL: b
+PREVIOUS SYMBOL: b
+ACTION SEARCH: (<ParserAction.REDUCE: 'reduce'>, GrammarRule(rule_head=A, rule_body=['b'], marker_symbol=•, rule_id=A_rule_1))
+ACTION: reduce
+ON GOTO IN REDUCE (4, A): (4, GrammarRule(rule_head=S, rule_body=['a', 'A'], marker_symbol=•, rule_id=S_rule_2))
+
+STATE STACK: deque([0, 2, 4])
+SYMBOL STACK: deque(['a', 'A'])
+CURRENT STATE: 4
+CURRENT SYMBOL: b
+PREVIOUS SYMBOL: b
+ACTION SEARCH: (<ParserAction.REDUCE: 'reduce'>, GrammarRule(rule_head=S, rule_body=['a', 'A'], marker_symbol=•, rule_id=S_rule_2))
+ACTION: reduce
+ON GOTO IN REDUCE (1, S): (1, GrammarRule(rule_head=$, rule_body=['S'], marker_symbol=•, rule_id=INIT_RULE))
+
+STATE STACK: deque([0, 1])
+SYMBOL STACK: deque(['S'])
+CURRENT STATE: 1
+CURRENT SYMBOL: b
+PREVIOUS SYMBOL: b
+ACTION SEARCH: (<ParserAction.ERROR: 'error'>, None, None)
+ACTION: error
+
+SYMBOL STACK:
+deque(['S'])
+[38;5;9m-------------------------------------------------[0m
+[4m[1m[38;5;9mINPUT IS INVALID!!![0m[0m[0m
+    |
+    |
+    • ----> [1m[38;5;11mabb[0m[0m
+[38;5;9m-------------------------------------------------[0m
+
+
+
+
+
