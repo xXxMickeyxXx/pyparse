@@ -655,7 +655,7 @@ class ParserEvent:
         return retval
 
 
-class ParserAction:
+class ParserActionEvent:
 
     def __init__(self, action, action_id=None):
         self._action = action
@@ -958,7 +958,7 @@ class CoreParser2(PySynchronyContext):
 
     __slots__ = ("_event_loop", "_parser_id", "_grammar", "_parse_table", "_parser_settings", "_init_state", "_state", "_channel", "_logger", "_action_cls")
 
-    def __init__(self, event_loop=None, init_state=0, grammar=None, parse_table=None, parser_id=None, action_cls=ParserAction):
+    def __init__(self, event_loop=None, init_state=0, grammar=None, parse_table=None, parser_id=None, action_cls=ParserActionEvent):
         super().__init__(event_loop=event_loop, context_id=parser_id)
         self._event_loop = event_loop
         self._grammar = grammar
@@ -1004,9 +1004,9 @@ class CoreParser2(PySynchronyContext):
     def init_state(self):
         return self._init_state
 
-    @property
-    def channel(self):
-        return self.event_loop.channel(channel_id=self.context_id)
+    # @property
+    # def channel(self):
+    #     return self.event_loop.channel(channel_id=self.context_id)
 
     @property
     def logger(self):
@@ -1019,7 +1019,7 @@ class CoreParser2(PySynchronyContext):
 
     # TODO: interface should include this as an 'abstractmethod' 
     def register(self, signal_id, receiver=None, receiver_id=None):
-        return self.channel.register(signal_id, receiver=receiver, receiver_id=receiver_id)
+        return self.channel(channel_id=self.context_id).register(signal_id, receiver=receiver, receiver_id=receiver_id)
 
     # TODO: interface should include this as an 'abstractmethod' 
     def setting(self, setting_key, default=None):
@@ -1434,7 +1434,7 @@ def parse_and_display(test_data, tokenizer, parser, count=-1):
         # for _token in _request_input_tokens:
         #     print(f"• {_token}")
         print()
-        _parse_context = ParseContext(input=input, start_symbol="$")
+        _parse_context = ParseContext(input=_next_test_data_piece, start_symbol="$")
         _parse_result = parse_data(_parse_context, parser)
         # _parse_result = parse_data(_request_input_tokens, parser)
         display_result(_next_test_data_piece, _parse_result)
@@ -1562,9 +1562,15 @@ def parse_main():
     # display_table(_parse_table)
 
 
-    # # Instantiate parser back-end (actual parsing implementation) and configure as needed
+    # # Instantiate parser back-end (actual parsing implementation)
     # # _parser_impl = CoreParser(init_state=0, grammar=GRAMMAR, parse_table=_parse_table)
     # _parser_impl = CoreParser2(init_state=0, grammar=GRAMMAR, parse_table=_parse_table)
+
+    # # Set event loop
+    # _event_loop = PySynchronyEventLoop(loop_id="[ • ---• TEST_PYPARSE_EVENT_LOOP • --- • ]")
+    # _parser_impl.set_loop(_event_loop)
+
+    # # Configure parser and parser events
     # _parser_config = ParserConfig()
     # _parser_config.init(_parser_impl)
 
@@ -1573,9 +1579,6 @@ def parse_main():
     # # _parser_impl.set_grammar(GRAMMAR)
 
 
-    # # Set event loop
-    # _event_loop = PySynchronyEventLoop(loop_id="[ • ---• TEST_PYPARSE_EVENT_LOOP • --- • ]")
-    # _parser_impl.set_loop(_event_loop)
 
 
     # # Initialize parser events
