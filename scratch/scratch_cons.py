@@ -27,7 +27,7 @@ class ParserAction(StrEnum):
     UPDATE = auto()
 
 
-class  GrammarRuleBy(IntEnum):
+class GrammarRuleBy(IntEnum):
 
     ID = auto()
     HEAD = auto()

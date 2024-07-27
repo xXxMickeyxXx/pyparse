@@ -23,6 +23,11 @@ class GrammarRule:
         #######################################################
 
 
+    -•- Perhaps make it so that a rule can contain another rule, in a hierachy (i.e.
+    a composite structure). I'm not sure what that will help with, but I've thought of
+    it a few times and keep forgetting to write it down, so it may make sense
+
+
     -•- Maybe make some sort of rule id so that no rule can have the same ID (i.e. upon
     creation of the object so that it fails to instantiate if a rule with that ID alread exists)
 
@@ -63,9 +68,11 @@ class GrammarRule:
 
     """
 
-    __slots__ = ("_rule_head", "_rule_body", "_marker_symbol", "_marker_pos", "_augmented_item", "_status", "_can_reduce", "_track_goto", "_goto", "_rule_id", "_augmented", "_current_state", "__at_end", "__at_beginning", "_valid_states")
+    __slots__ = ("_rule_head", "_rule_body", "_init_state", "_marker_symbol", "_marker_pos", "_augmented_item", "_status", "_can_reduce", "_track_goto", "_goto", "_rule_id", "_augmented", "_current_state", "__at_end", "__at_beginning", "_init_state")
 
-    def __init__(self, rule_head: str, rule_body: list | tuple, marker_symbol: MarkerSymbol | None = None, rule_id=None):
+    __gotos__ = {}
+
+    def __init__(self, rule_head: str, rule_body: list | tuple, marker_symbol: MarkerSymbol | None = None, rule_id=None, init_state=0):
         self._rule_id = rule_id or generate_id()
         self._rule_head = rule_head
         self._rule_body = rule_body
@@ -74,10 +81,12 @@ class GrammarRule:
         self._augmented_item = None
         self._augmented = False
         self._status = None
-        self._current_state = None
+        self._init_state = 0 if not isinstance(init_state, (int, float)) else init_state
+        self._current_state = self._init_state
         self.__at_end = False
         self.__at_beginning = False
-        self._valid_states = {}
+        if self.rule_id not in self.__gotos__:
+            self.__gotos__.setdefault(self.rule_id, {})
 
     @property
     def rule_id(self):
@@ -127,11 +136,11 @@ class GrammarRule:
 
     @property
     def current_state(self):
-        if self._current_state is None:
-            # TODO: create and raise custom error here
-            _error_details = f"unable to access current state as it has not yet been set..."
-            raise RuntimeError(_error_details)
         return self._current_state
+
+    @property
+    def valid_states(self):
+        return self.__gotos__[self.rule_id]
 
     def __str__(self):
         return self.__repr__()
@@ -164,9 +173,8 @@ class GrammarRule:
         self.advance()
         return _retval
 
-    def update_state(self, state):
-        _copied_item = self.copy(deepcopy=True)
-        self._valid_states.update(state, tuple(_copied_item.look_behind()))
+    def set_state(self, state):
+        self._current_state = state
 
     def augmented_item_factory(self):
         # TODO: replace 'GrammarRule' logic relating to augmentation with
@@ -196,6 +204,26 @@ class GrammarRule:
                 self.augmented_item.insert(self._marker_pos, _marker_sym)
         return self.status()
 
+    def bind_state(self, current_state, next_state, look_ahead: tuple | list =()):
+        # NOTE: need to find a better name for this
+        if isinstance(look_ahead, list):
+            look_ahead = tuple(look_ahead)
+        self.valid_states.update({(current_state, look_ahead): next_state})
+
+    def get_state(self, current_state, look_ahead):
+        _retval = None
+        _next_state = self.__gotos__.get(self.rule_id, None)
+        if _next_state is not None:
+            _retval = _next_state.get((current_state, look_ahead), None)
+        return _retval
+
+    def update(self, look_ahead):
+        if self.at_start:
+            self.set_state(0)
+        _next_state = self.get_state(self.current_state)
+
+
+
     def reverse(self):
         if self.marker_pos > 0:
             _current_pos = self._marker_pos
@@ -204,20 +232,22 @@ class GrammarRule:
             self.augmented_item.insert(self._marker_pos, _marker_sym)
 
     def status(self):
-        return self.augmented_item
+        return tuple(self.augmented_item)
 
     def look_behind(self):
         _at_start = self.at_start
         if _at_start:
             return []
-        return self.augmented_item[:self._marker_pos]
+        # NOTE: maybe determine a way to not have to keep converting a list into a tuple
+        return tuple(self.augmented_item[:self._marker_pos])
 
     def look_ahead(self):
         _right_of_lst = []
         _at_end = self.at_end
         if _at_end:
             return _right_of_lst
-        return self.augmented_item[self._marker_pos + 1:]
+        # NOTE: maybe determine a way to not have to keep converting a list into a tuple
+        return tuple(self.augmented_item[self._marker_pos + 1:])
 
     def copy(self, *, deepcopy=False):
         _cls_type = type(self)
@@ -230,6 +260,7 @@ class GrammarRule:
         _marker_pos = copy.copy(self.marker_pos)
         _augmented_item = copy.copy(self._augmented_item)
         _rule_id = copy.copy(self.rule_id)
+
 
         _new_instance = cls_type(_rule_head, _rule_body, marker_symbol=_marker_symbol)
         _new_instance._augmented_item = _augmented_item

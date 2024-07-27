@@ -5,7 +5,7 @@ from pyparse import (
     Parser,
     TransitionError
 )
-from .scratch_parser_automaton import ParserAutomaton
+from .scratch_parser_automaton import ParserStateManager
 from pyparse.library import (
     PyChannels,
     PyChannel,
@@ -23,7 +23,7 @@ class Parser:
     def __init__(self, automaton=None, parser_id=None):
         self._parser_id = parser_id or generate_id()
         self._event_loop = PySynchronyEventLoop(loop_id=self.parser_id)
-        self._automaton = automaton or ParserAutomaton()
+        self._automaton = automaton or ParserStateManager()
         self._automaton.set_parser(self)
 
     @property

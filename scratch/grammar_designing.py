@@ -152,6 +152,14 @@ class Grammar:
 
     # NOTE: current working/updated implementation (as of 2024-07-24)
     def generate_states(self):
+
+
+        # TODO: instead of trying to get this to work by using a "_possible_routes"
+        #       mapping, iterate through every symbol and with each symbol, see if
+        #       the temp item set (which at that point, won't be separated into a list
+        #       of lists, containing new item sets to add and will instead be an
+        #       un-nested list).
+
         if self._item_states_cache is None:
             _item_sets = []
             _augmented_item_closure = self.closure(self.init_item)
@@ -214,35 +222,41 @@ class Grammar:
                     print()
                     _temp_sets = []
                     for i in _possible_routes.values():
-                        print(f"\t'{i[0].next_symbol()}'")
+                        print(f"'{i[0].next_symbol()}'")
                         _temp_set = []
+                        _curr_state = len(_item_sets) + len(_temp_set) + len(_temp_sets)
                         for e in i:
-                            print(f"RULE ID:")
-                            print(f"\t* {e.rule_id}")
+                            print(f"\tRULE ID: {e.rule_id}")
                             _item_copy = e.copy(deepcopy=True)
-                            if not _item_copy.can_reduce:
-                                _item_copy.advance()
-                                if _item_copy in self.non_terminals():
+                            _next_symbol = _item_copy.next_symbol()
+                            print(f"RULE HEAD: {_item_copy.rule_head} ('{_item_copy.rule_id}') IN STATE: {_curr_state} ON SYMBOL: {_next_symbol} ---> UPDATE TO STATE: {_item_copy.next_state(_curr_state, (_next_symbol,))}")
+                            _item_copy.advance()
+                            if _next_symbol in self.non_terminals():
+                                if not _item_copy.can_reduce:
                                     _item_closure = self.closure(_item_copy)
                                     if _item_closure not in _temp_set:
-                                        _temp_set.extend(_item_closure)
+                                        _temp_set.append(_item_closure)
+                                        # _item_set_added = True
                             else:
-                                _temp_set.append(_item_copy)
+                                _temp_set.append((_item_copy))
+                                    # _item_set_added = True
 
                             print()
-                            print(f"ITEM ADDED TO TEMP SET:")
+                            print(f"\tRULE ADDED TO TEMP SET:")
                             for i in _temp_set:
-                                print(f"\t* {i}")
-                            print(f"\t* {_item_copy.rule_head} ---> {_item_copy.rule_body}")
-                            print(f"\t* {_item_copy.status()}")
+                                print(f"\t\t* {i}")
+                            print(f"\t\t* {_item_copy.rule_head} ---> {_item_copy.rule_body}")
+                            print(f"\t\t* {_item_copy.status()}")
                             print()
+                        if _temp_set and not _item_set_added:
+                            _item_set_added = True
+                        print(f"ADDED TO TEMP SETS ---> {_temp_set}")
                         _temp_sets.append(_temp_set)
                         print("\n\n")
 
                     print()
                     print(f"STUFF IN TEMP SETS")
-                    for idx, i in enumerate(_temp_sets):
-                        print(f"{idx}")
+                    for i in _temp_sets:
                         print(f"\t* {i}")
                         if i in _item_sets:
                             continue
@@ -309,7 +323,7 @@ class Grammar:
         _new_rule = self.rule_factory(*args, **kwargs)
         if _new_rule in self._rules:
             # TODO: create and raise custom error here
-            _error_details = f"invalid rule; grammar rule already exists within instance ({_new_rule.rule_head} ---> {_new_rule.rule_body})..."
+            _error_details = f"invalid rule; grammar rule already exists within instance |  {_new_rule.rule_head} ---> {_new_rule.rule_body}  |..."
             raise RuntimeError(_error_details)
         self.add_rule(_new_rule)
         return _new_rule
@@ -358,6 +372,14 @@ class Grammar:
                 raise GrammarRuleError(details=_error_details)
             _by = search_by
         return _by(rule_input, self, all=all)
+
+    # NOTE: this method may replace the above 'rule' method, though I'll need to
+    #       update it everywhere it's currently used
+    def select(self, rule_id, copy=False, deepcopy=True):
+        _retval = None
+        for _rule in grammar.rules():
+            if _rule.rule_id == rule_id:
+                return _rule.copy(deepcopy=deepcopy) if copy else _rule
 
     @staticmethod
     def _get_rule_by_id(rule_input, grammar, all=True):
@@ -433,23 +455,24 @@ class Grammar:
 
 if __name__ == "__main__":
     _test_grammar = Grammar(grammar_id="[ • -- TEST_GRAMMR -- • ]")
-    _test_grammar.create_rule("$", ["S"], rule_id="INIT_RULE")
-    _test_grammar.create_rule("S", ["a", "A"], rule_id="S_rule_1")
-    _test_grammar.create_rule("A", ["b"], rule_id="A_rule_1")
+    
+    init_rule = _test_grammar.create_rule("$", ["E"], rule_id="INIT_RULE", init_state=1000)
+    init_rule.bind_state(0, 1, ("E",))
 
-    _item_states = _test_grammar.generate_states()
-    for k, v in _item_states.items():
-        print(f"STATE: {k}")
-        for i in v:
-            print(f"\tRULE: {i.rule_head}")
-            print(f"\t{i.status()}")
-        print()
+    E_rule_1 = _test_grammar.create_rule("E", ["E", "*", "B"], rule_id="E_rule_1")
+    E_rule_1.bind_state(0, 1, ("E",))
 
-    _item_states_2 = _test_grammar.generate_states()
-    for k, v in _item_states_2.items():
-        print(f"STATE: {k}")
-        for i in v:
-            print(f"\tRULE: {i.rule_head}")
-            print(f"\t{i.status()}")
-        print()
+    E_rule_2 = _test_grammar.create_rule("E", ["E", "+", "B"], rule_id="E_rule_2")
+    E_rule_2.bind_state(0, 1, ("E",))
 
+    E_rule_3 = _test_grammar.create_rule("E", ["B"], rule_id="E_rule_3")
+    E_rule_3.bind_state(0, 1, ("B",))
+
+    B_rule_1 = _test_grammar.create_rule("B", ["0"], rule_id="B_rule_1")
+    B_rule_1.bind_state(0, 3, ("0",))
+
+    B_rule_2 = _test_grammar.create_rule("B", ["1"], rule_id="B_rule_2")
+    B_rule_2.bind_state(0, 4, ("1",))
+
+
+    _states = _test_grammar.generate_states()

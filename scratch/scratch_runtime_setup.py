@@ -954,16 +954,17 @@ class CoreParser:
         return _action == ParserAction.ACCEPT
 
 
-class CoreParser2(PySynchronyContext):
+# class CoreParser2(PySynchronyContext):
+class CoreParser2:
 
-    __slots__ = ("_event_loop", "_parser_id", "_grammar", "_parse_table", "_parser_settings", "_init_state", "_state", "_channel", "_logger", "_action_cls")
+    __slots__ = ("_event_loop", "_parser_id", "_grammar", "_parse_table", "_parser_settings", "_init_state", "_state", "_channel", "_logger")
 
     def __init__(self, event_loop=None, init_state=0, grammar=None, parse_table=None, parser_id=None, action_cls=ParserActionEvent):
-        super().__init__(event_loop=event_loop, context_id=parser_id)
+        self._parser_id = parser_id or generate_id()
         self._event_loop = event_loop
         self._grammar = grammar
-        self._action_cls = action_cls
         self._parse_table = parse_table
+        self._automaton
         self._parser_settings = ParserSettings(self)
         self._init_state = init_state
         self._state = None
@@ -972,15 +973,15 @@ class CoreParser2(PySynchronyContext):
     # TODO: interface should include (as 'NotImplementedError' until implemented)
     @property
     def parser_id(self):
-        return self.context_id
+        return self._parser_id
 
     # # TODO: interface should include (as 'NotImplementedError' until implemented) ---> **DELETE** (most likely since the 'PySynchronyContext' interface handles it)
-    # @property
-    # def event_loop(self):
-    #     if self._event_loop is None:
-    #         _error_details = f"unable to access attribute as one has not yet been associated with this instance of '{self.__class__.__name__}'..."
-    #         raise AttributeError(_error_details)
-    #     return self._event_loop
+    @property
+    def event_loop(self):
+        if self._event_loop is None:
+            _error_details = f"unable to access attribute as one has not yet been associated with this instance of '{self.__class__.__name__}'..."
+            raise AttributeError(_error_details)
+        return self._event_loop
 
     # TODO: interface should include (as 'NotImplementedError' until implemented)
     @property
@@ -1004,9 +1005,9 @@ class CoreParser2(PySynchronyContext):
     def init_state(self):
         return self._init_state
 
-    # @property
-    # def channel(self):
-    #     return self.event_loop.channel(channel_id=self.context_id)
+    @property
+    def channel(self):
+        return self.event_loop.channel(channel_id=self.parser_id)
 
     @property
     def logger(self):
@@ -1019,7 +1020,7 @@ class CoreParser2(PySynchronyContext):
 
     # TODO: interface should include this as an 'abstractmethod' 
     def register(self, signal_id, receiver=None, receiver_id=None):
-        return self.channel(channel_id=self.context_id).register(signal_id, receiver=receiver, receiver_id=receiver_id)
+        return self.channel.register(channel_id=self.context_id).register(signal_id, receiver=receiver, receiver_id=receiver_id)
 
     # TODO: interface should include this as an 'abstractmethod' 
     def setting(self, setting_key, default=None):
@@ -1560,61 +1561,61 @@ def parse_main():
     display_item_states(_item_states)
 
 
-    # # Create parse table, used to guide the LR(0) automaton that makes
-    # # up the design for the shift/reduce parser
-    # _parse_table = ParseTable(grammar=GRAMMAR, table_id="[ • -- TEST_PARSE_TABLE -- • ]", start_symbol="$")
+    # Create parse table, used to guide the LR(0) automaton that makes
+    # up the design for the shift/reduce parser
+    _parse_table = ParseTable(grammar=GRAMMAR, table_id="[ • -- TEST_PARSE_TABLE -- • ]", start_symbol="$")
 
-    # # Display parse table
-    # display_table(_parse_table)
-
-
-    # # Instantiate parser back-end (actual parsing implementation)
-    # # _parser_impl = CoreParser(init_state=0, grammar=GRAMMAR, parse_table=_parse_table)
-    # _parser_impl = CoreParser2(init_state=0, grammar=GRAMMAR, parse_table=_parse_table)
-
-    # # Set event loop
-    # _event_loop = PySynchronyEventLoop(loop_id="[ • ---• TEST_PYPARSE_EVENT_LOOP • --- • ]")
-    # _parser_impl.set_loop(_event_loop)
-
-    # # Configure parser and parser events
-    # _parser_config = ParserConfig()
-    # _parser_config.init(_parser_impl)
+    # Display parse table
+    display_table(_parse_table)
 
 
-    # # _parser_impl.set_table(_parse_table)
-    # # _parser_impl.set_grammar(GRAMMAR)
+    # Instantiate parser back-end (actual parsing implementation)
+    # _parser_impl = CoreParser(init_state=0, grammar=GRAMMAR, parse_table=_parse_table)
+    _parser_impl = CoreParser2(init_state=0, grammar=GRAMMAR, parse_table=_parse_table)
+
+    # Set event loop
+    _event_loop = PySynchronyEventLoop(loop_id="[ • ---• TEST_PYPARSE_EVENT_LOOP • --- • ]")
+    _parser_impl.set_loop(_event_loop)
+
+    # Configure parser and parser events
+    _parser_config = ParserConfig()
+    _parser_config.init(_parser_impl)
+
+
+    # _parser_impl.set_table(_parse_table)
+    # _parser_impl.set_grammar(GRAMMAR)
 
 
 
 
-    # # Initialize parser events
-    # # _parser_events = TestParserActionEvents()
-    # # _parser_events.init(_parser_impl)
+    # Initialize parser events
+    # _parser_events = TestParserActionEvents()
+    # _parser_events.init(_parser_impl)
 
-    # # NOTE: what if I make the abstract component, 'Parser' (which takes a
-    # #       parser implementation) a sub-class of the 'PySynchronyContext'
-    # #       implementation, as opposed of the implementation itself?? Worth
-    # #       thinking about
-    # # Instantiate parser front-end (bridge between different parser designs)
-    # _parser = Parser(parser=_parser_impl)
-
-
-    # # Initialize source file object and get data contained within file
-    # _source_file = SourceFile(path=TEST_INPUT_1)
-    # _source_file_data = read_source(_source_file)
-    # # display_test_data(_source_file_data)
+    # NOTE: what if I make the abstract component, 'Parser' (which takes a
+    #       parser implementation) a sub-class of the 'PySynchronyContext'
+    #       implementation, as opposed of the implementation itself?? Worth
+    #       thinking about
+    # Instantiate parser front-end (bridge between different parser designs)
+    _parser = Parser(parser=_parser_impl)
 
 
-    # # Generate tokens to feed the parser
-    # _tokenizer = TestGrammar6()
+    # Initialize source file object and get data contained within file
+    _source_file = SourceFile(path=TEST_INPUT_1)
+    _source_file_data = read_source(_source_file)
+    # display_test_data(_source_file_data)
 
-    # # Parse and display results; once this works, the next step(s) will be to
-    # # finilize design (implement additional design/concepts as needed), organize
-    # # 'pyparse' files (taking the concepts contained with this module and the
-    # # 'scratch' sub-package in general), re-organize git, and then use and see how
-    # # I can make it better, more robust, etc.
-    # parse_and_display(_source_file_data, _tokenizer, _parser, count=2)
-    # # parse_and_display_custom_input(_tokenizer, _parser)
+
+    # Generate tokens to feed the parser
+    _tokenizer = TestGrammar6()
+
+    # Parse and display results; once this works, the next step(s) will be to
+    # finilize design (implement additional design/concepts as needed), organize
+    # 'pyparse' files (taking the concepts contained with this module and the
+    # 'scratch' sub-package in general), re-organize git, and then use and see how
+    # I can make it better, more robust, etc.
+    parse_and_display(_source_file_data, _tokenizer, _parser, count=2)
+    # parse_and_display_custom_input(_tokenizer, _parser)
 
 
 if __name__ == "__main__":
