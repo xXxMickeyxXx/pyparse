@@ -63,7 +63,7 @@ class GrammarRule:
 
     """
 
-    __slots__ = ("_rule_head", "_rule_body", "_marker_symbol", "_marker_pos", "_augmented_item", "_status", "_can_reduce", "_track_goto", "_goto", "_rule_id", "_augmented", "_current_state", "__at_end", "__at_beginning")
+    __slots__ = ("_rule_head", "_rule_body", "_marker_symbol", "_marker_pos", "_augmented_item", "_status", "_can_reduce", "_track_goto", "_goto", "_rule_id", "_augmented", "_current_state", "__at_end", "__at_beginning", "_valid_states")
 
     def __init__(self, rule_head: str, rule_body: list | tuple, marker_symbol: MarkerSymbol | None = None, rule_id=None):
         self._rule_id = rule_id or generate_id()
@@ -77,6 +77,7 @@ class GrammarRule:
         self._current_state = None
         self.__at_end = False
         self.__at_beginning = False
+        self._valid_states = {}
 
     @property
     def rule_id(self):
@@ -164,8 +165,8 @@ class GrammarRule:
         return _retval
 
     def update_state(self, state):
-        _prev_state, self._current_state = self._current_state, state
-        return _prev_state
+        _copied_item = self.copy(deepcopy=True)
+        self._valid_states.update(state, tuple(_copied_item.look_behind()))
 
     def augmented_item_factory(self):
         # TODO: replace 'GrammarRule' logic relating to augmentation with

@@ -1352,6 +1352,12 @@ def display_test_data(test_data):
 def display_item_states(item_sets):
     print(ITEM_STATES_TEXT)
     print()
+    print(f"ITEM SETS:")
+    print()
+    print()
+    print(item_sets)
+    print()
+    print()
     for item_state, _items in item_sets.items():
         print(f"STATE: {item_state}")
         for _item in _items:
