@@ -954,21 +954,22 @@ class CoreParser:
         return _action == ParserAction.ACCEPT
 
 
-# class CoreParser2(PySynchronyContext):
+# class CoreParser2(PySynchronyContext):  (NOTE: remove once implementing as )
 class CoreParser2:
 
-    __slots__ = ("_event_loop", "_parser_id", "_grammar", "_parse_table", "_parser_settings", "_init_state", "_state", "_channel", "_logger")
+    __slots__ = ("_event_loop", "_parser_id", "_grammar", "_parse_table", "_parser_settings", "_init_state", "_state", "_channel", "_logger", "_ports")
 
     def __init__(self, event_loop=None, init_state=0, grammar=None, parse_table=None, parser_id=None, action_cls=ParserActionEvent):
         self._parser_id = parser_id or generate_id()
         self._event_loop = event_loop
         self._grammar = grammar
         self._parse_table = parse_table
-        self._automaton
+        # self._automaton
         self._parser_settings = ParserSettings(self)
         self._init_state = init_state
         self._state = None
         self._logger = None
+        self._ports = {}
 
     # TODO: interface should include (as 'NotImplementedError' until implemented)
     @property
@@ -1019,8 +1020,56 @@ class CoreParser2:
         return f"{self.__class__.__name__}"
 
     # TODO: interface should include this as an 'abstractmethod' 
+    def port(self, port_id):
+        return self._ports.get(port_id, None)
+
+    # TODO: interface should include this as an 'abstractmethod' 
+    def create_port(self, max_size=0, queue_factory=None, port_id=None, overwrite=False):
+        _port = self.port_factory(max_size=max_size, queue_factory=queue_factory, port_id=port_id)
+        _port_added = self.add_port(_port, overwrite=overwrite)
+        if not _port_added:
+            # TODO: create and raise custom error here
+            _error_details = f"unable to create port with port ID: '{port_id}' already exists within instance of '{self.__class__.__name__}' and 'overwrite' argument is 'False'..."
+            raise ValueError(_error_details)
+        return _port
+
+    # TODO: interface should include this as an 'abstractmethod' 
+    def port_factory(self, *args, **kwargs):
+        return PySynchronyPort(*args, **kwargs)
+
+    # TODO: interface should include this as an 'abstractmethod' 
+    def add_port(self, port, port_id=None, overwrite=False):
+        _port_id = port.port_id if hasattr(port, "port_id") and port_id is None else port_id
+        if _port_id not in self._ports or overwrite:
+            self._ports.update({_port_id: port})
+            return True
+        return False
+
+    # TODO: interface should include this as an 'abstractmethod' 
+    def remove_port(self, port_id):
+        return self._ports.remove(port_id)
+
+    def register_handler(self, port_id, handler, handler_id=None, overwrite=False):
+        _port = self.port(port_id)
+        if _port is None:
+            # TODO: create and raise custom error here
+            _error_details = f"unable to register handler to port ID: {port_id}"
+            raise ValueError(_error_details)
+        _port.register_handler(handler, handler_id=handler_id, overwrite=overwrite)
+        return True
+
+    # TODO: interface should include this as an 'abstractmethod' 
+    def set_loop(self, event_loop):
+        self._event_loop = event_loop
+
+    # TODO: interface should include this as an 'abstractmethod' 
+    def send(self, data, port_id):
+        _port = self.port(port_id)
+        return _port.send(data)
+
+    # TODO: interface should include this as an 'abstractmethod' 
     def register(self, signal_id, receiver=None, receiver_id=None):
-        return self.channel.register(channel_id=self.context_id).register(signal_id, receiver=receiver, receiver_id=receiver_id)
+        return self.channel.register(signal_id, receiver=receiver, receiver_id=receiver_id)
 
     # TODO: interface should include this as an 'abstractmethod' 
     def setting(self, setting_key, default=None):
@@ -1614,9 +1663,40 @@ def parse_main():
     # 'pyparse' files (taking the concepts contained with this module and the
     # 'scratch' sub-package in general), re-organize git, and then use and see how
     # I can make it better, more robust, etc.
-    parse_and_display(_source_file_data, _tokenizer, _parser, count=2)
+    parse_and_display(_source_file_data, _tokenizer, _parser, count=1)
     # parse_and_display_custom_input(_tokenizer, _parser)
 
 
 if __name__ == "__main__":
-    pass
+    def quick_test():
+        _parser = CoreParser2(init_state=0, grammar=GRAMMAR, parse_table=None)
+        _valid_port_1 = _parser.create_port(port_id="TEST_PORT")
+        _invalid_port_2 = _parser.create_port(port_id="TEST_PORT", overwrite=False)
+
+        print(f"PORT: {_invalid_port_2}")
+        print(f"PORT ID: {_invalid_port_2.port_id}")
+
+
+    def _test_dialog_box():
+        import tkinter
+        from tkinter import simpledialog
+
+
+        root = tkinter.Tk()
+        # root.withdraw()
+
+        user_input = simpledialog.askstring("Input", "Please enter your name:")
+        if user_input:
+            print(f"Hello {user_input}, how are you?")
+        else:
+            print(f"I didn't catch your name, what was it again?")
+
+        try:
+            root.destroy()
+            return
+        except _tkinter.TclError:
+            return
+
+
+    quick_test()
+    # _test_dialog_box()

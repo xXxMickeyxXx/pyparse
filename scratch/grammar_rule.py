@@ -68,21 +68,22 @@ class GrammarRule:
 
     """
 
-    __slots__ = ("_rule_head", "_rule_body", "_init_state", "_marker_symbol", "_marker_pos", "_augmented_item", "_status", "_can_reduce", "_track_goto", "_goto", "_rule_id", "_augmented", "_current_state", "__at_end", "__at_beginning", "_init_state")
+    __slots__ = ("_rule_head", "_rule_body", "_marker_symbol", "_marker_pos", "_augmented_item", "_status", "_can_reduce", "_track_goto", "_goto", "_rule_id", "_augmented", "_state", "__at_end", "__at_beginning")
 
+    # TODO: determine if '__gotos__' attribute and supporting logic is needed
+    #       (likely not needed, at least, not at this stage)
     __gotos__ = {}
 
-    def __init__(self, rule_head: str, rule_body: list | tuple, marker_symbol: MarkerSymbol | None = None, rule_id=None, init_state=0):
+    def __init__(self, rule_head: str, rule_body: list | tuple, marker_symbol: str = "•", rule_id=None):
         self._rule_id = rule_id or generate_id()
         self._rule_head = rule_head
         self._rule_body = rule_body
-        self._marker_symbol = marker_symbol or MarkerSymbol("•")
+        self._marker_symbol = MarkerSymbol(marker_symbol)
         self._marker_pos = 0
         self._augmented_item = None
         self._augmented = False
         self._status = None
-        self._init_state = 0 if not isinstance(init_state, (int, float)) else init_state
-        self._current_state = self._init_state
+        self._state = None
         self.__at_end = False
         self.__at_beginning = False
         if self.rule_id not in self.__gotos__:
@@ -114,7 +115,8 @@ class GrammarRule:
 
     @property
     def at_end(self):
-        return self.augmented_item[-1] == self.marker_symbol
+        # return (self.augmented_item[-1] == self.marker_symbol) or (self.rule_size <= self.marker_pos)
+        return self.rule_size <= self.marker_pos
 
     @property
     def at_start(self):
@@ -135,8 +137,8 @@ class GrammarRule:
         return self._augmented_item
 
     @property
-    def current_state(self):
-        return self._current_state
+    def state(self):
+        return self._state
 
     @property
     def valid_states(self):
@@ -149,8 +151,8 @@ class GrammarRule:
         return f"{self.__class__.__name__}(rule_head={self.rule_head}, rule_body={self.rule_body}, marker_symbol={self.marker_symbol}, rule_id={self.rule_id})"
 
     def __eq__(self, other):
-        # return isinstance(self, type(other)) and (self.rule_id == other.rule_id and self.rule_body == other.rule_body)  # NOTE: this is how 'GrammarRule' should identify equality
-        return isinstance(self, type(other)) and (self.rule_id == other.rule_id and self.status() == other.status())  # NOTE: this is how 'AugmentedGrammarRule' or 'AugmentedItem' should handle equality
+        return isinstance(self, type(other)) and (self.rule_id == other.rule_id and self.rule_body == other.rule_body)  # NOTE: this is how 'GrammarRule' should identify equality
+        # return isinstance(self, type(other)) and (self.rule_id == other.rule_id and self.status() == other.status())  # NOTE: this is how 'AugmentedGrammarRule' or 'AugmentedItem' should handle equality
 
     def __hash__(self):
         # return hash((self.rule_id, "".join(self.rule_body)))  # NOTE: this is how 'GrammarRule' should handle hashing
@@ -158,6 +160,9 @@ class GrammarRule:
 
     def __len__(self):
         return self.rule_size
+
+    def __getitem__(self, idx):
+        return self.rule_body[idx]
 
     def __iter__(self):
         return self
@@ -174,7 +179,7 @@ class GrammarRule:
         return _retval
 
     def set_state(self, state):
-        self._current_state = state
+        self._state = state
 
     def augmented_item_factory(self):
         # TODO: replace 'GrammarRule' logic relating to augmentation with
@@ -204,25 +209,32 @@ class GrammarRule:
                 self.augmented_item.insert(self._marker_pos, _marker_sym)
         return self.status()
 
-    def bind_state(self, current_state, next_state, look_ahead: tuple | list =()):
+    def bind_state(self, current_state, look_ahead, next_state):
         # NOTE: need to find a better name for this
-        if isinstance(look_ahead, list):
-            look_ahead = tuple(look_ahead)
-        self.valid_states.update({(current_state, look_ahead): next_state})
+        if current_state not in self.valid_states:
+            self.valid_states[current_state] = {}
 
-    def get_state(self, current_state, look_ahead):
+        if look_ahead not in self.valid_states[current_state]:
+            self.valid_states[current_state][look_ahead] = next_state
+
+            print()
+            print(f"STATEB BOUND RULE ID: '{bold_text(underline_text(self.rule_id))}' AS FOLLOWS:")
+            print()
+            print(f"\tMAPPING[{current_state}][{look_ahead}] = NEW STATE: {next_state}")
+            print()
+        # self.valid_states.update({(current_state, look_ahead): next_state})
+        
+    def get_state(self, look_ahead):
         _retval = None
-        _next_state = self.__gotos__.get(self.rule_id, None)
-        if _next_state is not None:
-            _retval = _next_state.get((current_state, look_ahead), None)
+        _trans_dict = self.valid_states.get(self.state, None)
+        if _trans_dict is not None:
+            _retval = _trans_dict.get(look_ahead, None)
         return _retval
 
     def update(self, look_ahead):
         if self.at_start:
             self.set_state(0)
-        _next_state = self.get_state(self.current_state)
-
-
+        _next_state = self.get_state(self.state)
 
     def reverse(self):
         if self.marker_pos > 0:
@@ -232,7 +244,7 @@ class GrammarRule:
             self.augmented_item.insert(self._marker_pos, _marker_sym)
 
     def status(self):
-        return tuple(self.augmented_item)
+        return self.augmented_item
 
     def look_behind(self):
         _at_start = self.at_start
@@ -301,13 +313,17 @@ class GrammarRule:
 
 def _grammar_rule_main():
     print()
-    test_rule = GrammarRule("S", ["T", "i", "l", "l", "y"])
-    _test_rule_2 = test_rule.copy()
-    test_rule.advance()
-    _test_rule_2.advance()
+    test_rule = GrammarRule("S", ["T", "i", "l", "l", "y"], rule_id="SHIT")
+    test_rule_2 = GrammarRule("S", ["T", "i", "l", "l", "y"], rule_id="SHIT")
 
-    print(test_rule == _test_rule_2)
-    print(hash(test_rule) == hash(_test_rule_2))
+    test_rule_copy = test_rule.copy()
+    # test_rule.advance()
+    # test_rule_copy.advance()
+    # test_rule_copy.advance()
+
+    print(f"'test_rule' == 'test_rule_2' ---> {test_rule == test_rule_2}")
+    print(f"'test_rule' == 'test_rule_copy' ---> {test_rule == test_rule_copy}")
+    # print(hash(test_rule) == hash(test_rule_copy))
 
 
 if __name__ == "__main__":
