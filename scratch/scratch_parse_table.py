@@ -1,5 +1,5 @@
 from .scratch_utils import generate_id
-from .scratch_cons import ParserAction
+from .scratch_cons import ParserActionEnum
 from .utils import apply_color, bold_text, underline_text
 
 
@@ -78,14 +78,14 @@ class ParseTable:
                 if item.can_reduce:
                     _aug_start_rule_head = _init_rule.rule_head
                     if item.rule_head == _aug_start_rule_head:
-                        self.add_action(state, _aug_start_rule_head, (ParserAction.ACCEPT, item))
+                        self.add_action(state, _aug_start_rule_head, (ParserActionEnum.ACCEPT, item))
                     else:
                         for terminal in _terminals:
-                            self.add_action(state, terminal, (ParserAction.REDUCE, item))
-                        self.add_action(state, self._start_symbol, (ParserAction.REDUCE, item))
+                            self.add_action(state, terminal, (ParserActionEnum.REDUCE, item))
+                        self.add_action(state, self._start_symbol, (ParserActionEnum.REDUCE, item))
                 elif next_symbol in _terminals:
                     next_state = self.find_next_state(item_states, item)
-                    self.add_action(state, next_symbol, (ParserAction.SHIFT, next_state, item))
+                    self.add_action(state, next_symbol, (ParserActionEnum.SHIFT, next_state, item))
                 else:
                     next_state = self.find_next_state(item_states, item)
                     self.add_goto(state, next_symbol, (next_state, item))

@@ -5,7 +5,8 @@ import hashlib
 from enum import IntEnum, StrEnum, auto
 
 from pyprofiler import profile_callable, SortBy
-from ....library import generate_id, PyRegistry, PyChannel, PySignal
+from pyevent import PyChannels, PyChannel, PySignal
+from .scratch_utils import generate_id
 
 
 class TraversalStrategy(IntEnum):
@@ -48,7 +49,6 @@ class Component:
 		self._index = None
 		self._hash = None
 		self._signal = None
-
 
 	@property
 	def data(self):
@@ -94,18 +94,17 @@ class Component:
 	def __exit__(self, err_type, err_value, err_tb):
 		self.lock()
 
-
 	def register(self, event_id, receiver, receiver_id=None, overwrite=False):
-		_event_signal = self.channel.select(signal_id=event_id)
+		_event_signal = self.channel.signal(signal_id=event_id)
 		_event_signal.register(receiver, receiver_id=receiver_id, overwrite=overwrite)
 
 	def execute(self, event_id, event=None):
-		_event_signal = self.channel.select(signal_id=event_id)
+		_event_signal = self.channel.signal(signal_id=event_id)
 		if event is not None:
 			_event = event
 		else:
 			_event = self
-		return _event_signal.signal(_event)
+		return _event_signal.emit(_event)
 
 	def _calculate_hash(self):
 		component_id_bytes = str(self._component_id).encode('utf-8')
@@ -166,7 +165,7 @@ class Components(Component):
 	# def mapping(self):
 	# 	return {component.component_id: component for component in self._components}
 
-	def add_component(self, component):
+	def add(self, component):
 		if component not in self._components:
 			with component:
 				component.set_root(self)
@@ -174,7 +173,7 @@ class Components(Component):
 			self._components.append(component)
 			self._next_index += 1
 
-	def remove_component(self, component_id):
+	def remove(self, component_id):
 		i = 0
 		while i < len(self):
 			if self._components[i].component_id == component_id:
@@ -185,7 +184,7 @@ class Components(Component):
 			i += 1
 		return None
 
-	def get_component(self, component_id, *, tstrategy=1):
+	def select(self, component_id, *, tstrategy=1):
 		for comp in self.traverse(tstrategy):
 			if comp.component_id == component_id:
 				return comp
@@ -210,11 +209,16 @@ class Components(Component):
 		return tstrategy(self)
 
 
+TEST_LIST = []
+
+
 def test_event_receiver(test_id):
 	def _test_handle_comp(comp):
 		print()
 		print(f"SEARCHING FOR TEST ID: {test_id} IN ROOT...")
+		comp = comp.select(test_id, tstrategy=1)
 		_found = f"ID: {comp.component_id}\nDATA: {comp.data}\nHASH: {comp.hash}\nINDEX: {comp.index}"
+		TEST_LIST.append(_found)
 		print(_found)
 		print()
 	return _test_handle_comp
@@ -232,7 +236,8 @@ class Root(Components):
 			raise ValueError(_error_details)
 
 		_traversal_strat_callable = self._tstrategy_mapping[tstrategy]
-		return _traversal_strat_callable(self)
+		# return _traversal_strat_callable(self)
+		return super().traverse(_traversal_strat_callable)
 
 	@staticmethod
 	def _traverse_depth_first(comp):
@@ -260,7 +265,7 @@ class Root(Components):
 
 
 def test_main_1(tstrategy=1):
-	from ....utils import apply_color, bold_text, underline_text, center_text
+	from .utils import apply_color, bold_text, underline_text, center_text
 
 
 	RANGE = 10
@@ -292,7 +297,7 @@ def test_main_1(tstrategy=1):
 		_temp_comps.append(_child_1_leaf)
 	_child_1 = Components(_test_composite_data_1, component_id=f"{ROOT_ID}.{CHILD_1_ID}")
 	for i in _temp_comps:
-		_child_1.add_component(i)
+		_child_1.add(i)
 	_temp_comps = []
 
 	LEAF_2_ID = apply_color(161, "LEAF_2")
@@ -300,28 +305,28 @@ def test_main_1(tstrategy=1):
 	_LEAF_2_ID = f"{CHILD_2_ID}.{LEAF_2_ID}"
 	_child_2_leaf = Component(_test_leaf_data_2, component_id=_LEAF_2_ID)
 	_child_2 = Components(_test_composite_data_2, component_id=f"{ROOT_ID}.{CHILD_2_ID}")
-	_child_2.add_component(_child_2_leaf)
+	_child_2.add(_child_2_leaf)
 
 	LEAF_3_ID = apply_color(161, "LEAF_3")
 	CHILD_3_ID = apply_color(163, "CHILD_3")
 	_LEAF_3_ID = f"{CHILD_3_ID}.{LEAF_3_ID}"
 	_child_3_leaf = Component(_test_leaf_data_3, component_id=_LEAF_3_ID)
 	_child_3 = Components(_test_composite_data_3, component_id=f"{ROOT_ID}.{CHILD_3_ID}")
-	_child_3.add_component(_child_3_leaf)
+	_child_3.add(_child_3_leaf)
 
 	LEAF_4_ID = apply_color(161, "LEAF_4")
 	CHILD_4_ID = apply_color(163, "CHILD_4")
 	_LEAF_4_ID = f"{CHILD_4_ID}.{LEAF_4_ID}"
 	_child_4_leaf = Component(_test_leaf_data_4, component_id=_LEAF_4_ID)
 	_child_4 = Components(_test_composite_data_4, component_id=f"{ROOT_ID}.{CHILD_4_ID}")
-	_child_4.add_component(_child_4_leaf)
+	_child_4.add(_child_4_leaf)
 
 	LEAF_5_ID = apply_color(161, "LEAF_5")
 	CHILD_5_ID = apply_color(163, "CHILD_5")
 	_LEAF_5_ID = f"{CHILD_5_ID}.{LEAF_5_ID}"
 	_child_5_leaf = Component(_test_leaf_data_5, component_id=_LEAF_5_ID)
 	_child_5 = Components(_test_composite_data_5, component_id=f"{ROOT_ID}.{CHILD_5_ID}")
-	_child_5.add_component(_child_5_leaf)
+	_child_5.add(_child_5_leaf)
 
 
 
@@ -329,7 +334,7 @@ def test_main_1(tstrategy=1):
 	root = Root(100, component_id=ROOT_ID)
 
 	for child in _test_components_list:
-		root.add_component(child)
+		root.add(child)
 
 	print()
 	print(root)
@@ -343,11 +348,13 @@ def test_main_1(tstrategy=1):
 
 	CHILD_1_ID = apply_color(163, "CHILD_1")
 	# LEAF_1_ID = apply_color(161, f"LEAF_{int(RANGE / 2)}")
-	LEAF_1_ID = apply_color(161, f"LEAF_2")
+	LEAF_1_ID = apply_color(161, f"LEAF_{random.choice([i for i in range(1, 10)])}")
 	test_id = f"{CHILD_1_ID}.{LEAF_1_ID}"
 	_event_receiver = test_event_receiver(test_id)
 	root.register("TEST_EVENT_IN_ORIGINAL_FUNCTION", _event_receiver)
-	root.get_component(test_id, tstrategy=tstrategy)
+	root.execute("TEST_EVENT_IN_ORIGINAL_FUNCTION")
+	_test_id_comp = TEST_LIST.pop(0) if TEST_LIST else None
+	print(f"COMPONENT ---> {_test_id_comp}")
 
 
 def test_main_2(tstrategy=1):
@@ -369,11 +376,12 @@ def test_main_2(tstrategy=1):
 
 
 	VISITOR_ID = "TEST_VISITOR_CHANNEL"
-	ROOT_ID = "TEST_ROOT_ID"
+	ROOT_ID = "[ROOT]"
 	TEST_EVENT_ID = "TEST_EVENT_ID"
-	TOTAL_LEAVES = 100
-	TOTAL_COMPOSITES = 16
-	TEST_COMOPNENT_ID = f"test_leaf_{int((TOTAL_LEAVES + 1 if not TOTAL_LEAVES % 2 == 0 else TOTAL_LEAVES) / 2)}"
+	TOTAL_LEAVES = 100000
+	TOTAL_COMPOSITES = 34905
+	# TEST_COMOPNENT_ID = f"test_leaf_{int((TOTAL_LEAVES + 1 if not TOTAL_LEAVES % 2 == 0 else TOTAL_LEAVES) / 2)}"
+	TEST_COMOPNENT_ID = f"test_leaf_3"
 
 	visitor_channel = VisitorChannel(visitor_id=VISITOR_ID)
 	component_leaves = [Component(i, component_id=f"test_leaf_{i}") for i in range (1, TOTAL_LEAVES + 1)]
@@ -390,15 +398,15 @@ def test_main_2(tstrategy=1):
 		if _next_comp_leaf_2.component_id == TEST_COMOPNENT_ID:
 			_next_comp_leaf_2.register(f"{TEST_EVENT_ID}_3", _test_leaf_receiver_closure)
 		_next_composite_leaf = composite_leaves.pop(composite_leaves.index(random.choice(composite_leaves)))
-		_next_composite_leaf.add_component(_next_comp_leaf_1)
-		_next_composite_leaf.add_component(_next_comp_leaf_2)
+		_next_composite_leaf.add(_next_comp_leaf_1)
+		_next_composite_leaf.add(_next_comp_leaf_2)
 		_composites.append(_next_composite_leaf)
 		count += 1
 
 	# _test_component_leaf_half_of_total = component_leaves.pop(component_leaves.index("test_leaf_50"))
 	root = Root(100, component_id=ROOT_ID)
 	for comp in _composites:
-		root.add_component(comp)
+		root.add(comp)
 
 	# visitor_channel.register("test_leaf_1", _test_leaf_visitor_channel_closure)
 	# print(_test_component_leaf_half_of_total)
@@ -421,13 +429,14 @@ def test_main_2(tstrategy=1):
 		if _test_component_leaf and isinstance(_test_component_leaf, list):
 			_test_component_leaf = _test_component_leaf.pop(0)
 			# print(f"EXECUTING COMPONENT ID: {TEST_COMOPNENT_ID}:")
-			# _test_component_leaf.execute(TEST_EVENT_ID)
+			_test_component_leaf.execute(TEST_EVENT_ID)
 			# _test_component_leaf.execute(f"{TEST_EVENT_ID}_1")
 			# _test_component_leaf.execute(f"{TEST_EVENT_ID}_2")
-			_test_component_leaf.execute(f"{TEST_EVENT_ID}_3")
+			# _test_component_leaf.execute(f"{TEST_EVENT_ID}_3")
 		print()
 		# print(f"EXECUTING ROOT COMPONENT")
-		# root.execute(f"{TEST_EVENT_ID}_1")
+		# print(f"EXECUTING EVENT --->", end=" ")
+		# print(root.execute(f"{TEST_EVENT_ID}_1"))
 		# root.execute(f"{TEST_EVENT_ID}_2")
 		# root.execute(f"{TEST_EVENT_ID}_3")
 
@@ -438,14 +447,20 @@ def test_main_2(tstrategy=1):
 	print()
 
 
-@profile_callable(sort_by=SortBy.TIME)
+# @profile_callable(sort_by=SortBy.TIME)
 def main():
-	TRAVERSAL_STRATEGY = 2
+	TRAVERSAL_STRATEGY = TraversalStrategy.BFS
 
-	for i in range(1, TRAVERSAL_STRATEGY + 1):
-		test_main_1(tstrategy=i)
-		test_main_2(tstrategy=i)
-	print(flush=True  )
+	MAX = 100
+	_counter = 1
+	_use = TRAVERSAL_STRATEGY
+	while _counter <= MAX:
+		print(f"TRAVERSAL STRATEGY ---> {_use}")
+		test_main_1(tstrategy=_use)
+		test_main_2(tstrategy=_use)
+		_use ^= 3
+		_counter += 1
+	print(flush=True)
 
 
 if __name__ == "__main__":

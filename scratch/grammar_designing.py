@@ -8,17 +8,20 @@ from .scratch_cons import GrammarRuleBy
 from pyparse import GrammarRuleError
 from .scratch_utils import generate_id
 
+from . import item_details
+
 
 class Grammar:
 
     # NOTE: this will replace the original 'Grammar' implementation
 
-    __slots__ = ("_grammar_id", "_rule_factory", "_rules", "_item_states_cache", "_terminals_cache", "_non_terminals_cache")
+    __slots__ = ("_grammar_id", "_rule_factory", "_rules", "_symbols_cache", "_item_states_cache", "_terminals_cache", "_non_terminals_cache")
 
-    def __init__(self, grammar_id=None, rule_factory=GrammarRule):
+    def __init__(self, grammar_id="", rule_factory: GrammarRule = GrammarRule):
         self._grammar_id = grammar_id or generate_id()
         self._rule_factory = rule_factory
         self._rules = []
+        self._symbols_cache = None
         self._item_states_cache = None
         self._terminals_cache = None
         self._non_terminals_cache = None
@@ -61,253 +64,82 @@ class Grammar:
     def __contains__(self, item):
         return isinstance(item, GrammarRule) and item in self._rules
 
-    # NOTE: currently saved/committed implementation (as of 2024-07-24)
-    """
-    def generate_states(self):
-        if self._item_states_cache is None:
-            _terminals = self.terminals()
-            _non_terminals = self.non_terminals()
-            _rules = self.rules()
-            _augmented_item = _rules[0]
-
-            _current_state = 0
-            _init_item_set = self.closure(_augmented_item, _current_state)
-            _item_sets = [_init_item_set]
-
-            # _goto_mapping = {}
-            _rule_queue = deque([_init_item_set])
-            while _rule_queue:
-                _next_item_set = _rule_queue.popleft()
-                _current_state = len(_item_sets)
-                for _item in _next_item_set:
-                    _item = _item.copy()
-                    # if _item.can_reduce:
-                    #     continue
-                    _item.advance()
-                    if _item.next_symbol() in _non_terminals:
-                        _next_group = self.closure(_item, _current_state)
-                        if _next_group not in _item_sets:
-                            _item_sets.append(_next_group)
-                            _rule_queue.append(_next_group)
-
-                    else:
-                        _next_group = [_item]
-                        if _next_group not in _item_sets:
-                            _item_sets.append(_next_group)
-                            _rule_queue.append(_next_group)
-
-            _retval = {}
-            for idx, i in enumerate(_item_sets):
-                _retval[idx] = []
-                for k in i:
-                    _retval[idx].append(k)
-            self._item_states_cache = _retval
-        else:
-            _retval = self._item_states_cache
-        return _retval
-    """
-    
-    # NOTE: newest implementation (as of 2024-07-24)
-    """
-    def generate_states(self):
-        if self._item_states_cache is None:
-            _terminals = self.terminals()
-            _non_terminals = self.non_terminals()
-            _rules = self.rules()
-            _augmented_item = self.rule("$", search_by=GrammarRuleBy.HEAD)[0]
-
-            # Initialize the item set with the closure of the augmented item
-            _init_item_set = self.closure(_augmented_item)
-            _item_sets = [_init_item_set]
-
-            _goto_mapping = {}
-            _rule_queue = deque([_init_item_set])
-            while _rule_queue:
-                _current_item_set = _rule_queue.popleft()
-                for symbol in _terminals + _non_terminals:
-                    _next_item_set = set()
-                    for item in _current_item_set:
-                        if item.next_symbol() == symbol:
-                            next_item = item.copy()
-                            next_item.advance()
-                            _next_item_set.add(next_item)
-                    if _next_item_set:
-                        # Apply the closure to the new item set
-                        for _next_item in _next_item_set:
-                            _next_item_set = self.closure(_next_item)
-                        # _next_item_set = self.closure(_next_item_set)
-                            if _next_item_set not in _item_sets:
-                                _item_sets.append(_next_item_set)
-                                _rule_queue.append(_next_item_set)
-
-            _retval = {}
-            for idx, item_set in enumerate(_item_sets):
-                # _retval[idx] = sorted(item_set, key=lambda x: (x.rule_id, x.marker_pos))
-                _retval[idx] = item_set
-            self._item_states_cache = _retval
-        else:
-            _retval = self._item_states_cache
-        return _retval
-    """
-
     # NOTE: current working/updated implementation (as of 2024-07-24)
     def generate_states(self):
-
-
-        # TODO: instead of trying to get this to work by using a "_possible_routes"
-        #       mapping, iterate through every symbol and with each symbol, see if
-        #       the temp item set (which at that point, won't be separated into a list
-        #       of lists, containing new item sets to add and will instead be an
-        #       un-nested list).
-
         if self._item_states_cache is None:
-            _item_sets = []
             _augmented_item_closure = self.closure(self.init_item)
 
-            _check_queue = deque(_augmented_item_closure)
-            _item_set_queue = deque([_augmented_item_closure])
+            # _check_queue = deque(_augmented_item_closure)
+            # _item_set_queue = deque([_augmented_item_closure])
 
-            _next_item_sets = {}
+            _item_sets = [_augmented_item_closure]
+            # _next_item_sets = {}
             _item_set_added = True
 
-            _first_color_id = 208
-            _second_color_id = 220
-            _current_color_id = _first_color_id
+            _color_id = 208
 
+            _current_set_idx = 0
             _item_set_added = True
+            _counter = 1
             while _item_set_added:
-            # while _item_set_added and _item_set_queue:
+                # Toggling between colors associated with 208 (hexadecimal '0xd0') and 220 (hexadecimal '0xdc') using bitwise XOR 12 on the current '_color_id' variable
+                _color_id ^= 50
+                print()
+                print(underline_text(bold_text(apply_color(_color_id, f"** TOP OF WHILE-LOOP **"))))
+                print(apply_color(_color_id, f" |"))
+                print(apply_color(_color_id, f" |"))
+                print(apply_color(_color_id, f" • --- "), end="")
+                _underlined_txt = underline_text(f"COUNT {_counter}")
+                _text = apply_color(_color_id, f"[{_underlined_txt}") + apply_color(_color_id, "]")
+                _text += "\n"
+                print(_text)
                 _item_set_added = False
-                # # NOTE: guard variable; re-assign 'True' value (which it would be since entering
-                # #       the 'while-loop' is dependent on that equality) with 'False', with 'False'
-                # #       value to put the onus on logic supporting item set(s)/state(s) generation
-                # _item_set_added = False
 
-                # # NOTE: clear previous '_next_item_sets' mapping records, which contains the possible
-                # #       symbols that can be read from a given state. This mapping uses next possible
-                # #       the symbols as keys, calculating from the perspective of the current state,
-                # #       and a list of the items that have their associated key value as their next
-                # #       symbol (via the item's 'next_symbol' method)
-                # _next_item_sets.clear()
 
-                if _current_color_id == _first_color_id:
-                    _current_color_id = _second_color_id
-                elif _current_color_id == _second_color_id:
-                    _current_color_id = _first_color_id
-                print(underline_text(bold_text(apply_color(_current_color_id, f"** TOP OF WHILE-LOOP **\n"))))
 
-                for i in range(len(_item_sets)):
+
+                # if _current_set_idx < len(_item_sets):
+                #     _item_set = _item_sets
+
+                _next_sets = []
+                _item_sets_len = len(_item_sets)
+                for i in range(_item_sets_len):
                     _item_set = _item_sets[i]
-                    print(f"ITEM SET:")
-                    print(f"\t{_item_set}")
-
-                    _temp_mapping = {}
+                    print()
+                    print(apply_color(_color_id, f"\t\t[STATE {i}]\n"))
+                    print(apply_color(_color_id, f"\t\t\t[ITEM]"))
+                    # _temp_mapping = {}
                     for _item in _item_set:
-                        # _item_copy = _item.copy(deepcopy=True)
-                        _item_copy = _item
+                        _item_copy = _item.copy(deepcopy=True)
+                        if _item_copy.can_reduce:
+                            _next_sets.append([_item_copy])
+                            continue
                         _item_copy.advance()
+                        print(item_details(_item_copy, _color_id), end="\n\n")  # TODO: **REMOVE ONCE FINISHED IMPLEMENTING**
+                        _temp_mapping = {}
                         _next_symbol = _item_copy.next_symbol()
-                        if not _item_copy.can_reduce:
-                            if _next_symbol not in _temp_mapping:
-                                _temp_mapping[_next_symbol] = []
+                        if _next_symbol not in _temp_mapping:
+                            _temp_mapping[_next_symbol] = []
+                        _temp_mapping[_next_symbol].append(_item_copy)
+                        if _next_symbol in self.non_terminals():
+                            for _item_from_closure in self.closure(_item_copy):
+                                if _item_from_closure not in _temp_mapping[_next_symbol]:
+                                    _temp_mapping[_next_symbol].append(_item_from_closure)    
 
-                            if _next_symbol in self.non_terminals():
-                                _temp_mapping[_next_symbol].extend(self.closure(_item_copy))
-                    _new_item_sets = _temp_mapping.values()
-                    if _new_item_sets:
-                        _item_sets.extend(_new_item_sets)
+                        _next_sets.extend(list(_temp_mapping.values()))
+                for _new_item_set in _next_sets:
+                    if _new_item_set not in _item_sets:
+                        _item_sets.append(_new_item_set)
                         _item_set_added = True
 
-
-                # if _item_set_queue:
-                #     _next_item_set = _item_set_queue.popleft()
-                #     _possible_routes = {}
-                #     print(f"WORKING...")
-                #     print(_next_item_set)
-                #     for __item__ in _next_item_set:
-                #         print(f"ITEM: {__item__}")
-                #         _next_symbol = __item__.next_symbol()
-                #         print(f"\t* {__item__}")
-                #         print(f"\t* {__item__.rule_head} ---> {__item__.rule_body}")
-                #         print(f"\t* {__item__.status()}")
-                #         print(f"\t* {_next_symbol}")
-                #         print()                    
-                #         if _next_symbol not in _possible_routes:
-                #             _possible_routes[_next_symbol] = []
-                #         _possible_routes[_next_symbol].append(__item__)
-
-                #     print()
-                #     print(f"NEXT POSSIBLE SYMBOLS:")
-                #     for i in _possible_routes:
-                #         print(f"\t* {i}")
-
-                #     print()
-                #     print(f"NEXT SETS:")
-                #     print()
-                #     _temp_sets = []
-                #     for i in _possible_routes.values():
-                #         print(f"'{i[0].next_symbol()}'")
-                #         _temp_set = []
-                #         _curr_state = len(_item_sets) + len(_temp_set) + len(_temp_sets)
-                #         for e in i:
-                #             print(f"\tRULE ID: {e.rule_id}")
-                #             _item_copy = e.copy(deepcopy=True)
-                #             _next_symbol = _item_copy.next_symbol()
-                #             print(f"RULE HEAD: {_item_copy.rule_head} ('{_item_copy.rule_id}') IN STATE: {_curr_state} ON SYMBOL: {_next_symbol} ---> UPDATE TO STATE: {_item_copy.get_state(_curr_state, (_next_symbol,))}")
-                #             _item_copy.advance()
-                #             if _next_symbol in self.non_terminals():
-                #                 if not _item_copy.can_reduce:
-                #                     _item_closure = self.closure(_item_copy)
-                #                     if _item_closure not in _temp_set:
-                #                         _temp_set.append(_item_closure)
-                #                         # _item_set_added = True
-                #             else:
-                #                 _temp_set.append((_item_copy))
-                #                     # _item_set_added = True
-
-                #             print()
-                #             print(f"\tRULE ADDED TO TEMP SET:")
-                #             for i in _temp_set:
-                #                 print(f"\t\t* {i}")
-                #             print(f"\t\t* {_item_copy.rule_head} ---> {_item_copy.rule_body}")
-                #             print(f"\t\t* {_item_copy.status()}")
-                #             print()
-                #         if _temp_set and not _item_set_added:
-                #             _item_set_added = True
-                #         print(f"ADDED TO TEMP SETS ---> {_temp_set}")
-                #         _temp_sets.append(_temp_set)
-                #         print("\n\n")
-
-                #     print()
-                #     print(f"STUFF IN TEMP SETS")
-                #     for i in _temp_sets:
-                #         print(f"\t* {i}")
-                #         if i in _item_sets:
-                #             continue
-                #         _item_set_queue.append(i)
-                #         _item_sets.append(i)
-                #         _item_set_added = True
-
-
-                # _dequeued_item = _check_queue.popleft() if _check_queue else None
-                # print(f"WORKING...")
-                # print(f"\t* {_dequeued_item}")
-                # print(f"\t* {_dequeued_item.rule_head} ---> {_dequeued_item.rule_body}")
-                # print(f"\t* {_dequeued_item.status()}")
-                # print()
-
-                # _item_copy = _dequeued_item.copy(deepcopy=True)
-                # _item_copy.advance()
-                # if not _item_copy.can_reduce:
-                #     _item_set_closure = self.closure(_item_copy)
-                #     _item_sets.append(_item_set_closure)
                 print()
-                print(underline_text(bold_text(apply_color(_current_color_id, f"ITEM SET(S) ADDED ---> {_item_set_added}\n"))))
-                print(underline_text(bold_text(apply_color(_current_color_id, f"** BOTTOM OF WHILE-LOOP **\n"))))
-
-                # break
-
-
+                print()
+                print(underline_text(bold_text(apply_color(_color_id, f"** BOTTOM OF WHILE-LOOP **\n"))))
+                print()
+                _counter += 1
+            print()
+            print(underline_text(bold_text(apply_color(15, f"** EXITED WHILE-LOOP **\n"))))
+            print()
             _retval = {idx: i for idx, i in enumerate(_item_sets)}
             self._item_states_cache = _retval
         else:
@@ -362,6 +194,7 @@ class Grammar:
             _error_details = f"invalid argument; rule object with head: {rule.rule_head} and body: {rule.rule_body} already exists within {self.__class__.__name__} ID: {self.grammar_id}..."
             raise RuntimeError(_error_details)
         self._rules.append(rule)
+        self._symbols_cache = None
         self._terminals_cache = None
         self._non_terminals_cache = None
         self._item_states_cache = None
@@ -377,14 +210,17 @@ class Grammar:
     def symbols(self):
         _symbols = self.terminals()
         _symbols.extend(self.non_terminals())
-        return _symbols
+        if self._symbols_cache is None:
+            self._symbols_cache = _symbols
+        return self._symbols_cache
 
     def rules(self):
         return self._rules
 
     def rule(self, rule_input, search_by=GrammarRuleBy.HEAD, all=True):
-        # TODO: perhaps design this method to run differently
-        # TODO: perhaps change "_rules" attribute to a dict instead of a list
+        # TODO: need to change this to make it more fluent and make sense; like maybe
+        #       I create a 'rule_by_id' method and then a 'rule_by_head' method, and
+        #       so on (though I don't like those method names and length)
         if search_by == GrammarRuleBy.HEAD:
             _by = self._get_rule_by_head
         elif search_by == GrammarRuleBy.BODY:
@@ -402,7 +238,7 @@ class Grammar:
     #       update it everywhere it's currently used
     def select(self, rule_id, copy=False, deepcopy=True):
         _retval = None
-        for _rule in grammar.rules():
+        for _rule in self.rules():
             if _rule.rule_id == rule_id:
                 return _rule.copy(deepcopy=deepcopy) if copy else _rule
 
@@ -467,18 +303,26 @@ class Grammar:
         _new_cls._rules = [i.copy(deepcopy=deepcopy) for i in self.rules()]
         return _new_cls
 
-    # @classmethod
-    # def from_rules(cls, *, grammar_id=None, **rules):
-    #     # TODO: fix this as it's not correctly adding rules to the object
-
-    #     # _new_cls = cls(grammar_id=grammar_id)
-    #     # for rule_id, rule in rules.items():
-    #     #   _new_cls.add_rule(rule_id, rule)
-    #     # return _new_cls
-    #     raise NotImplementedError
+    @classmethod
+    def from_rules(cls, rules: list | tuple, grammar_id: str = "", grammar_rule: GrammarRule = GrammarRule):
+        _new_cls = cls(grammar_id=grammar_id, rule_factory=grammar_rule)
+        for rule in rules:
+            _new_cls.add_rule(rule)
+        return _new_cls
 
 
 if __name__ == "__main__":
+    # _rule_lst = [
+    #     GrammarRule("$", ("E",), rule_id="INIT_RULE").bind_state(0, "E", 1),
+    #     GrammarRule("E", ("E", "*", "B"), rule_id="E_rule_1").bind_state(0, "E", 1),
+    #     GrammarRule("E", ("E", "+", "B"), rule_id="E_rule_2").bind_state(0, "E", 1),
+    #     GrammarRule("E", ("B",), rule_id="E_rule_3").bind_state(0, "E", 1),
+    #     GrammarRule("B", ("0",), rule_id="B_rule_1").bind_state(0, "0", 3),
+    #     GrammarRule("B", ("1",), rule_id="B_rule_2").bind_state(0, "1", 4)
+    # ]
+
+    # _test_grammar = Grammar.from_rules(_rule_lst)
+
     _test_grammar = Grammar(grammar_id="[ • -- TEST_GRAMMR -- • ]")
     
     init_rule = _test_grammar.create_rule("$", ("E",), rule_id="INIT_RULE")
@@ -500,11 +344,31 @@ if __name__ == "__main__":
     B_rule_2.bind_state(0, "1", 4)
 
 
-    # _states = _test_grammar.generate_states()
+    _states = _test_grammar.generate_states()
 
-    print(f"RULE ID: '{init_rule.rule_id}':  {init_rule.rule_head} ---> {init_rule.rule_body}")
 
-    init_rule.set_state(0)
-    _next_symbol = "E"
-    _next_state = init_rule.get_state(_next_symbol)
-    print(f"WHEN PARSER IS IN STATE: {init_rule.state} ON RULE ID: {init_rule.rule_id} TRANSITION TO STATE: {_next_state}")
+    _state_color_id = 170
+    _color_id = 208
+    print(f"ITEM STATES:\n")
+    for idx, i in enumerate(_states.values()):
+        _state_color_id ^= 8
+        print(apply_color(_state_color_id, f"\tSTATE: {idx}"))
+        for _item in i:
+            _color_id ^= 12
+            print(apply_color(_color_id, f"\t\t\t{repr(_item)}\n"))
+            print(apply_color(_color_id, f"\t\t\t\tSTATUS: {_item.status()}"))
+            print()
+            print()
+        print()
+    print()
+    print()
+    print(apply_color(10, f"There are {len(_states)} unique item sets/states!"))
+    print()
+
+    # init_rule = _test_grammar.select("INIT_RULE")
+    # print(f"RULE ID: '{init_rule.rule_id}':  {init_rule.rule_head} ---> {init_rule.rule_body}")
+
+    # init_rule.set_state(0)
+    # _next_symbol = "E"
+    # _next_state = init_rule.get_state(_next_symbol)
+    # print(f"WHEN PARSER IS IN STATE: {init_rule.state} ON RULE ID: {init_rule.rule_id} TRANSITION TO STATE: {_next_state}")

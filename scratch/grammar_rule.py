@@ -145,18 +145,36 @@ class GrammarRule:
         return self.__gotos__[self.rule_id]
 
     def __str__(self):
-        return self.__repr__()
+        _cls_name_str = f"{self.__class__.__name__} --------------\n"
+        _cls_name_str_len = len(_cls_name_str)
+        txt_output = _cls_name_str
+        txt_output += f"   |\n"
+        txt_output += f"   • ID      --->  {self.rule_id!r}\n"
+        txt_output += f"   |\n"
+        txt_output += f"   • HEAD    --->  {self.rule_head!r}\n"
+        txt_output += f"   |\n"
+        txt_output += f"   • BODY    --->  {list(self.rule_body)!r}\n"
+        txt_output += f"   |\n"
+        txt_output += f"   • STATUS  --->  {list(self.status())!r}\n"
+        txt_output += f"   |\n   • "
+        _temp_end = "-"
+        while True:
+            if len(_temp_end) + 7 > _cls_name_str_len:
+                break
+            _temp_end += f"-"
+        txt_output += _temp_end
+        return txt_output
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(rule_head={self.rule_head}, rule_body={self.rule_body}, marker_symbol={self.marker_symbol}, rule_id={self.rule_id})"
+        return f"{self.__class__.__name__}(rule_head={self.rule_head!r}, rule_body={list(self.rule_body)!r}, marker_symbol={self.marker_symbol!r}, rule_id={self.rule_id!r})"
 
     def __eq__(self, other):
         return isinstance(self, type(other)) and (self.rule_id == other.rule_id and self.rule_body == other.rule_body)  # NOTE: this is how 'GrammarRule' should identify equality
         # return isinstance(self, type(other)) and (self.rule_id == other.rule_id and self.status() == other.status())  # NOTE: this is how 'AugmentedGrammarRule' or 'AugmentedItem' should handle equality
 
     def __hash__(self):
-        # return hash((self.rule_id, "".join(self.rule_body)))  # NOTE: this is how 'GrammarRule' should handle hashing
-        return hash((self.rule_id, tuple(self.status())))  # NOTE: this is how 'AugmentedGrammarRule' or 'AugmentedItem' should handle hashing
+        return hash((self.rule_id, "".join(self.rule_body)))  # NOTE: this is how 'GrammarRule' should handle hashing
+        # return hash((self.rule_id, tuple(self.status())))  # NOTE: this is how 'AugmentedGrammarRule' or 'AugmentedItem' should handle hashing
 
     def __len__(self):
         return self.rule_size
@@ -180,6 +198,7 @@ class GrammarRule:
 
     def set_state(self, state):
         self._state = state
+        return self
 
     def augmented_item_factory(self):
         # TODO: replace 'GrammarRule' logic relating to augmentation with
@@ -190,6 +209,10 @@ class GrammarRule:
     def next_symbol(self, default=None):
         _look_ahead = self.look_ahead()
         return _look_ahead[0] if _look_ahead else default
+
+    def prev_symbol(self, default=None):
+        _look_behind = self.look_behind()
+        return _look_behind[-1] if _look_behind else default
 
     def _augment_rule(self):
         if self._augmented_item is None:
@@ -216,13 +239,7 @@ class GrammarRule:
 
         if look_ahead not in self.valid_states[current_state]:
             self.valid_states[current_state][look_ahead] = next_state
-
-            print()
-            print(f"STATEB BOUND RULE ID: '{bold_text(underline_text(self.rule_id))}' AS FOLLOWS:")
-            print()
-            print(f"\tMAPPING[{current_state}][{look_ahead}] = NEW STATE: {next_state}")
-            print()
-        # self.valid_states.update({(current_state, look_ahead): next_state})
+        return self
         
     def get_state(self, look_ahead):
         _retval = None
@@ -231,10 +248,10 @@ class GrammarRule:
             _retval = _trans_dict.get(look_ahead, None)
         return _retval
 
-    def update(self, look_ahead):
-        if self.at_start:
-            self.set_state(0)
-        _next_state = self.get_state(self.state)
+    # def update(self, look_ahead):
+    #     if self.at_start:
+    #         self.set_state(0)
+    #     _next_state = self.get_state(self.state)
 
     def reverse(self):
         if self.marker_pos > 0:
@@ -242,6 +259,7 @@ class GrammarRule:
             self._marker_pos -= 1
             _marker_sym = self.augmented_item.pop(_current_pos)
             self.augmented_item.insert(self._marker_pos, _marker_sym)
+        return self.status()
 
     def status(self):
         return self.augmented_item
@@ -273,7 +291,6 @@ class GrammarRule:
         _augmented_item = copy.copy(self._augmented_item)
         _rule_id = copy.copy(self.rule_id)
 
-
         _new_instance = cls_type(_rule_head, _rule_body, marker_symbol=_marker_symbol)
         _new_instance._augmented_item = _augmented_item
         _new_instance._marker_pos = _marker_pos
@@ -302,7 +319,6 @@ class GrammarRule:
         self._can_reduce = False
         self.__at_end = False
         self.__at_beginning = False
-        # self._state_updates = 0
 
     def save(self):
         raise NotImplementedError
@@ -318,8 +334,8 @@ def _grammar_rule_main():
 
     test_rule_copy = test_rule.copy()
     # test_rule.advance()
-    # test_rule_copy.advance()
-    # test_rule_copy.advance()
+    test_rule_copy.advance()
+    test_rule_copy.advance()
 
     print(f"'test_rule' == 'test_rule_2' ---> {test_rule == test_rule_2}")
     print(f"'test_rule' == 'test_rule_copy' ---> {test_rule == test_rule_copy}")

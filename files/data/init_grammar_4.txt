@@ -1,0 +1,64 @@
+
+
+
+STATE 0:
+
+	$ ---> [• E ] 			---------- LOOK BEHIND: ()
+	E ---> [• E  *  B ]     ---------- LOOK BEHIND: ()
+	E ---> [• E  +  B ]     ---------- LOOK BEHIND: ()
+	E ---> [• B ] 			---------- LOOK BEHIND: ()
+	B ---> [• 0 ] 			---------- LOOK BEHIND: ()
+	B ---> [• 1 ] 			---------- LOOK BEHIND: ()
+
+
+STATE 1 (NOTE: ACCEPT STATE):
+
+	$ ---> [ E •] 			---------- LOOK BEHIND: (E,)
+	  (REDUCE)
+	E ---> [ E • * B ]  	---------- LOOK BEHIND: (E,)
+	E ---> [ E • + B ]  	---------- LOOK BEHIND: (E,)
+
+
+STATE 2:
+
+	E ---> [ B •] 			---------- LOOK BEHIND: (B,)
+	  (REDUCE)
+	
+
+STATE 3:
+
+	B ---> [ 0 •] 			---------- LOOK BEHIND: (0,)
+	  (REDUCE)
+
+
+STATE 4:
+
+	B ---> [ 1 •]			---------- LOOK BEHIND: (1,)
+	  (REDUCE)
+
+
+STATE 5:
+
+	E ---> [ E * • B ] 	    ---------- LOOK BEHIND: (*,)
+	B ---> [• 0 ]           ---------- LOOK BEHIND: ()
+	B ---> [• 1 ]           ---------- LOOK BEHIND: ()
+
+
+STATE 6:
+
+	E ---> [ E  + • B ]     ---------- LOOK BEHIND: (+,)
+	B ---> [• 0 ]           ---------- LOOK BEHIND: ()
+	B ---> [• 1 ]           ---------- LOOK BEHIND: ()
+
+
+STATE 7:
+
+	E ---> [ E * B •]		---------- LOOK BEHIND: (B,)
+	  (REDUCE)
+
+
+STATE 8:
+
+	E ---> [ E * B •]		---------- LOOK BEHIND: (B,)
+	  (REDUCE)
+

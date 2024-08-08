@@ -3,7 +3,8 @@ from enum import StrEnum, IntEnum, auto
 
 class PyParsePortID(IntEnum):
 
-    INPUT = auto()
+    # INPUT = auto()
+    TASKS = auto()
     EVENTS = auto()
     ACTIONS = auto()
 
@@ -11,6 +12,7 @@ class PyParsePortID(IntEnum):
 class PyParseEventID(IntEnum):
 
     NEW_ACTION = auto()
+    NEW_EVENT = auto()
 
 
 class PyParseLoggerID(StrEnum):
@@ -18,7 +20,7 @@ class PyParseLoggerID(StrEnum):
     PARSER = auto()
 
 
-class ParserAction(StrEnum):
+class ParserActionEnum(StrEnum):
 
     ACCEPT = auto()
     ERROR = auto()
