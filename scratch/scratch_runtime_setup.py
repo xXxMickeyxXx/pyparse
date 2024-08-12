@@ -1626,7 +1626,6 @@ class ParserConfig(Configurator):
         self.events_port.send(event)
 
 
-
 class TestGrammar4ParseEnv(ParseEnvironment):
 
     def __init__(self, parser=None, grammar=None, tokenizer=None):
@@ -1657,7 +1656,7 @@ class TestGrammar4ParseEnv(ParseEnvironment):
         self._tokenizer = tokenizer
 
     def parse_mainloop(self, parse_context):
-        
+        raise NotImplementedError                
 
 
 # @profile_callable(sort_by=SortBy.TIME)
@@ -1754,9 +1753,9 @@ def parse_main():
     # Pass the parse environment to the newly re-defined 'parse_and display' function
     # to kick off this round of design testing (which will both display some of the
     # debugging info that is currently enabled and display success and/or failure)
-    parse_and_display(_source_file_data, _test_grammar_4_env, count=1)
+    # parse_and_display(_source_file_data, _test_grammar_4_env, count=1)
 
-    # parse_and_display(_source_file_data, _tokenizer, _parser, count=1)
+    parse_and_display(_source_file_data, _tokenizer, _parser, count=1)
     # parse_and_display_custom_input(_tokenizer, _parser)
 
 

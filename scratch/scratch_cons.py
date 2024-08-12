@@ -18,6 +18,7 @@ class PyParseEventID(IntEnum):
 class PyParseLoggerID(StrEnum):
 
     PARSER = auto()
+    PARSE_ENV = auto()
 
 
 class ParserActionEnum(StrEnum):
