@@ -8,8 +8,7 @@ from ..core import (
 	ParseContextManager,
 	Tokenizer,
 	Grammar,
-	Node,
-	Nodes)
+	Node)
 from ..cons import ParserAction
 from ..utils import apply_color, underline_text, bold_text, center_text
 

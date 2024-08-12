@@ -399,6 +399,7 @@ from pyevent import PyChannels, PyChannel, PySignal
 from pyparse import Parser, Tokenizer
 from pysynchrony import PySynchronyEventLoop, PySynchronyContext, PySynchronyCoroutineTask, PySynchronyPort, PySynchronyEvent, PySynchronySysCall
 from .scratch_parse_table import ParseTable
+from .scratch_parse_env import ParseEnvironment
 # from .test_automaton_design import Automaton
 from .scratch_init_grammar import test_grammar_factory, init_grammar_1, init_grammar_2, init_grammar_3, init_grammar_4, init_grammar_5, init_grammar_6
 from .source_descriptor import SourceFile
@@ -1519,6 +1520,29 @@ def parse_data(parse_context, parser):
     return _parse_context.result()
 
 
+# def parse_and_display(test_data, tokenizer, parser, count=-1):
+#     _test_data_queue = deque(test_data)
+#     _counter = 0
+#     while _test_data_queue and (_counter < count if (isinstance(count, int) and count > 0) else True):
+#         _next_test_data_piece = _test_data_queue.popleft()
+#         # _request_input_tokens = tokenize(_next_test_data_piece, tokenizer)
+#         _text = bold_text(apply_color(14, f"NEXT TEST DATA PIECE")) + bold_text(" ---> ") + bold_text(apply_color(14, f"{_next_test_data_piece}"))
+#         # _text += bold_text(apply_color(48, f"\nTOKENS"))
+#         print()
+#         print(_text)
+#         # for _token in _request_input_tokens:
+#         #     print(f"• {_token}")
+#         print()
+#         _parse_context = ParseContext(input=_next_test_data_piece, start_symbol="$")
+#         _parse_result = parse_data(_parse_context, parser)
+#         # _parse_result = parse_data(_request_input_tokens, parser)
+#         display_result(_next_test_data_piece, _parse_result)
+#         for _ in range(2):
+#             print()
+#         _counter += 1
+#     print()
+
+
 def parse_and_display(test_data, tokenizer, parser, count=-1):
     _test_data_queue = deque(test_data)
     _counter = 0
@@ -1602,8 +1626,51 @@ class ParserConfig(Configurator):
         self.events_port.send(event)
 
 
+
+class TestGrammar4ParseEnv(ParseEnvironment):
+
+    def __init__(self, parser=None, grammar=None, tokenizer=None):
+        super().__init__(parser=parser)
+        self._grammar = grammar
+        self._tokenizer = tokenizer
+
+    @property
+    def grammar(self):
+        if self._grammar is None:
+            # TODO: create and raise custom error here
+            _error_details = f"unable to access the 'grammar' field as one has not yet been associated with this instance of '{self.__class__.__name__}'..."
+            raise AttributeError(_error_details)
+        return self._grammar
+
+    @property
+    def tokenizer(self):
+        if self._tokenizer is None:
+            # TODO: create and raise custom error here
+            _error_details = f"unable to access the 'tokenizer' field as one has not yet been associated with this instance of '{self.__class__.__name__}'..."
+            raise AttributeError(_error_details)
+        return self._tokenizer
+
+    def set_grammar(self, grammar):
+        self._grammar = grammar
+
+    def set_tokenizer(self, tokenizer):
+        self._tokenizer = tokenizer
+
+    def parse_mainloop(self, parse_context):
+        
+
+
 # @profile_callable(sort_by=SortBy.TIME)
 def parse_main():
+    # Initialize a single parse of a pre-determined and temporarily
+    # hard-coded input, following the grammar defined via the
+    # current value for the 'GRAMMAR' constant called: the parse
+    # environment. Set the grammar via the defacto constructor
+    # parameter, 'grammar' (though using 'set_grammar' is just as
+    # valid and sometimes preferred)
+    _test_grammar_4_env = TestGrammar4ParseEnv(grammar=GRAMMAR)
+
+
     # Initialize grammar object so that it contains all grammar rules
     # related to scratch language implementation (refer to top of
     # this module, within the docstring under the
@@ -1658,6 +1725,11 @@ def parse_main():
     # Instantiate parser front-end (bridge between different parser designs)
     _parser = Parser(parser=_parser_impl)
 
+    # Assign the newly created parser to the 'parser' (the highest level parser
+    # object) field of the parse environment object, currently defined as
+    # '_test_grammar_4_env'
+    _test_grammar_4_env.set_parser(_parser)
+
 
     # Initialize source file object and get data contained within file
     _source_file = SourceFile(path=TEST_INPUT_1)
@@ -1668,12 +1740,23 @@ def parse_main():
     # Generate tokens to feed the parser
     _tokenizer = TestGrammar6()
 
+
+    # Set tokenizer to the parse environment (even if it's not ultimately used,
+    # initialize the usage of it so that it's easy to hook in)
+    _test_grammar_4_env
+
     # Parse and display results; once this works, the next step(s) will be to
     # finilize design (implement additional design/concepts as needed), organize
     # 'pyparse' files (taking the concepts contained with this module and the
     # 'scratch' sub-package in general), re-organize git, and then use and see how
     # I can make it better, more robust, etc.
-    parse_and_display(_source_file_data, _tokenizer, _parser, count=1)
+    #
+    # Pass the parse environment to the newly re-defined 'parse_and display' function
+    # to kick off this round of design testing (which will both display some of the
+    # debugging info that is currently enabled and display success and/or failure)
+    parse_and_display(_source_file_data, _test_grammar_4_env, count=1)
+
+    # parse_and_display(_source_file_data, _tokenizer, _parser, count=1)
     # parse_and_display_custom_input(_tokenizer, _parser)
 
 
@@ -1684,9 +1767,4 @@ def parse_main():
 
 
 if __name__ == "__main__":
-    _parser = CoreParser2(init_state=0, grammar=GRAMMAR, parse_table=None)
-    _valid_port_1 = _parser.create_port(port_id="TEST_PORT")
-    _invalid_port_2 = _parser.create_port(port_id="TEST_PORT", overwrite=False)
-
-    print(f"PORT: {_invalid_port_2}")
-    print(f"PORT ID: {_invalid_port_2.port_id}")
+    pass

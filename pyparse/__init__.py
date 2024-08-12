@@ -4,7 +4,7 @@ from .core import ShiftReduceParser
 from .core import Grammar
 from .core import Tokenizer
 from .core import Token
-from .core import Node, Nodes
+from .core import Node
 from .errors import (
     PyParseError,
     TokenError,
