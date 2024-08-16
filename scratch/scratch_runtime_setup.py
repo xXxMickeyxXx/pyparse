@@ -654,270 +654,20 @@ class ParserEvent(PySynchronyEvent):
     pass
 
 
-class ParserAction:
-    pass
-
-
-class ParserTask(PySynchronyCoroutineTask):
-    pass
-
-
-class CoreParser:
-
-    # TODO: create a class representing the context of an input's given parse; this
-    #       is to avoid cluttering the 'CoreParser' namespace, and should provide
-    #       better encapsulation, seperations of concerns, and so on. It would also
-    #       provide for the ability to add handling different parses from different
-    #       inputs/input sources using the same parser and/or the ability to add
-    #       undo/redo (or backtracking) operations
-
-    __slots__ = ("_parser_id", "_grammar", "_parse_table", "_parser_settings", "_channel", "_logger", "_init_state", "_state")
-
-    def __init__(self, init_state=0, grammar=None, parse_table=None, parser_id=None):
-        self._parser_id = parser_id or generate_id()
-        self._grammar = grammar
-        self._parse_table = parse_table
-        self._parser_settings = ParserSettings(self)
-        self._init_state = init_state
-        self._state = None
-        self._channel = None
-        self._logger = None
-
-    # TODO: interface should include (as 'NotImplementedError' until implemented)
-    @property
-    def parser_id(self):
-        return self._parser_id
-
-    # TODO: interface should include (as 'NotImplementedError' until implemented)
-    @property
-    def grammar(self):
-        if not bool(self._grammar):
-            # TODO: create and raise custom error here
-            _error_details = f"unable to access 'grammar' as one has not yet been associated with instance of {self.__class__.__name__}..."
-            raise RuntimeError(_error_details)
-        return self._grammar
-
-    @property
-    def parse_table(self):
-        if self._parse_table is None:
-            # TODO: create and raise custom error here
-            _error_details = f"unable to access 'parse_table' as one has not yet been associated with instance of {self.__class__.__name__}..."
-            raise RuntimeError(_error_details)
-        return self._parse_table
-
-    # TODO: interface should include (as 'NotImplementedError' until implemented)
-    @property
-    def init_state(self):
-        return self._init_state
-
-    @property
-    def channel(self):
-        if self._channel is None:
-            self._channel = PyChannel(channel_id=self.parser_id)
-        return self._channel
-
-    @property
-    def logger(self):
-        if self._logger is None:
-            self._logger = _PARSER_LOGGER
-        return self._logger
-
-    def __str__(self):
-        return f"{self.__class__.__name__}"
-
-    # TODO: interface should include this as an 'abstractmethod' 
-    def register(self, signal_id, receiver=None, receiver_id=None):
-        return self.channel.register(signal_id, receiver=receiver, receiver_id=receiver_id)
-
-    # TODO: interface should include this as an 'abstractmethod' 
-    def setting(self, setting_key, default=None):
-        return self._parser_settings.get_setting(setting_key, default=default)
-
-    # TODO: interface should include this as an 'abstractmethod' 
-    def config(self, setting_key, setting_value, overwrite=False):
-        return self._parser_settings.add_setting(setting_key, setting_value, overwrite=overwrite)
-
-    # TODO: interface should include this as an 'abstractmethod' 
-    def set_grammar(self, grammar):
-        # TODO: perhaps create and raise custom error here if '_grammar' has already been set
-        self._grammar = grammar
-
-    def set_table(self, parse_table):
-        # TODO: perhaps create and raise custom error here if '_grammar' has already been set
-        self._parse_table = parse_table
-
-    # TODO: interface should include this as an 'abstractmethod' 
-    def set_logger(self, logger):
-        # TODO: perhaps create and raise custom error here if '_grammar' has already been set
-        self._logger = logger
-
-    # TODO: interface should include this as an 'abstractmethod' 
-    def state(self):
-        # NOTE: this could be an abstract method for a 'Parser' interface/base class
-        # return self.stack_top() or ()
-        return self._state
-
-    # TODO: interface should include this as an 'abstractmethod' 
-    def update_state(self, state):
-        # TODO: determine how this can/should be used
-        # NOTE: this could be an abstract method for a 'Parser' interface/base class
-        self._state = state
-        self.channel.emit(ParserActionEnum.UPDATE, self)
-
-    # TODO: interface should include this as an 'abstractmethod' 
-    def stack_factory(self, *args, **kwargs):
-        return deque(*args, **kwargs)
-
-    # TODO: interface should include this as an 'abstractmethod' 
-    def action(self, state, symbol, default=None):
-        return self._parse_table.action(state, symbol, default=default)
-
-    # TODO: interface should include this as an 'abstractmethod' 
-    def goto(self, state, non_terminal, default=None):
-        _goto_state = self._parse_table.goto(state, non_terminal, default=default)
-        return _goto_state
-
-    # TODO: interface should include this as an 'abstractmethod' 
-    def parse(self, input):
-        """
-        @NOTE: need to make it so that I can have '_next_symbol' be either 'None' or
-               use some default value (such as '$') (in order to do this, I may have to break
-               out of the first, top-level loop, then go into another 'while' loop that
-               reduces until a reduction can no longer occur, so maybe there's always two
-               while loops, with one being an inner while loop to the top-level while loop,
-               or maybe two different top-level while loops, one after the other).
-               Basically, I want to be able to use the 'ParseAction.ERROR' and
-               'ParAction.ACCEPT', because as it stands right now, I can't due to how the
-               parser works with the next symbol being 'None' or a default value
-               (such as '$') when it reaches the end of the input (i.e. the input pointer
-               reaches the length of input minus 1, or the last index of the input
-               list/array/container/whatever)
-
-        """
-
-        # input += "$"
-        _input_pointer = 0
-        _input_len = len(input)
-        _pointer_max = _input_len - 1
-        _end_of_input = False
-        _state_stack = self.stack_factory()
-        _state_stack.append(self.init_state)
-        self.update_state(_state_stack[-1])
-        _next_symbol = input[_input_pointer][1]
-        _parser_action = self.action(self.state(), _next_symbol, default=None)
-        _action = _parser_action[0] if _parser_action else ParserActionEnum.ERROR
-        while not _end_of_input:
-            print()
-            print(f"MAINLOOP TOP:")
-            print()
-            print(f"STATE STACK: {_state_stack}")
-            print(f"INPUT LENGTH: {_input_len}")
-            print(f"NEXT SYMBOL: {_next_symbol}")
-            print(f"POINTER AT: {_input_pointer} (POINTER MAX: {_pointer_max})")
-            print(f"AT END OF INPUT: {_end_of_input is True}")
-            print(f"CURRENT STATE: {self.state()}")
-            print(f"PARSER ACTION: {_parser_action}")
-            print(f"ACTION: {_action}")
-            print()
-
-            # NOTE: perhaps this goes at the bottom of the loop; that way we can avoid
-            #       another cycle if input parse is valid (or not valid)
-            if _action == ParserActionEnum.SHIFT:
-                _next_ = _parser_action[1]
-                _item = _parser_action[2]
-                _state_stack.append(_next_)
-                self.update_state(_next_)
-                # NOTE: may need to re-add that 'else' block to make sure the '_end_of_input' gets set
-                if _pointer_max > _input_pointer:
-                    _input_pointer += 1
-                    _next_symbol = input[_input_pointer][1]
-                    if _input_pointer == _pointer_max:
-                        _end_of_input = True
-            elif _action == ParserActionEnum.REDUCE:
-                _item = _parser_action[1]
-                for _ in range(_item.rule_size):
-                    _state_stack.pop()
-                    self.update_state(_state_stack[-1] if _state_stack else None)
-                _next_ = self.goto(self.state(), _item.rule_head, default=None)
-                print(f"GOTO: {_next_}")
-                _state_stack.append(_next_[0])
-                self.update_state(_state_stack[-1] if _state_stack else None)
-            elif _action == ParserActionEnum.ERROR:
-                print()
-                print()
-                print(f"STATE STACK @ ERROR: {_state_stack}")
-                print(f"INPUT LENGTH @ ERROR: {_input_len}")
-                print(f"NEXT SYMBOL @ ERROR: {_next_symbol}")
-                print(f"POINTER AT @ ERROR: {_input_pointer} (POINTER MAX: {_pointer_max})")
-                print(f"AT END OF INPUT @ ERROR: {_end_of_input is True}")
-                print(f"CURRENT STATE @ ERROR: {self.state()}")
-                print(f"PARSER ACTION @ ERROR: {_parser_action}")
-                print(f"ACTION @ ERROR: {repr(_action)}")
-                print()
-                print()
-                break
-            elif _action == ParserActionEnum.ACCEPT:
-                return True
-
-            _parser_action = self.action(self.state(), _next_symbol, default=None)
-            _action = _parser_action[0] if _parser_action else ParserActionEnum.ERROR
-
-
-            # # TODO: this part of the method isn't correct; once all the input is read, an
-            # #       additional 'while' loop will need to run, attempting to reduce further
-            # if self.state() == 1 and _end_of_input:
-            #     return True
-
-        # print(f"HERE @ break")
-        # print(f"CURRENT STATE @ break: {self.state()}")
-        # print(f"NEXT SYMBOL @ break: {_next_symbol}")
-        _top_level_rule_head = self.grammar.init_symbol
-        _parser_action = self.action(self.state(), _next_symbol, default=(ParserActionEnum.ERROR,))
-        _action = _parser_action[0]
-        _continue = True
-        while _continue:
-            _continue = False
-            print()
-            print(f"2nd MAINLOOP TOP:")
-            print()
-            print(f"STATE STACK: {_state_stack}")
-            print(f"INPUT LENGTH: {_input_len}")
-            print(f"NEXT SYMBOL: {_next_symbol}")
-            print(f"POINTER AT: {_input_pointer} (POINTER MAX: {_pointer_max})")
-            print(f"AT END OF INPUT: {_end_of_input is True}")
-            print(f"CURRENT STATE: {self.state()}")
-            print(f"PARSER ACTION: {_parser_action}")
-            print(f"ACTION: {_action}")
-
-            if _action == ParserActionEnum.REDUCE:
-                _item = _parser_action[1]
-                for _ in range(_item.rule_size):
-                    _state_stack.pop()
-                    self.update_state(_state_stack[-1] if _state_stack else None)
-                _next_ = self.goto(self.state(), _item.rule_head, default=None)
-                _state_stack.append(_next_[0])
-                self.update_state(_state_stack[-1] if _state_stack else None)
-                _continue = True
-
-            _parser_action = self.action(self.state(), _next_symbol, default=(ParserActionEnum.ERROR,))
-            _action = _parser_action[0]
-        _next_symbol = _top_level_rule_head
-        _parser_action = self.action(self.state(), _next_symbol, default=(ParserActionEnum.ERROR,))
-        _action = _parser_action[0]
-        print(f"ACTION AT VERY END: {_action}")
-        return _action == ParserActionEnum.ACCEPT
+class InputStream:
+    """NOTE: will be responsible for actually containing/managing a given input/input
+    stream. Each instance of 'ParseContext' will contain an instance of this class."""
 
 
 class CoreParser2:
 
     # TODO: definitely need to split this class up into separate components; verify all of the additional overhead is needed as well
 
-    __slots__ = ("_event_loop", "_parser_id", "_grammar", "_parse_table", "_parser_settings", "_init_state", "_state", "_channel", "_logger", "_ports")
+    __slots__ = ("_scheduler", "_parser_id", "_grammar", "_parse_table", "_parser_settings", "_init_state", "_state", "_channel", "_logger", "_ports")
 
-    # def __init__(self, event_loop=None, init_state=0, grammar=None, parse_table=None, parser_id=None, action_cls=ParserAction, task_class=ParserTask):
-    def __init__(self, event_loop=None, init_state=0, grammar=None, parse_table=None, parser_id=None):
+    def __init__(self, scheduler, init_state=0, grammar=None, parse_table=None, parser_id=None):
         self._parser_id = parser_id or generate_id()
-        self._event_loop = event_loop
+        self._scheduler = scheduler
         self._grammar = grammar
         self._parse_table = parse_table
         self._parser_settings = ParserSettings(self)
@@ -926,20 +676,17 @@ class CoreParser2:
         self._logger = None
         self._ports = {}
 
-    # TODO: interface should include (as 'NotImplementedError' until implemented)
     @property
     def parser_id(self):
         return self._parser_id
 
-    # # TODO: interface should include (as 'NotImplementedError' until implemented) ---> **DELETE** (most likely since the 'PySynchronyContext' interface handles it)
     @property
-    def event_loop(self):
-        if self._event_loop is None:
-            _error_details = f"unable to access attribute as one has not yet been associated with this instance of '{self.__class__.__name__}'..."
+    def scheduler(self):
+        if self._scheduler is None:
+            _error_details = f"unable to access 'scheduler' attribute as one has not yet been associated with this instance of '{self.__class__.__name__}'..."
             raise AttributeError(_error_details)
-        return self._event_loop
+        return self._scheduler
 
-    # TODO: interface should include (as 'NotImplementedError' until implemented)
     @property
     def grammar(self):
         if not bool(self._grammar):
@@ -955,15 +702,10 @@ class CoreParser2:
             _error_details = f"unable to access 'parse_table' as one has not yet been associated with instance of {self.__class__.__name__}..."
             raise RuntimeError(_error_details)
         return self._parse_table
-
-    # TODO: interface should include (as 'NotImplementedError' until implemented)
+    
     @property
     def init_state(self):
         return self._init_state
-
-    @property
-    def channel(self):
-        return self.event_loop.channel(channel_id=self.parser_id)
 
     @property
     def logger(self):
@@ -974,87 +716,15 @@ class CoreParser2:
     def __str__(self):
         return f"{self.__class__.__name__}"
 
-    # TODO: interface should include this as an 'abstractmethod' 
-    def create_task(self, target, *args, task_id=None, **kwargs):
-        _task_id = task_id or generate_id()
-        if self.task_map.contains(_task_id):
-            _task_id = f"{_task_id}{self._id_counter}"
-            self._id_counter += 1
+    def set_scheduler(self, scheduler):
+        self._scheduler = scheduler
 
-        if inspect.iscoroutinefunction(target) or inspect.isgeneratorfunction(target):
-            _target = target
-        else:
-            _target = coroutine_wrapper(target)
-
-        _target = _target(*args, **kwargs)
-        _newest_task = self._task_class(_target, state=None, task_id=_task_id)
-        
-        self.logger.submit_log(
-            message=f"Created new task with task ID: {_newest_task.task_id}",
-            function=f"{_newest_task.__class__.__name__}.create_task",
-            target=_target.__name__,
-            task_id=_newest_task.task_id,
-        )
-        self.task_map.register_task(_newest_task.task_id, _newest_task)
-        return _newest_task
-
-    # TODO: interface should include this as an 'abstractmethod' 
-    def create_port(self, max_size=0, queue_factory=None, port_id=None, overwrite=False):
-        _port = self.port_factory(max_size=max_size, queue_factory=queue_factory, port_id=port_id)
-        _port_added = self.add_port(_port, port_id=port_id, overwrite=overwrite)
-        if not _port_added:
-            # TODO: create and raise custom error here
-            _error_details = f"unable to create port with port ID: '{port_id}' already exists within instance of '{self.__class__.__name__}' and 'overwrite' argument is 'False'..."
-            raise ValueError(_error_details)
-        return _port
-
-    # TODO: interface should include this as an 'abstractmethod' 
-    def port_factory(self, *args, **kwargs):
-        return PySynchronyPort(*args, **kwargs)
-
-    # TODO: interface should include this as an 'abstractmethod' 
-    def add_port(self, port, port_id=None, overwrite=False):
-        _port_id = port.port_id if hasattr(port, "port_id") and port_id is None else port_id
-        if _port_id not in self._ports or overwrite:
-            self._ports.update({_port_id: port})
-            return True
-        return False
-
-    # TODO: interface should include this as an 'abstractmethod' 
-    def remove_port(self, port_id):
-        return self._ports.remove(port_id)
-
-    def register_handler(self, port_id, handler, handler_id=None, overwrite=False):
-        _port = self._ports.get(port_id, None)
-        if _port is None:
-            # TODO: create and raise custom error here
-            _error_details = f"unable to register handler to port ID: {port_id}"
-            raise ValueError(_error_details)
-        _port.register_handler(handler, handler_id=handler_id, overwrite=overwrite)
-        return True
-
-    # TODO: interface should include this as an 'abstractmethod' 
-    def set_loop(self, event_loop):
-        self._event_loop = event_loop
-
-    # TODO: interface should include this as an 'abstractmethod' 
-    def send(self, data, port_id):
-        _port = self._ports.get(port_id, None)
-        return _port.send(data)
-
-    # TODO: interface should include this as an 'abstractmethod' 
-    def register(self, signal_id, receiver=None, receiver_id=None):
-        return self.channel.register(signal_id, receiver=receiver, receiver_id=receiver_id)
-
-    # TODO: interface should include this as an 'abstractmethod' 
     def setting(self, setting_key, default=None):
         return self._parser_settings.get_setting(setting_key, default=default)
 
-    # TODO: interface should include this as an 'abstractmethod' 
     def config(self, setting_key, setting_value, overwrite=False):
         return self._parser_settings.add_setting(setting_key, setting_value, overwrite=overwrite)
 
-    # TODO: interface should include this as an 'abstractmethod' 
     def set_grammar(self, grammar):
         # TODO: perhaps create and raise custom error here if '_grammar' has already been set
         self._grammar = grammar
@@ -1063,135 +733,15 @@ class CoreParser2:
         # TODO: perhaps create and raise custom error here if '_grammar' has already been set
         self._parse_table = parse_table
 
-    # TODO: interface should include this as an 'abstractmethod' 
     def set_logger(self, logger):
         # TODO: perhaps create and raise custom error here if '_grammar' has already been set
         self._logger = logger
 
-    # TODO: interface should include this as an 'abstractmethod' 
-    def state(self):
-        # NOTE: this could be an abstract method for a 'Parser' interface/base class
-        # return self.stack_top() or ()
-        return self._state
-
-    # TODO: interface should include this as an 'abstractmethod' 
-    def update_state(self, state):
-        # TODO: determine how this can/should be used
-        # NOTE: this could be an abstract method for a 'Parser' interface/base class
-        self._state = state
-        self.channel.emit(ParserActionEnum.UPDATE, self)
-
-    # TODO: interface should include this as an 'abstractmethod' 
-    def stack_factory(self, *args, **kwargs):
-        return deque(*args, **kwargs)
-
-    # TODO: interface should include this as an 'abstractmethod' 
-    def action(self, state, symbol, default=None):
-        return self._parse_table.action(state, symbol, default=default)
-
-    # TODO: interface should include this as an 'abstractmethod' 
-    def goto(self, state, non_terminal, default=None):
-        _goto_state = self._parse_table.goto(state, non_terminal, default=default)
-        return _goto_state
-
-    def submit_action(self, action, *args, action_id=None, **kwargs):
-        _action = self.create_action(action, action_id=action_id)
-        self.push_action(action)
-
-    def submit_task(self, task, *args, **kwargs):
-        raise NotImplementedError
-
     def create_event(self, event_id, **data):
         return PySynchronyEvent(event_id, **data)
 
-    def create_action(self, *args, **kwargs):
-        return ParserAction(*args, **kwargs)
-
-    def create_task(self, *args, **kwargs):
-        return ParserAction(*args, **kwargs)
-
-    def parse_cycle(self):
-        # _tasks_port = self._ports.get(PyParsePortID.TASKS)
-        # _tasks_port.handle_port()
-        _actions_port = self._ports.get(PyParsePortID.ACTIONS)
-        _actions_port.handle_port()
-
-    def handle_tasks(self):
-        _next_task
-
-    def handle_actions(self, port):
-        raise NotImplementedError
-
-    def push_action(self, action):
-        return self.send(PyParsePortID.ACTIONS, action)
-
-    def push_task(self, task):
-        return self.send(PyParsePortID.TASKS, task)
-
-    def parse_mainloop(self, parse_context, execution_context=None):
-        raise NotImplementedError
-
-    # # TODO: interface should include this as an 'abstractmethod' 
-    # def parse(self, parse_context, execution_context=None):
-    #     # NOTE: passing 'None' argument to the 'event_id' until a consistent one is specified for this implementation/system
-
-    #     _parse_context = parse_context
-    #     parse_context.append_state(self.init_state)
-
-    #     def main_parse_loop():
-    #         _parse_event = self.event_factory(None, parser=self, parse_context=parse_context)
-
-    #         _action_search = None
-    #         _previous_action = None
-    #         _action = None
-    #         _previous_symbol = None
-    #         _current_symbol = parse_context.current_symbol()
-    #         _current_state = parse_context.state
-    #         while not parse_context.done_parsing:
-    #             _current_symbol = parse_context.current_symbol()
-    #             _current_state = parse_context.state            
-
-    #             _action_search = self.action(_current_state, _current_symbol, default=(ParserActionEnum.ERROR, None, None))
-    #             _action = _action_search[0]
-    #             print()
-    #             print(f"STATE STACK: {parse_context.stack}")
-    #             print(f"SYMBOL STACK: {parse_context.symbol_stack}")
-    #             print(f"CURRENT STATE: {_current_state}")
-    #             print(f"CURRENT SYMBOL: {_current_symbol}")
-    #             print(f"PREVIOUS SYMBOL: {_previous_symbol}")
-    #             print(f"ACTION SEARCH: {_action_search}")
-    #             print(f"ACTION: {_action}")
-    #             if _action == ParserActionEnum.SHIFT:
-    #                 _next_state_ = _action_search[1]
-    #                 _item = _action_search[2]
-    #                 parse_context.append_state(_next_state_)
-    #                 _previous_symbol = _current_symbol
-    #                 parse_context.append_symbol(_current_symbol)
-    #                 parse_context.advance()
-    #                 print(f"STATE AFTER SHIFT: {parse_context.state}")
-    #             elif _action == ParserActionEnum.REDUCE:
-    #                 _item = _action_search[1]
-    #                 for _ in range(_item.rule_size):
-    #                     _popped_state = parse_context.pop_state()
-    #                     _popped_symbol = parse_context.pop_symbol()
-    #                 _goto_state = self.goto(parse_context.state, _item.rule_head)
-    #                 _next_state = _goto_state[0]
-    #                 parse_context.append_state(_next_state)
-    #                 parse_context.append_symbol(_item.rule_head)
-    #                 print(f"ON GOTO IN REDUCE ({parse_context.state}, {_item.rule_head}): {_goto_state}")
-    #             elif _action == ParserActionEnum.ERROR:
-    #                 parse_context.set_result(False)
-    #             elif _action == ParserActionEnum.ACCEPT:
-    #                 parse_context.set_result(True)
-    #             yield
-
-    #     self.event_loop.on_loop(self.parse_cycle)
-    #     _main_parse_loop = main_parse_loop()
-    #     self.event_loop.run()
-    #     return _parse_context
-
     # TODO: interface should include this as an 'abstractmethod' 
-    def parse(self, parse_context, execution_context=None):
+    def parse(self, parse_context):
         # NOTE: passing 'None' argument to the 'event_id' until a consistent one is specified for this implementation/system
 
         _parse_context = parse_context

@@ -1,12 +1,12 @@
 from collections import deque
 
+from pyparse import GrammarRuleError
 from .utils import apply_color, bold_text, underline_text  # TODO: remove this once I solve an issue in this module (item states aren't being created correctly if two items have the same 'rule_head' and have the their 'look_behinds' and 'look_aheads' method calls match)
-# from pyparse import Grammar
 from .grammar_rule import GrammarRule
 from .scratch_marker_symbol import MarkerSymbol
 from .scratch_cons import GrammarRuleBy
-from pyparse import GrammarRuleError
 from .scratch_utils import generate_id
+from .scratch_grammar_rules_filter import RuleFilter
 
 from . import item_details
 
@@ -160,7 +160,7 @@ class Grammar:
             _next_rule = _rule_queue.popleft()
             _next_symbol = _next_rule.next_symbol(default=None)
             if _next_symbol in _non_terminals:
-                _found_rules = self.rule(_next_symbol, search_by=GrammarRuleBy.HEAD)
+                _found_rules = self.select(self._default_select_by_rule_head(_next_symbol), copy=False)
                 _closure_group_rule_ids = [i.rule_id for i in _closure_group]
                 for _check_rule in _found_rules:
                     if _check_rule in _closure_group:
@@ -217,54 +217,14 @@ class Grammar:
     def rules(self):
         return self._rules
 
-    def rule(self, rule_input, search_by=GrammarRuleBy.HEAD, all=True):
-        # TODO: need to change this to make it more fluent and make sense; like maybe
-        #       I create a 'rule_by_id' method and then a 'rule_by_head' method, and
-        #       so on (though I don't like those method names and length)
-        if search_by == GrammarRuleBy.HEAD:
-            _by = self._get_rule_by_head
-        elif search_by == GrammarRuleBy.BODY:
-            _by = self._get_rule_by_body
-        elif search_by == GrammarRuleBy.ID:
-            _by = self._get_rule_by_id
-        else:
-            if not callable(search_by):
-                _error_details = f"invalid 'search_by' argument value; must be either a callable, or a member of the 'GrammarRuleBy' enumeration, i.e. 'HEAD' or 'BODY',  (NOTE: neither of the 'GrammarRuleBy' members are of a callable type, however, they represent the association that is used to indicate a default implementation, provided by this class, as two static methods, '_get_rule_by_head' and '_get_rule_by_body')"
-                raise GrammarRuleError(details=_error_details)
-            _by = search_by
-        return _by(rule_input, self, all=all)
-
     # NOTE: this method may replace the above 'rule' method, though I'll need to
     #       update it everywhere it's currently used
-    def select(self, rule_id, copy=False, deepcopy=True):
-        _retval = None
-        for _rule in self.rules():
-            if _rule.rule_id == rule_id:
-                return _rule.copy(deepcopy=deepcopy) if copy else _rule
+    def select(self, by, copy=False, deepcopy=True):
+        return tuple([i.copy(deepcopy=deepcopy) if copy else i for i in self.rules() if by(i)])
 
     @staticmethod
-    def _get_rule_by_id(rule_input, grammar, all=True):
-        _rules = []
-        for _rule in grammar.rules():
-            if _rule.rule_id == rule_input:
-                if not all:
-                    return _rule
-                _rules.append(_rule)
-        return _rules
-
-    @staticmethod
-    def _get_rule_by_head(rule_input, grammar, all=True):
-        _rules = []
-        for _rule in grammar.rules():
-            if rule_input == _rule.rule_head:
-                if not all:
-                    return _rule
-                _rules.append(_rule)
-        return _rules
-
-    @staticmethod
-    def _get_rule_by_body(grammar):
-        raise NotImplementedError
+    def _default_select_by_rule_head(rule_head):
+        return lambda x: x.rule_head == rule_head
 
     def non_terminals(self):
         if self._non_terminals_cache is None or not self._non_terminals_cache:
@@ -294,9 +254,6 @@ class Grammar:
             _terminals = self._terminals_cache
             # print(f"USING CACHED TERMINALS")
         return _terminals
-
-    def _inverted_rules(self):
-        raise NotImplementedError
 
     def copy(self, *, deepcopy=False):
         _new_cls = type(self)(grammar_id=self.grammar_id)
@@ -365,10 +322,16 @@ if __name__ == "__main__":
     print(apply_color(10, f"There are {len(_states)} unique item sets/states!"))
     print()
 
-    # init_rule = _test_grammar.select("INIT_RULE")
-    # print(f"RULE ID: '{init_rule.rule_id}':  {init_rule.rule_head} ---> {init_rule.rule_body}")
+    init_rule = _test_grammar.select(lambda x: x.rule_id == "INIT_RULE")
+    init_rule = init_rule[0] if init_rule else None
+    if init_rule:
+        print(f"RULE ID: '{init_rule.rule_id}':  {init_rule.rule_head} ---> {init_rule.rule_body}")
+    else:
+        print(f"RULE BY ID: 'INIT_RULE' COULD NOT BE FOUND WITHIN GRAMMAR...\n")
 
-    # init_rule.set_state(0)
-    # _next_symbol = "E"
-    # _next_state = init_rule.get_state(_next_symbol)
-    # print(f"WHEN PARSER IS IN STATE: {init_rule.state} ON RULE ID: {init_rule.rule_id} TRANSITION TO STATE: {_next_state}")
+    init_rule.set_state(0)
+    _next_symbol = "E"
+    _next_state = init_rule.get_state(_next_symbol)
+    print(f"WHEN PARSER IS IN STATE: {init_rule.state} ON RULE ID: {init_rule.rule_id} TRANSITION TO STATE: {_next_state}")
+    print()
+    print()

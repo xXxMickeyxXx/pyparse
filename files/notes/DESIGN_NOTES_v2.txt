@@ -1,0 +1,31 @@
+__________DESIGN NOTES FOR FINAL 'pyparse' DESIGN (as of 2024-08-16)__________
+
+(NOTE: working off of the 'final_redesign' branch for 'pyparse' repo)
+
+
+PARSER RUNTIME OVERVIEW:
+
+	STEP 1: Parser initializes it's parsing state, which includes initializing it's associated
+			'Grammar'
+
+
+PACKAGE COMPONENTS:
+
+	• COMPONENT NAME: 		'ParseContext'
+		- DESCRIPTION:      Represents a parser request, to parse a specifc input stream (which can
+					   		be streamed or exist all upfront). Each unique input/input stream correlates
+					   		with a single instance of 'ParseContext'.	
+		- RESPONSIBILITIES: Manage the state the parser in relation to a given input/input stream
+
+	
+	• COMPONENT NAME: 		'InputStream'
+		- DESCRIPTION: 		Represents the input, in it's raw form, that will be consumed by the
+							the parsing system. 
+		- RESPONSIBILITIES:	Contains and manages a given input/input stream. Each instance of
+							'ParseContext' will contain, at most, one
+							instance of this class.
+
+
+	• COMPONENT NAME: 		'Grammar'
+		- DESCRIPTION: 		A collection of grammar rules ('GrammarRule') making up the defined language
+							that the parser uses to interpret the 'InputStream'
