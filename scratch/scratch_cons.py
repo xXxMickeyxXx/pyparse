@@ -4,15 +4,19 @@ from enum import StrEnum, IntEnum, auto
 class PyParsePortID(IntEnum):
 
     # INPUT = auto()
-    TASKS = auto()
+    SLEEP = auto()
+    READY = auto()
     EVENTS = auto()
     ACTIONS = auto()
+    PARSE_REQUEST = auto()
 
 
 class PyParseEventID(IntEnum):
 
-    NEW_ACTION = auto()
-    NEW_EVENT = auto()
+    # ON_ACTION = auto()
+    ON_EVENT = auto()
+    ON_QUIT = auto()
+    ON_FORCE_QUIT = auto()
 
 
 class PyParseLoggerID(StrEnum):
@@ -21,13 +25,19 @@ class PyParseLoggerID(StrEnum):
     PARSE_ENV = auto()
 
 
-class ParserActionEnum(StrEnum):
+class ParserActionState(IntEnum):
+
+    CREATED = auto()
+    SCHEDULED = auto()
+
+
+
+class ParserActionType(StrEnum):
 
     ACCEPT = auto()
     ERROR = auto()
     SHIFT = auto()
     REDUCE = auto()
-    UPDATE = auto()
 
 
 class GrammarRuleBy(IntEnum):

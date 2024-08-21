@@ -68,11 +68,12 @@ class GrammarRule:
 
     """
 
-    __slots__ = ("_rule_head", "_rule_body", "_marker_symbol", "_marker_pos", "_augmented_item", "_status", "_can_reduce", "_track_goto", "_goto", "_rule_id", "_augmented", "_state", "__at_end", "__at_beginning")
+    # __slots__ = ("_rule_head", "_rule_body", "_marker_symbol", "_marker_pos", "_augmented_item", "_status", "_can_reduce", "_track_goto", "_goto", "_rule_id", "_augmented", "_state", "__at_end", "__at_beginning")
+    __slots__ = ("_rule_head", "_rule_body", "_marker_symbol", "_marker_pos", "_augmented_item", "_status", "_can_reduce", "_track_goto", "_goto", "_rule_id", "_augmented", "_states", "__at_end", "__at_beginning", "_actions", "_gotos")
 
-    # TODO: determine if '__gotos__' attribute and supporting logic is needed
-    #       (likely not needed, at least, not at this stage)
-    __gotos__ = {}
+    # # TODO: determine if '__gotos__' attribute and supporting logic is needed
+    # #       (likely not needed, at least, not at this stage)
+    # __gotos__ = {}
 
     def __init__(self, rule_head: str, rule_body: list | tuple, marker_symbol: str = "•", rule_id=None):
         self._rule_id = rule_id or generate_id()
@@ -83,11 +84,14 @@ class GrammarRule:
         self._augmented_item = None
         self._augmented = False
         self._status = None
-        self._state = None
+        # self._state = None
         self.__at_end = False
         self.__at_beginning = False
-        if self.rule_id not in self.__gotos__:
-            self.__gotos__.setdefault(self.rule_id, {})
+        self._states = {}
+        self._actions = {}
+        self._gotos = {}
+        # if self.rule_id not in self.__gotos__:
+        #     self.__gotos__.setdefault(self.rule_id, {})
 
     @property
     def rule_id(self):
@@ -136,13 +140,14 @@ class GrammarRule:
             self._augment_rule()
         return self._augmented_item
 
-    @property
-    def state(self):
-        return self._state
+    # @property
+    # def state(self):
+    #     return self._state
 
     @property
-    def valid_states(self):
-        return self.__gotos__[self.rule_id]
+    def states(self):
+        # return self.__gotos__[self.rule_id]
+        return self._states
 
     def __str__(self):
         _cls_name_str = f"{self.__class__.__name__} --------------\n"
@@ -196,9 +201,9 @@ class GrammarRule:
         self.advance()
         return _retval
 
-    def set_state(self, state):
-        self._state = state
-        return self
+    # def set_state(self, state):
+    #     self._state = state
+    #     return self
 
     def augmented_item_factory(self):
         # TODO: replace 'GrammarRule' logic relating to augmentation with
@@ -234,19 +239,39 @@ class GrammarRule:
 
     def bind_state(self, current_state, look_ahead, next_state):
         # NOTE: need to find a better name for this
-        if current_state not in self.valid_states:
-            self.valid_states[current_state] = {}
+        if current_state not in self.states:
+            self.states[current_state] = {}
 
-        if look_ahead not in self.valid_states[current_state]:
-            self.valid_states[current_state][look_ahead] = next_state
+        if look_ahead not in self.states[current_state]:
+            self.states[current_state][look_ahead] = next_state
         return self
-        
-    def get_state(self, look_ahead):
+
+    def bind_action(self, state, symbol, action):
+        _action_key = (state, symbol)
+        if _action_key not in self._actions:
+            self._actions[_action_key] = action
+        return self
+
+    def bind_goto(self, state, non_terminal, next_state):
+        _goto_key = (state, non_terminal)
+        if _goto_key not in self._gotos:
+            self._gotos[_goto_key] = next_state
+        return self
+
+    def state(self, current_state, look_ahead):
         _retval = None
-        _trans_dict = self.valid_states.get(self.state, None)
+        _trans_dict = self.states.get(current_state, None)
         if _trans_dict is not None:
             _retval = _trans_dict.get(look_ahead, None)
         return _retval
+
+    def action(self, state, symbol, default=None):
+        _action_key = (state, symbol)
+        return self._actions.get(_action_key, default)
+
+    def goto(self, state, non_terminal, default=None):
+        _goto_key = (state, non_terminal)
+        return self._gotos.get(_goto_key, default)
 
     # def update(self, look_ahead):
     #     if self.at_start:

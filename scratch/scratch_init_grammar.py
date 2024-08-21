@@ -48,29 +48,34 @@ def init_grammar_3(grammar):
 
 
 def init_grammar_4(grammar):
-    # grammar.create_rule("$", ["E"], rule_id="INIT_RULE")
-    # grammar.create_rule("E", ["E", "*", "B"], rule_id="E_rule_1")
-    # grammar.create_rule("E", ["E", "+", "B"], rule_id="E_rule_2")
-    # grammar.create_rule("E", ["B"], rule_id="E_rule_3")
-    # grammar.create_rule("B", ["0"], rule_id="B_rule_1")
-    # grammar.create_rule("B", ["1"], rule_id="B_rule_2")
-    init_rule = grammar.create_rule("$", ("E",), rule_id="INIT_RULE")
-    init_rule.bind_state(0, "E", 1)
+    grammar.create_rule("$", ["E"], rule_id="INIT_RULE")
+    grammar.create_rule("E", ["E", "*", "B"], rule_id="E_rule_1")
+    grammar.create_rule("E", ["E", "+", "B"], rule_id="E_rule_2")
+    grammar.create_rule("E", ["B"], rule_id="E_rule_3")
+    grammar.create_rule("B", ["0"], rule_id="B_rule_1")
+    grammar.create_rule("B", ["1"], rule_id="B_rule_2")
 
-    E_rule_1 = grammar.create_rule("E", ("E", "*", "B"), rule_id="E_rule_1")
-    E_rule_1.bind_state(0, "E", 1)
+    # init_rule = grammar.create_rule("$", ("E",), rule_id="INIT_RULE")
+    # init_rule.bind_state(0, "E", 3)
 
-    E_rule_2 = grammar.create_rule("E", ("E", "+", "B"), rule_id="E_rule_2")
-    E_rule_2.bind_state(0, "E", 1)
+    # E_rule_1 = grammar.create_rule("E", ("E", "*", "B"), rule_id="E_rule_1")
+    # E_rule_1.bind_state(0, "E", 3).bind_state(3, "E", 5).bind_state(5, "E", 7)
 
-    E_rule_3 = grammar.create_rule("E", ("B",), rule_id="E_rule_3")
-    E_rule_3.bind_state(0, "B", 1)
+    # E_rule_2 = grammar.create_rule("E", ("E", "+", "B"), rule_id="E_rule_2")
+    # E_rule_2.bind_state(0, "E", 3).bind_state(3, "E", 6).bind_state(6, "E", 8)
 
-    B_rule_1 = grammar.create_rule("B", ("0",), rule_id="B_rule_1")
-    B_rule_1.bind_state(0, "0", 3)
+    # E_rule_3 = grammar.create_rule("E", ("B",), rule_id="E_rule_3")
+    # E_rule_3.bind_state(0, "B", 4)
 
-    B_rule_2 = grammar.create_rule("B", ("1",), rule_id="B_rule_2")
-    B_rule_2.bind_state(0, "1", 4)
+    # B_rule_1 = grammar.create_rule("B", ("0",), rule_id="B_rule_1")
+    # B_rule_1.bind_state(0, "0", 1)
+
+    # B_rule_2 = grammar.create_rule("B", ("1",), rule_id="B_rule_2")
+    # B_rule_2.bind_state(0, "1", 2)
+
+    # NOTE: Initialize grammar states upfront to avoid slow parsing; this will
+    #       likely be removed in final design
+    # grammar.generate_states()
 
 
 def init_grammar_5(grammar):

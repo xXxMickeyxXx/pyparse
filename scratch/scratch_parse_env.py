@@ -10,10 +10,15 @@ from .scratch_utils import generate_id, CircularBuffer, copy_items, copy_item
 _parse_env_default_logger = PyLogger.get(PyParseLoggerID.PARSE_ENV)
 
 
-class ParseEnvironment(ABC):
+class ParserEnvironment(ABC):
 
-	def __init__(self, parser=None):
+	def __init__(self, parser=None, env_id=None):
+		self._env_id = env_id or generate_id()
 		self._parser = parser
+
+	@property
+	def env_id(self):
+		return self._env_id
 
 	@property
 	def parser(self):
@@ -27,7 +32,7 @@ class ParseEnvironment(ABC):
 		self._parser = parser
 
 	@abstractmethod
-	def parse_mainloop(self, parse_context):
+	def run(self):
 		raise NotImplementedError
 
 

@@ -4,9 +4,15 @@ from pyparse import GrammarRuleError
 from .utils import apply_color, bold_text, underline_text  # TODO: remove this once I solve an issue in this module (item states aren't being created correctly if two items have the same 'rule_head' and have the their 'look_behinds' and 'look_aheads' method calls match)
 from .grammar_rule import GrammarRule
 from .scratch_marker_symbol import MarkerSymbol
-from .scratch_cons import GrammarRuleBy
+from .scratch_cons import GrammarRuleBy, ParserActionType
 from .scratch_utils import generate_id
-from .scratch_grammar_rules_filter import RuleFilter
+from .scratch_grammar_rules_filter import (
+    RuleFilter,
+    RuleByID,
+    RuleByHead,
+    RuleByBody
+
+)
 
 from . import item_details
 
@@ -67,79 +73,35 @@ class Grammar:
     # NOTE: current working/updated implementation (as of 2024-07-24)
     def generate_states(self):
         if self._item_states_cache is None:
-            _augmented_item_closure = self.closure(self.init_item)
-
-            # _check_queue = deque(_augmented_item_closure)
-            # _item_set_queue = deque([_augmented_item_closure])
-
-            _item_sets = [_augmented_item_closure]
-            # _next_item_sets = {}
+            _symbols = self.symbols()
+            _item_set_pointer = 0
+            _item_sets = [self.closure(self.init_item)]
             _item_set_added = True
-
-            _color_id = 208
-
-            _current_set_idx = 0
-            _item_set_added = True
-            _counter = 1
             while _item_set_added:
-                # Toggling between colors associated with 208 (hexadecimal '0xd0') and 220 (hexadecimal '0xdc') using bitwise XOR 12 on the current '_color_id' variable
-                _color_id ^= 50
-                print()
-                print(underline_text(bold_text(apply_color(_color_id, f"** TOP OF WHILE-LOOP **"))))
-                print(apply_color(_color_id, f" |"))
-                print(apply_color(_color_id, f" |"))
-                print(apply_color(_color_id, f" • --- "), end="")
-                _underlined_txt = underline_text(f"COUNT {_counter}")
-                _text = apply_color(_color_id, f"[{_underlined_txt}") + apply_color(_color_id, "]")
-                _text += "\n"
-                print(_text)
                 _item_set_added = False
 
+                _next_item_set = _item_sets[_item_set_pointer]
+                _item_set_pointer += 1
+                _possible_trans = {}
+                for item in _next_item_set:
+                    _item = item.copy(deepcopy=True)
+                    _next_symbol = _item.next_symbol(default=None)
+                    if _next_symbol not in _possible_trans:
+                        _possible_trans[_next_symbol] = []
+                    _item.advance()
+                    _possible_trans[_next_symbol].append(_item)
+                print(i for i in _possible_trans.values())
+                # for _sym, _item_ in _possible_trans.items():
+                #     _item_sets.append()                    
 
 
 
-                # if _current_set_idx < len(_item_sets):
-                #     _item_set = _item_sets
+                if not _item_set_added:
+                    # NOTE: just to ensure it's negative 
+                    _item_set_added = False
+                    break
 
-                _next_sets = []
-                _item_sets_len = len(_item_sets)
-                for i in range(_item_sets_len):
-                    _item_set = _item_sets[i]
-                    print()
-                    print(apply_color(_color_id, f"\t\t[STATE {i}]\n"))
-                    print(apply_color(_color_id, f"\t\t\t[ITEM]"))
-                    # _temp_mapping = {}
-                    for _item in _item_set:
-                        _item_copy = _item.copy(deepcopy=True)
-                        if _item_copy.can_reduce:
-                            _next_sets.append([_item_copy])
-                            continue
-                        _item_copy.advance()
-                        print(item_details(_item_copy, _color_id), end="\n\n")  # TODO: **REMOVE ONCE FINISHED IMPLEMENTING**
-                        _temp_mapping = {}
-                        _next_symbol = _item_copy.next_symbol()
-                        if _next_symbol not in _temp_mapping:
-                            _temp_mapping[_next_symbol] = []
-                        _temp_mapping[_next_symbol].append(_item_copy)
-                        if _next_symbol in self.non_terminals():
-                            for _item_from_closure in self.closure(_item_copy):
-                                if _item_from_closure not in _temp_mapping[_next_symbol]:
-                                    _temp_mapping[_next_symbol].append(_item_from_closure)    
 
-                        _next_sets.extend(list(_temp_mapping.values()))
-                for _new_item_set in _next_sets:
-                    if _new_item_set not in _item_sets:
-                        _item_sets.append(_new_item_set)
-                        _item_set_added = True
-
-                print()
-                print()
-                print(underline_text(bold_text(apply_color(_color_id, f"** BOTTOM OF WHILE-LOOP **\n"))))
-                print()
-                _counter += 1
-            print()
-            print(underline_text(bold_text(apply_color(15, f"** EXITED WHILE-LOOP **\n"))))
-            print()
             _retval = {idx: i for idx, i in enumerate(_item_sets)}
             self._item_states_cache = _retval
         else:
@@ -160,7 +122,7 @@ class Grammar:
             _next_rule = _rule_queue.popleft()
             _next_symbol = _next_rule.next_symbol(default=None)
             if _next_symbol in _non_terminals:
-                _found_rules = self.select(self._default_select_by_rule_head(_next_symbol), copy=False)
+                _found_rules = self.select(RuleByHead(_next_symbol), copy=False)
                 _closure_group_rule_ids = [i.rule_id for i in _closure_group]
                 for _check_rule in _found_rules:
                     if _check_rule in _closure_group:
@@ -188,24 +150,34 @@ class Grammar:
     def rule_factory(self, rule_head, rule_body, marker_symbol=MarkerSymbol("•"), rule_id=None):
         return self._rule_factory(rule_head, rule_body, marker_symbol=marker_symbol, rule_id=rule_id)
     
-    def add_rule(self, rule):
-        if rule in self._rules:
-            # TODO: create and raise custom error here
-            _error_details = f"invalid argument; rule object with head: {rule.rule_head} and body: {rule.rule_body} already exists within {self.__class__.__name__} ID: {self.grammar_id}..."
+    def add_rule(self, *rules):
+        _rule_exist = []
+        for _rule in rules:
+            if _rule in self._rules:
+                _rule_exist.append(_rule)
+                continue
+            self._rules.append(_rule)
+        if _rule_exist:
+            # TODO: create and raise custom error here            
+            _last_rule = _rule_exist.pop(-1)
+            _error_details = f"unable to add one or more rules as they already exists within instance of '{self.__class__.__name__}; "
+            _error_details += ', '.join([(f'{i.rule_head} ---> {i.rule_body}') for i in _rule_exist])
+            _error_details += f' and {_last_rule.rule_head} ---> {_last_rule.rule_body}'
             raise RuntimeError(_error_details)
-        self._rules.append(rule)
-        self._symbols_cache = None
-        self._terminals_cache = None
-        self._non_terminals_cache = None
-        self._item_states_cache = None
+        if rules:
+            self._symbols_cache = None
+            self._terminals_cache = None
+            self._non_terminals_cache = None
+            self._item_states_cache = None
 
-    def remove_rule(self, rule_input, *, remove_by=GrammarRuleBy.HEAD):
-        raise NotImplementedError()
-
-    @staticmethod
-    def _remove_rule_by_head(rule_input, grammar):
-        _remove_rule_queue = deque([idx for idx, rule in enumerate(grammar._rules) if rule.rule_head == rule_input])
-        return [grammar._rules.pop(_remove_rule_queue.popleft()) for _ in range(len(_remove_rule_queue))]
+    def remove_rule(self, filter):
+        _selected_rules = self.select(filter)
+        if not _selected_rules:
+            # TODO: create and raise custom error here
+            _error_details = f"unable to remove rule(s) which satisfy filter: {filter}; please verify rule(s) exist within this instance of '{self.__class__.__name__}' and try again..."
+            raise RuntimeError(_error_details)
+        self._rules = [i for i in self._rules if i not in _selected_rules]
+        return _selected_rules
 
     def symbols(self):
         _symbols = self.terminals()
@@ -217,14 +189,8 @@ class Grammar:
     def rules(self):
         return self._rules
 
-    # NOTE: this method may replace the above 'rule' method, though I'll need to
-    #       update it everywhere it's currently used
-    def select(self, by, copy=False, deepcopy=True):
-        return tuple([i.copy(deepcopy=deepcopy) if copy else i for i in self.rules() if by(i)])
-
-    @staticmethod
-    def _default_select_by_rule_head(rule_head):
-        return lambda x: x.rule_head == rule_head
+    def select(self, filter, copy=False, deepcopy=True):
+        return tuple([i for i in self.rules() if filter.matches(i)])
 
     def non_terminals(self):
         if self._non_terminals_cache is None or not self._non_terminals_cache:
@@ -263,42 +229,50 @@ class Grammar:
     @classmethod
     def from_rules(cls, rules: list | tuple, grammar_id: str = "", grammar_rule: GrammarRule = GrammarRule):
         _new_cls = cls(grammar_id=grammar_id, rule_factory=grammar_rule)
-        for rule in rules:
-            _new_cls.add_rule(rule)
+        _new_cls.add_rule(*rules)
         return _new_cls
 
 
 if __name__ == "__main__":
-    # _rule_lst = [
-    #     GrammarRule("$", ("E",), rule_id="INIT_RULE").bind_state(0, "E", 1),
-    #     GrammarRule("E", ("E", "*", "B"), rule_id="E_rule_1").bind_state(0, "E", 1),
-    #     GrammarRule("E", ("E", "+", "B"), rule_id="E_rule_2").bind_state(0, "E", 1),
-    #     GrammarRule("E", ("B",), rule_id="E_rule_3").bind_state(0, "E", 1),
-    #     GrammarRule("B", ("0",), rule_id="B_rule_1").bind_state(0, "0", 3),
-    #     GrammarRule("B", ("1",), rule_id="B_rule_2").bind_state(0, "1", 4)
-    # ]
+    _rule_lst = [
+        GrammarRule("$", ("E",), rule_id="INIT_RULE"),
+        GrammarRule("E", ("E", "*", "B"), rule_id="E_rule_1"),
+        GrammarRule("E", ("E", "+", "B"), rule_id="E_rule_2"),
+        GrammarRule("E", ("B",), rule_id="E_rule_3"),
+        GrammarRule("B", ("0",), rule_id="B_rule_1"),
+        GrammarRule("B", ("1",), rule_id="B_rule_2")
+    ]
 
-    # _test_grammar = Grammar.from_rules(_rule_lst)
+    _test_grammar = Grammar.from_rules(_rule_lst, grammar_id="[ • -- TEST_GRAMMR -- • ]")
 
-    _test_grammar = Grammar(grammar_id="[ • -- TEST_GRAMMR -- • ]")
+    # _test_grammar = Grammar(grammar_id="[ • -- TEST_GRAMMR -- • ]")
     
-    init_rule = _test_grammar.create_rule("$", ("E",), rule_id="INIT_RULE")
-    init_rule.bind_state(0, "E", 1)
+    # init_rule = _test_grammar.create_rule("$", ("E",), rule_id="INIT_RULE")
+    # # init_rule.bind_state(0, "E", 3)
+    # # init_rule.bind_action(3, "$", ParserActionType.ACCEPT)
 
-    E_rule_1 = _test_grammar.create_rule("E", ("E", "*", "B"), rule_id="E_rule_1")
-    E_rule_1.bind_state(0, "E", 1)
+    # E_rule_1 = _test_grammar.create_rule("E", ("E", "*", "B"), rule_id="E_rule_1")
+    # # E_rule_1.bind_state(0, "E", 3).bind_state(3, "E", 5).bind_state(5, "E", 7)
+    # # E_rule_1.bind_goto(0, "E", 3)
+    # # E_rule_1.bind_action()
 
-    E_rule_2 = _test_grammar.create_rule("E", ("E", "+", "B"), rule_id="E_rule_2")
-    E_rule_2.bind_state(0, "E", 1)
+    # E_rule_2 = _test_grammar.create_rule("E", ("E", "+", "B"), rule_id="E_rule_2")
+    # # E_rule_2.bind_state(0, "E", 3).bind_state(3, "E", 6).bind_state(6, "E", 8)
+    # # E_rule_2.bind_goto(0, "E", 3)
 
-    E_rule_3 = _test_grammar.create_rule("E", ("B",), rule_id="E_rule_3")
-    E_rule_3.bind_state(0, "B", 1)
+    # E_rule_3 = _test_grammar.create_rule("E", ("B",), rule_id="E_rule_3")
+    # # E_rule_3.bind_state(0, "B", 4)
+    # # E_rule_3.bind_goto(0, "E", 3)
 
-    B_rule_1 = _test_grammar.create_rule("B", ("0",), rule_id="B_rule_1")
-    B_rule_1.bind_state(0, "0", 3)
+    # B_rule_1 = _test_grammar.create_rule("B", ("0",), rule_id="B_rule_1")
+    # # B_rule_1.bind_state(0, "0", 1)
+    # # B_rule_1.bind_goto(0, "B", 4)
+    # # B_rule_1.bind_action(0, "0", (ParserActionType.SHIFT, 1))
 
-    B_rule_2 = _test_grammar.create_rule("B", ("1",), rule_id="B_rule_2")
-    B_rule_2.bind_state(0, "1", 4)
+    # B_rule_2 = _test_grammar.create_rule("B", ("1",), rule_id="B_rule_2")
+    # # B_rule_2.bind_state(0, "1", 2)
+    # # B_rule_2.bind_goto(0, "B", 4)
+    # # B_rule_2.bind_action(0, "1", (ParserActionType.SHIFT, 2))
 
 
     _states = _test_grammar.generate_states()
@@ -322,16 +296,46 @@ if __name__ == "__main__":
     print(apply_color(10, f"There are {len(_states)} unique item sets/states!"))
     print()
 
-    init_rule = _test_grammar.select(lambda x: x.rule_id == "INIT_RULE")
-    init_rule = init_rule[0] if init_rule else None
-    if init_rule:
-        print(f"RULE ID: '{init_rule.rule_id}':  {init_rule.rule_head} ---> {init_rule.rule_body}")
-    else:
-        print(f"RULE BY ID: 'INIT_RULE' COULD NOT BE FOUND WITHIN GRAMMAR...\n")
+    # init_rule = _test_grammar.select(RuleByID("INIT_RULE"))
+    # init_rule = init_rule[0] if init_rule else None
+    # if init_rule:
+    #     print(f"RULE ID: '{init_rule.rule_id}':  {init_rule.rule_head} ---> {init_rule.rule_body}")
+    # else:
+    #     print(f"RULE BY ID: 'INIT_RULE' COULD NOT BE FOUND WITHIN GRAMMAR...\n")
 
-    init_rule.set_state(0)
-    _next_symbol = "E"
-    _next_state = init_rule.get_state(_next_symbol)
-    print(f"WHEN PARSER IS IN STATE: {init_rule.state} ON RULE ID: {init_rule.rule_id} TRANSITION TO STATE: {_next_state}")
-    print()
-    print()
+    # _current_state = 0
+    # _next_symbol = "E"
+    # _next_state = init_rule.state(_current_state, _next_symbol)
+    # print(f"WHEN PARSER IS IN STATE: {_current_state} ON RULE ID: {init_rule.rule_id} TRANSITION TO STATE: {_next_state}")
+    # print()
+    # print()
+
+
+    # _COLOR_ID = 172
+    # print()
+    # _init_grammar_rules_len = len(_test_grammar)
+    # print(underline_text(bold_text(apply_color(_COLOR_ID, f"GRAMMAR ID: {_test_grammar.grammar_id} INITIALILY CONTAINS {_init_grammar_rules_len} {'RULE' if _init_grammar_rules_len == 1 else 'RULES'}"))))
+    # print()
+    # _arrow_txt = ""
+    # for _ in range(3):
+    #     _arrow_txt += bold_text(apply_color(201, "                     |\r\n"))
+    # _arrow_txt += bold_text(apply_color(201, "                     |\n"))
+    # _arrow_txt += bold_text(apply_color(201, "                     ↓"))
+    # print(_arrow_txt)
+    # print()
+    # _composite_filter = RuleByID("INIT_RULE") | RuleByID("B_rule_2")
+    # _removed_init_rule = _test_grammar.remove_rule(_composite_filter)
+    # _removed_init_rule_len = len(_removed_init_rule)
+    # print(underline_text(bold_text(apply_color(226, f"REMOVED RULE(S) (NOTE: {_removed_init_rule_len} RULE(S) HAVE BEEN REMOVED):"))))
+    # print()
+    # for i in _removed_init_rule:
+    #     print(i)
+    # print()
+    # print()
+    # _current_grammar_rules = _test_grammar.rules()
+    # _current_grammar_rules_len = len(_current_grammar_rules)
+    # print(underline_text(bold_text(apply_color(226, f"RULES FOR GRAMMAR ID: {_test_grammar.grammar_id} (NOTE: GRAMMAR CONTAINS {_current_grammar_rules_len} {'RULE' if _current_grammar_rules_len == 1 else 'RULES'}):"))))
+    # print()
+    # for i in _current_grammar_rules:
+    #     print(i)
+    # print()
