@@ -1,40 +1,53 @@
 from .scratch_utils import generate_id
-from .scratch_cons import ParserActionType
 from .utils import apply_color, bold_text, underline_text
 
 
-class ParseTable:
-    def __init__(self, grammar=None, table_id=None, start_symbol="$"):
+class Table:
+
+    def __init__(self, table_id=None):
         self._table_id = table_id or generate_id()
-        self._grammar = grammar
-        self._start_symbol = start_symbol
-        self._item_states = None
-        self._action = {}
-        self._goto = {}
-        if self._grammar:
-            self.init_table()
+        self._table = []
+        self._indexs = {}
 
     @property
     def table_id(self):
         return self._table_id
 
-    @property
-    def grammar(self):
-        if self._grammar is None:
-            # TODO: create and raise custom error here
-            _error_details = f"unable to access 'grammar' as it has not yet been assigned to this parse table..."
-            raise RuntimeError(_error_details)
-        return self._grammar
+    def size(self, include_header=True):
+        return 0 if not self._table else (len(self._table) if include_header else len(self._table) - 1)
+
+    def add_column(self, column_id):
+        self._verify_header()
+        _col_lst = self._table[0]
+        _col_lst.append(column_id)
+
+    def add_row(self, *row_vals):
+        self._verify_header()
+        _new_row = [*row_vals]
+        _new_index = {len(self._table)-1: _new_row}
+        self._table.append(_new_row)
+
+    def _verify_header(self):
+        if not self._table:
+            self._table.append([])
+
+    def select(self, idx):
+        raise NotImplementedError
+
+    def search(self, by):
+        raise NotImplementedError
+
+
+class ParseTable:
+    def __init__(self, table_id=None):
+        self._table_id = table_id or generate_id()
+        self._item_states = None
+        self._action = {}
+        self._goto = {}
 
     @property
-    def item_states(self):
-        if self._item_states is None:
-            self._item_states = self.grammar.generate_states()
-        return self._item_states
-
-    def set_grammar(self, grammar):
-        self._grammar = grammar
-        self.init_table()
+    def table_id(self):
+        return self._table_id
 
     def add_action(self, state, symbol, action):
         _action_key = (state, symbol)
@@ -58,37 +71,8 @@ class ParseTable:
         _goto_key = (state, non_terminal)
         return self._goto.get(_goto_key, default)
 
-    def find_next_state(self, item_states, item):
-        _item_copy = item.copy()
-        _item_copy.advance()
-        for state, items in item_states.items():
-            if _item_copy in items:
-                return state
-        return None
-
-    def init_table(self):
-        _rules = self.grammar.rules()
-        item_states = self.item_states
-        _init_rule = _rules[0]
-        _init_rule_head = _init_rule.rule_head
-        _terminals = self.grammar.terminals()
-        for state, items in item_states.items():
-            for item in items:
-                next_symbol = item.next_symbol()
-                if item.can_reduce:
-                    _aug_start_rule_head = _init_rule.rule_head
-                    if item.rule_head == _aug_start_rule_head:
-                        self.add_action(state, _aug_start_rule_head, (ParserActionType.ACCEPT, item))
-                    else:
-                        for terminal in _terminals:
-                            self.add_action(state, terminal, (ParserActionType.REDUCE, item))
-                        self.add_action(state, self._start_symbol, (ParserActionType.REDUCE, item))
-                elif next_symbol in _terminals:
-                    next_state = self.find_next_state(item_states, item)
-                    self.add_action(state, next_symbol, (ParserActionType.SHIFT, next_state, item))
-                else:
-                    next_state = self.find_next_state(item_states, item)
-                    self.add_goto(state, next_symbol, (next_state, item))
+    def build(self, builder):
+        return builder.build_table(self)
 
     def print(self):
         print()

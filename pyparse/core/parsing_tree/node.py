@@ -22,7 +22,6 @@ class NodeTraveler(ABC):
 class BFSNodeTreeTraveler(NodeTraveler):
 
 	def traverse(self, node):
-
 		_queue = deque([node])
 		while _queue:
 			_next_node = _queue.popleft()
@@ -197,8 +196,11 @@ if __name__ == "__main__":
 
 	_bfs_search = BFSNodeTreeTraveler()
 	_dfs_search = DFSNodeTreeTraveler()
-	_root_node.traverse(_dfs_search)
+	val_1 = _root_node.traverse(_dfs_search)
 	print()
 	print()
-	_root_node.traverse(_bfs_search)
+	val_2 = _root_node.traverse(_bfs_search)
+	print()
+	print(val_1)
+	print(val_2)
 	print()

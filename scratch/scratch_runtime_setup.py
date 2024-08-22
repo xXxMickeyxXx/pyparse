@@ -423,7 +423,16 @@ from .scratch_init_grammar import test_grammar_factory, init_grammar_1, init_gra
 from .source_descriptor import SourceFile
 from .scratch_utils import generate_id, CircularBuffer, copy_items, copy_item
 from .utils import apply_color, bold_text, underline_text, center_text
-from .scratch_cons import PyParsePortID, PyParseEventID, PyParseLoggerID, ParserActionType, GrammarRuleBy, TableConstructionEvent, TEST_INPUT_1, TEST_INPUT_2
+from .scratch_cons import (
+	PyParsePortID,
+	PyParseEventID,
+	ParserActionState,
+	ParserActionType,
+	PyParseLoggerID,
+	GrammarRuleBy,
+	TEST_INPUT_1,
+	TEST_INPUT_2
+)
 
 
 """
@@ -564,10 +573,14 @@ class ParserSettings:
 
 class ParserAction:
 
-    def __init__(self, target, state=None, task_id=None):
+    def __init__(self, target, action_type, state=ParserActionState.CREATED, action_id=None):
         self._target = target
-        self._task_id = task_id or generate_id()
-        self._state = state or TaskInitialState()
+        self._action_id = action_id or generate_id()
+        if action_type not in [i for i in ParserActionType]:
+        	_error_details = f"unable to initialize instance of '{self.__class__.__name__}', parser action ID: {self._action_id} as an invalid 'action_type' was submitted: {action_type}..."
+        	raise RuntimeError(_error_details)
+        self._action_type = action_type
+        self._state = state
         self._send_value = None
         self._send_value_used = False
         self._result = None
@@ -579,7 +592,7 @@ class ParserAction:
         self._initialize()
         self.logger.submit_log(
             function=f"{self.__class__.__name__}.__init__",
-            task_id=f"{self._task_id}"
+            action_id=f"{self._action_id}"
         )
 
     @property
@@ -587,8 +600,12 @@ class ParserAction:
         return self._target
 
     @property
-    def task_id(self):
-        return self._task_id
+    def action_type(self):
+    	return self._action_type
+
+    @property
+    def action_id(self):
+        return self._action_id
 
     @property
     def state(self):
@@ -622,7 +639,7 @@ class ParserAction:
         return old_val
 
     def result_factory(self):
-        return PySynchronyResult(result_id=self.task_id)
+        return PySynchronyResult(result_id=self.action_id)
 
     def set_context(self, context):
         self._context = context
@@ -657,11 +674,11 @@ class ParserAction:
             _send_value = None
         result_val = self.target.send(_send_value)
         self.set_result(result_val)
-        _task_id = self.task_id
+        _action_id = self.action_id
         self.logger.submit_log(
-            message=f"Performing call on target associated with task ID: {_task_id}",
+            message=f"Performing call on target associated with task ID: {_action_id}",
             function=f"{self.__class__.__name__}.execute",
-            task_id=f"{_task_id}"
+            action_id=f"{_action_id}"
         )
         self.set_result(result_val)
         return result_val
@@ -925,6 +942,9 @@ class ParserContext(PySynchronyScheduler):
 		_channel = self.channel()
 		_channel.register(signal_id, receiver=receiver, receiver_id=receiver_id)
 
+	# def submit(self, action, action_type, *args, action_id=None, **kwargs):
+	# 	inspect.
+
 	def schedule_task(self, task):
 		self.send(task, PyParsePortID.READY)
 
@@ -974,6 +994,7 @@ class ParserContext(PySynchronyScheduler):
 	def _ready_handler_for_port_imp_2(self, port):
 		if port.peek():
 			current_task = port.receive()
+			# _execution_context = self._task_execution_context[current_task.action_id]  # NOTE: use this once 'ParserAction' has been implemented
 			_execution_context = self._task_execution_context[current_task.task_id]
 			return _execution_context(current_task, self)
 
@@ -1404,7 +1425,14 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 		parser_context.submit(close_at_finish, rate=.10)
 		parser_context.submit(sleeper, 2)
 		parser_context.submit(sleeper, 8)
+		# parser_context.submit(countdown, length=10, rate=1, step=1, action_id=_TEST_TASK_ID)
 		parser_context.submit(countdown, length=10, rate=1, step=1, task_id=_TEST_TASK_ID)
+
+	# TODO: remove this once done testing with it
+	def __build_table__(self):
+		print(f"BUILDING PARSE TABLE:")
+		self.parse_table.build(self.grammar)
+		self.parse_table.print()
 
 
 @profile_callable(sort_by=SortBy.TIME)

@@ -29,7 +29,11 @@ class ParserActionState(IntEnum):
 
     CREATED = auto()
     SCHEDULED = auto()
-
+    STAGED = auto()
+    EXECUTING = auto()
+    AWAITING = auto()
+    SLEEPING = auto()
+    FINISHED = auto()
 
 
 class ParserActionType(StrEnum):
@@ -63,13 +67,6 @@ class FileDescriptorMode(StrEnum):
 
     # TODO: implement remaining file descriptor modes
     # Appending related modes
-
-
-class TableConstructionEvent(StrEnum):
-
-    INIT_I0 = auto()
-    UPDATE_STATES = auto()
-    UPDATE_GOTO_MAPPING = auto()
 
 
 TEST_INPUT_1 = r"/Users/mickey/Desktop/Python/custom_packages/pyparse/files/data/example_grammar_input_2024_06_13.txt"

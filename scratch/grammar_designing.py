@@ -77,11 +77,25 @@ class Grammar:
             _item_set_pointer = 0
             _item_sets = [self.closure(self.init_item)]
             _item_set_added = True
-            while _item_set_added:
+            # while _item_set_added:
+            while _item_set_pointer < len(_item_sets):
                 _item_set_added = False
 
                 _next_item_set = _item_sets[_item_set_pointer]
                 _item_set_pointer += 1
+
+                # _possible_item_trans = set()
+                # for item in _next_item_set:
+                #     _item = item.copy(deepcopy=True)
+                #     _next_symbol = _item.next_symbol(default=None)
+                #     _possible_item_trans.add(_next_symbol)
+                #     _item.advance()
+
+                # for i in _possible_item_trans:
+                #     print(i)
+                # print()
+
+
                 _possible_trans = {}
                 for item in _next_item_set:
                     _item = item.copy(deepcopy=True)
@@ -90,16 +104,33 @@ class Grammar:
                         _possible_trans[_next_symbol] = []
                     _item.advance()
                     _possible_trans[_next_symbol].append(_item)
-                print(i for i in _possible_trans.values())
-                # for _sym, _item_ in _possible_trans.items():
-                #     _item_sets.append()                    
 
 
+                # for i in _possible_trans.values():
+                #     if i not in _item_sets:
+                #         _item_sets.append(i)
+                #         _item_set_added = True
 
-                if not _item_set_added:
-                    # NOTE: just to ensure it's negative 
-                    _item_set_added = False
-                    break
+                print(f"POSSIBLE SYMBOL TRANSITIONS:")
+                for i in _possible_trans:
+                    print(i)
+                print()
+                for _item_set_ in _possible_trans.values():
+                    _temp_lst = []
+                    for _rule in _item_set_:
+                        _temp_lst.append(_rule)
+                        if _rule.next_symbol(default=None) in self.non_terminals():
+                            for _closed_item in self.closure(_rule.copy(deepcopy=True)):
+                                if _closed_item not in _temp_lst:
+                                    _temp_lst.append(_closed_item)
+                    if _temp_lst not in _item_sets:
+                        # print(f"ADDING ITEM SET:")
+                        # for i in _temp_lst:
+                        #     print(i)
+                        # print(f"\n\n")
+                        _item_sets.append(_temp_lst)
+                        _item_set_added = True
+                # print(_item_set_added)
 
 
             _retval = {idx: i for idx, i in enumerate(_item_sets)}
@@ -231,6 +262,38 @@ class Grammar:
         _new_cls = cls(grammar_id=grammar_id, rule_factory=grammar_rule)
         _new_cls.add_rule(*rules)
         return _new_cls
+
+    def build_table(self, table):
+        _rules = self.rules()
+        item_states = self.generate_states()
+        _init_rule = _rules[0]
+        _init_rule_head = _init_rule.rule_head
+        _terminals = self.terminals()
+        for state, items in item_states.items():
+            for item in items:
+                next_symbol = item.next_symbol()
+                if item.can_reduce:
+                    _aug_start_rule_head = _init_rule.rule_head
+                    if item.rule_head == _aug_start_rule_head:
+                        table.add_action(state, _aug_start_rule_head, (ParserActionType.ACCEPT, item))
+                    else:
+                        for terminal in _terminals:
+                            table.add_action(state, terminal, (ParserActionType.REDUCE, item))
+                        table.add_action(state, _init_rule_head, (ParserActionType.REDUCE, item))
+                elif next_symbol in _terminals:
+                    next_state = self._find_next_state(item_states, item)
+                    table.add_action(state, next_symbol, (ParserActionType.SHIFT, next_state, item))
+                else:
+                    next_state = self._find_next_state(item_states, item)
+                    table.add_goto(state, next_symbol, (next_state, item))
+
+    def _find_next_state(self, item_states, item):
+        _item_copy = item.copy()
+        _item_copy.advance()
+        for state, items in item_states.items():
+            if _item_copy in items:
+                return state
+        return None
 
 
 if __name__ == "__main__":
