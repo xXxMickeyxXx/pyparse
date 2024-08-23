@@ -74,15 +74,22 @@ class Grammar:
     def generate_states(self):
         if self._item_states_cache is None:
             _symbols = self.symbols()
-            _item_set_pointer = 0
-            _item_sets = [self.closure(self.init_item)]
+            # _item_set_pointer = 0
+            _closed_init_set = self.closure(self.init_item)
+            _item_sets = [_closed_init_set]
+            _item_set_queue = deque(_item_sets)
             _item_set_added = True
+            while _item_set_queue:
             # while _item_set_added:
-            while _item_set_pointer < len(_item_sets):
-                _item_set_added = False
+            # while _item_set_pointer < len(_item_sets):
+                # _item_set_added = False
 
-                _next_item_set = _item_sets[_item_set_pointer]
-                _item_set_pointer += 1
+                # _next_item_set = _item_sets[_item_set_pointer]
+                # _item_set_pointer += 1
+                # if not _item_set_queue:
+                #     break
+
+                _next_item_set = _item_set_queue.popleft()
 
                 # _possible_item_trans = set()
                 # for item in _next_item_set:
@@ -95,11 +102,12 @@ class Grammar:
                 #     print(i)
                 # print()
 
-
                 _possible_trans = {}
                 for item in _next_item_set:
                     _item = item.copy(deepcopy=True)
                     _next_symbol = _item.next_symbol(default=None)
+                    if _next_symbol is None:
+                        continue
                     if _next_symbol not in _possible_trans:
                         _possible_trans[_next_symbol] = []
                     _item.advance()
@@ -111,10 +119,10 @@ class Grammar:
                 #         _item_sets.append(i)
                 #         _item_set_added = True
 
-                print(f"POSSIBLE SYMBOL TRANSITIONS:")
-                for i in _possible_trans:
-                    print(i)
-                print()
+                # print(f"POSSIBLE SYMBOL TRANSITIONS:")
+                # for i in _possible_trans:
+                #     print(i)
+                # print()
                 for _item_set_ in _possible_trans.values():
                     _temp_lst = []
                     for _rule in _item_set_:
@@ -123,14 +131,18 @@ class Grammar:
                             for _closed_item in self.closure(_rule.copy(deepcopy=True)):
                                 if _closed_item not in _temp_lst:
                                     _temp_lst.append(_closed_item)
+
                     if _temp_lst not in _item_sets:
-                        # print(f"ADDING ITEM SET:")
-                        # for i in _temp_lst:
-                        #     print(i)
-                        # print(f"\n\n")
-                        _item_sets.append(_temp_lst)
-                        _item_set_added = True
-                # print(_item_set_added)
+                        _item_set_queue.append(_temp_lst)
+
+                if _next_item_set not in _item_sets:
+                    # for i in range(len(_next_item_set)):
+                    #     _next_item = _next_item_set[i]
+                    #     if _next_item.next_symbol() in self.non_terminals():
+                    #         for _closed_i in self.closure(_next_item):
+                    #             _next_item_set.append(_closed_i)
+                    _item_sets.append(_next_item_set)
+
 
 
             _retval = {idx: i for idx, i in enumerate(_item_sets)}

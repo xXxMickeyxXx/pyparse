@@ -51,5 +51,28 @@ def display_ANSI_colors():
         print(f"{i} ---> {apply_color(i, 'COLOR')}")
 
 
+def display_result(input, parser_result):
+    if parser_result:
+        _color = 10
+        _text = underline_text(bold_text(apply_color(_color, f"INPUT IS VALID!!!")))
+        _text += f"\n    |"
+        _text += f"\n    |"
+        _text += f"\n    • ----> {bold_text(apply_color(11, input))}"
+        _border_text = f"-" * int(len(_text)/2)
+        _result = bold_text(apply_color(_color, _text))
+    else:
+        _color = 9
+        _text = underline_text(bold_text(apply_color(_color, f"INPUT IS INVALID!!!")))
+        _text += f"\n    |"
+        _text += f"\n    |"
+        _text += f"\n    • ----> {bold_text(apply_color(11, input))}"
+        _border_text = f"-" * int(len(_text)/2)
+        _result = _text
+    print(apply_color(_color, _border_text))
+    print(_result)
+    print(apply_color(_color, _border_text))
+    print()
+
+
 if __name__ == "__main__":
     display_ANSI_colors()

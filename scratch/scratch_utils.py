@@ -1,4 +1,5 @@
 from uuid import uuid1
+from pathlib import Path
 
 
 def generate_id(*, prefix=None, suffix=None, uuid_factory=uuid1, uuid_type=None):
@@ -24,48 +25,19 @@ def copy_item(item, *, deepcopy=False):
     return item.copy(deepcopy=deepcopy)
 
 
-class CircularBuffer:
+def read_source(source_file):
+    _filepath = source_file.get()
+    if not isinstance(_filepath, Path):
+        _filepath = Path(_filepath)
+    _file_data = ""
+    with open(_filepath, "r") as in_file:
+        _file_data = in_file.read()
 
-    def __init__(self, max_size):
-        self.max_size = max_size
-        self.buffer = [None] * max_size
-        self.head = 0
-        self.tail = 0
-        self.size = 0
-
-    def is_empty(self):
-        return self.size == 0
-
-    def is_full(self):
-        return self.size == self.max_size
-
-    def enqueue(self, item):
-        if self.is_full():
-            # TODO: create and raise custom error here
-            raise IndexError("Buffer is full")
-        self.buffer[self.tail] = item
-        self.tail = (self.tail + 1) % self.max_size
-        self.size += 1
-
-    def dequeue(self, default=None):
-        if self.is_empty():
-            return default
-        item = self.buffer[self.head]
-        self.head = (self.head + 1) % self.max_size
-        self.size -= 1
-        return item
-
-    def peek(self):
-        if self.is_empty():
-            # TODO: create and raise custom error here
-            raise IndexError("Buffer is empty")
-        return self.buffer[self.head]
-
-    def clear(self):
-        self.head = 0
-        self.tail = 0
-        self.size = 0
-        self.buffer = [None] * self.max_size
+    if not bool(_file_data):
+        # TODO: create and raise custom error here
+        _error_details = f"Error Reading Source File Contents -- unable to read data contained within file @: {filepath}"
+        raise RuntimeError
+    return [i for i in _file_data.split("\n") if i]
 
 
 if __name__ == "__main__":

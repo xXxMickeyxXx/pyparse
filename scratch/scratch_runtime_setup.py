@@ -1,392 +1,3 @@
-"""
-
-__________SCRATCH GRAMMAR SPEC__________
-
-	S ::= aA
-	A ::= a | b
-
-
-__________LR(0) AUTOMATON__________
-
-
-	I.) TEST GRAMMAR:
-			
-			S ::= aA
-			A ::= a | b
-
-
-	II.) SYMBOLS:
-
-			A.) NON-TERMINALS:
-				
-				$
-				S
-				A
-
-			B.) TERMINALS:
-				
-				a
-				b
-
-
-	III.) Generate Item Sets:
-
-		A.)  Augment grammar
-
-			1.) Create new, starting prodction rule, and ensure it's at the beginning/top of the rule container
-				
-				$ ---> S
-
-			2.) Create initial item set
-
-				a.) Start with initial, augmented item
-
-					$ ---> .S
-
-				b.) Close initial, augmented item
-
-					$ ---> .S
-					S ---> .aA
-
-				c.) Complete initial item set/state 'I0'
-
-					I0:
-
-						$ ---> .S
-						S ---> .aA
-
-				d.) Calculate GOTO for each symbol (if able to) for item set/state 'I0'
-
-						GOTO(0, S) = I1
-
-					(NOTE: the above 'GOTO' function can be read as, "On seeing the symbol 'S', while in state 0, ")
-
-			3.) Perform transitions and calculate GOTO's, using items from initial item sets (and on), until no new item sets/states can be generated
-
-				a.) Perform transition on first item of item set 'I0' (the starting item)
-
-					I1:
-
-						$ ---> S.
-
-				b.) Next, do the transition for the 2nd item of item set 'I0' to create 'I2'
-
-					S ---> a.A
-
-				c.) Close item to create set/state 'I2'
-
-					S ---> a.A
-					A ---> b
-					A ---> c
-
-				d.) Complete item set/state 'I2'
-
-					I2:
-
-						S ---> a.A
-						A ---> .b
-						A ---> .c
-
-				e.) Transition on first item of item set/state 'I2' to begin item set/state 'I3'
-
-					I3:
-
-						S ---> aA.
-
-				f.) Transition on 2nd item of item set/state 'I2'
-
-					I4:
-
-						A ---> b.
-
-				g.) Transition on 3rd item of item set/state 'I2'
-				
-					I5:
-
-						A ---> c.
-
-
-				
-
-				$ ---> .S 
-				S ---> .aA
-
-
-				A ---> .b
-
-
-
-	AUGMENTED TEST GRAMMAR:
-		$ ---> .S  
-		S ---> .aA
-		A ---> .b
-
-
-		I0:
-			S ---> .S
-			S ---> .aA
-			A ---> .b
-
-		I1:
-			$ ---> S.
-
-		I2:
-			S ---> a.A
-			A ---> .b
-
-		I3:
-			A ---> b.
-
-
-		EXAMPLE INPUT ---> ab
-
-				INITIALIZE:
-					[(0, $)]
-				
-				STEP:
-					[(0, $), (2, a)]
-
-				STEP:
-					[(0, $), (2, a), (3, b)]
-
-				STEP:
-					[(0, $), (2, a), (4, A)]
-
-				STEP:
-					[(0, $), (1, S)]
-
-
-		EXAMPLE INPUT 2 ---> abbA
-
-				INITIALIZE:
-					[(0, $)]
-				
-				STEP:
-					[(0, $), (2, a)]
-
-				STEP:
-					[(0, $), (2, a), (3, b)]
-
-				STEP:
-					[(0, $), (2, a), (4, A)]
-
-				STEP:
-					[(0, $), (2, a), (3, A)]
-
-				STEP:
-					[(0, $), (2, a)]
-
-				STEP:
-					[(0, $), (2, a), (4, A)]
-
-				STEP:
-					[(0, $), (1, S)]
-
-
-__________LR(0) AUTOMATON__________
-
-
-	TEST GRAMMAR:
-		E ---> E * B
-		E ---> E + B
-		E ---> B
-		B ---> 0
-		B ---> 1
-		B ---> (E)
-
-
-	TEST AUGMENTED GRAMMAR:
-		S ---> .E
-		E ---> .E * B
-		E ---> .E + B
-		E ---> .B
-		B ---> .0
-		B ---> .1
-		B ---> .(E)
-
-
-		I0:
-			KERNEL
-				S ---> .E
-			CLOSURE
-				E ---> .E * B
-				E ---> .E + B
-				E ---> .B
-				B ---> .0
-				B ---> .1
-				B ---> .(E)
-			TRANSITIONS
-				GOTO(0, E) = 1
-				GOTO(0, B) = 4
-
-
-		I1:
-			KERNEL
-				S ---> E.
-			CLOSURE
-				NONE
-			TRANSITIONS
-				NONE
-			ACTION(S)
-				REDUCE(I1, S) = ACCEPT
-
-		I2:
-			KERNEL
-				E ---> E .* B
-			CLOSURE
-				NONE
-			TRANSITIONS
-				NONE
-			ACTION(S)
-
-		I3:
-			KERNEL
-				E ---> E .+ B
-			CLOSURE
-				NONE
-			TRANSITIONS
-				NONE
-			ACTION(S)
-
-
-		I4:
-			KERNEL:
-				E ---> B.
-			CLOSURE
-				NONE
-			TRANSITIONS
-				NONE
-			ACTION(S)
-				REDUCE(4, E)
-
-		I5:
-			KERNEL
-				B ---> 0.
-			CLOSURE
-				NONE
-			TRANSITIONS
-				NONE
-			ACTION(S)
-
-
-		I6:
-			KERNEL
-				B ---> 1.
-			CLOSURE
-				NONE
-			TRANSITIONS
-				NONE
-			ACTION(S)
-
-		I7:
-			KERNEL
-				B ---> (.E)
-			CLOSURE
-				E ---> .E * B
-				E ---> .E + B
-				E ---> .B
-			TRANSITIONS
-				NONE
-			ACTION(S)
-
-		I8:
-			KERNEL
-				E ---> E * .B
-			CLOSURE
-				B ---> .0
-				B ---> .1
-			TRANSITIONS
-				GOTO(7, B) = 9
-			ACTION(S)
-
-
-		I9:
-			KERNEL
-				E ---> E + .B
-			CLOSURE
-				B ---> .0
-				B ---> .1
-			TRANSITIONS
-				GOTO(8, B) = 10
-			ACTION(S)
-
-
-		I10:
-			KERNEL
-				E ---> E * B.
-			CLOSURE
-				NONE
-			TRANSITIONS
-				NONE
-			ACTION(S)
-
-
-		I11:
-			KERNEL
-				E ---> E + B.
-			CLOSURE
-				NONE
-			TRANSITIONS
-				NONE
-			ACTION(S)
-
-
-
-	INIT:
-
-		• Parser initializes, adding initial state/accept symbol to the stack
-
-	PARSE
-
-		• Parser 
-
-
-
-__________LR(0) AUTOMATON__________
-
-
-	TEST GRAMMAR:
-		E ---> E * B
-		E ---> E + B
-		E ---> B
-		B ---> number
-		B ---> (E)
-
-
-	TEST AUGMENTED GRAMMAR:
-		E ---> .E
-		E ---> .E * B
-		E ---> .E + B
-		E ---> .B
-		B ---> .NUMBER
-		B ---> .(E)
-
-
-		 I0:
-			E ---> .E (augmented grammar start symbol)
-			E ---> .E * B
-			E ---> .E + B
-			E ---> .B
-			B ---> .NUMBER
-			B ---> .(E)
-
-				TRANSITIONS (from I0)
-					GOTO(0, E) = 1
-					GOTO(0, B) = 4
-					GOTO(0, NUMBER) = 
-
-
-		I1:
-			E ---> E.
-				
-				ACTION: ACCEPT
-
-
-		I2:
-			E ---> E .* B
-
-"""
-
 from abc import ABC, abstractmethod
 import inspect
 from collections import deque, defaultdict
@@ -394,10 +5,6 @@ from pathlib import Path
 import time
 
 from pylog import PyLogger, LogType
-from pyprofiler import profile_callable, SortBy
-from pyevent import PyChannels, PyChannel, PySignal
-
-from pyparse import Parser, Tokenizer
 from pysynchrony import (
 	PySynchronyScheduler,
 	PySynchronyEventLoop,
@@ -407,21 +14,24 @@ from pysynchrony import (
 	PySynchronyEvent,
 	PySynchronySysCall,
 	PriorityQueueFactory,
-	PySynchronyPortError,  # NOTE: for testing
-	RemainingTasks,  # NOTE: for testing
-	AwaitTask,  # NOTE: for testing
-	GetTaskID,  # NOTE: for testing
-	Sleep,  # NOTE: for testing
-	CreateTask,  # NOTE: for testing
-	EmitEvent,  # NOTE: for testing
-	PySynchronyForceQuit  # NOTE: for testing
+	PySynchronyPortError
 )
+
+from pyparse import Parser, Tokenizer
 from .scratch_parse_table import ParseTable
 from .scratch_parse_env import ParserEnvironment
-# from .test_automaton_design import Automaton
-from .scratch_init_grammar import test_grammar_factory, init_grammar_1, init_grammar_2, init_grammar_3, init_grammar_4, init_grammar_5, init_grammar_6
+from .scratch_init_grammar import (
+	test_grammar_factory,
+	init_grammar_1,
+	init_grammar_2,
+	init_grammar_3,
+	init_grammar_4,
+	init_grammar_5,
+	init_grammar_6
+)
+from .scratch_parser_action import countdown, sleeper, close_at_finish
 from .source_descriptor import SourceFile
-from .scratch_utils import generate_id, CircularBuffer, copy_items, copy_item
+from .scratch_utils import generate_id, read_source
 from .utils import apply_color, bold_text, underline_text, center_text
 from .scratch_cons import (
 	PyParsePortID,
@@ -433,40 +43,13 @@ from .scratch_cons import (
 	TEST_INPUT_1,
 	TEST_INPUT_2
 )
-
-
-"""
 		
-		###########################################################################################################################
-		#                                                                                                                         #
-		# • -------------------------------------------------- PYPARSE TO-DO -------------------------------------------------- • #
-		#                                                                                                                         #
-		###########################################################################################################################
 
-
-		I.)
-
-
-
-
-
-		###################################################################################################################
-		#                                                                                                                 #
-		# • -------------------------------------------------- NOTES -------------------------------------------------- • #
-		#                                                                                                                 #
-		###################################################################################################################
-
-
-		1.) Use the event loop and context designs from the 'pysynchrony' for implementing and designing components of this library/package
-
-
-"""
-
-		#####################################################################################################################
-		#                                                                                                                   #
-		# • -------------------------------------------------- TESTING -------------------------------------------------- • #
-		#                                                                                                                   #
-		#####################################################################################################################
+		###################################################################################################################################
+		#                                                                                                                   			  #
+		# • -------------------------------------------------- SCRATCH RUNTIME SETUP -------------------------------------------------- • #
+		#                                                                                                                   			  #
+		###################################################################################################################################
 
 
 _SCRATCH_PARSER_RUNTIME_LOGGER = PyLogger.get(PyParseLoggerID.PARSER)
@@ -1057,264 +640,6 @@ class ParserContext(PySynchronyScheduler):
 		return self.event_loop.run()
 
 
-def display_grammar(grammar):
-	print()
-	print(grammar)
-	print()
-
-
-def display_terminals(grammar=None):
-	_grammar = GRAMMAR if grammar is None else grammar
-	_terminals = TERMINALS if grammar is None else _grammar.terminals()
-	print()
-	print(f"TERMINALS:")
-	for terminal in _terminals:
-		print(terminal)
-	print()
-
-
-def display_non_terminals(grammar=None):
-	_grammar = GRAMMAR if grammar is None else grammar
-	_non_terminals = NON_TERMINALS if grammar is None else _grammar.non_terminals()
-	print()
-	print(f"NON-TERMINALS:")
-	for _non_terminal in _non_terminals:
-		print(_non_terminal)
-	print()
-
-
-def display_grammar_info(grammar=None):
-	_grammar = GRAMMAR if grammar is None else grammar
-	print(f"_______________ORIGINAL GRAMMAR_______________")
-	display_grammar(_grammar)
-	print()
-	display_terminals(_grammar)
-	print()
-	display_non_terminals(_grammar)
-	print()
-	_grammar_2 = copy_items(_grammar, deepcopy=True)
-	print(f"_______________COPIED GRAMMAR_______________")
-	display_grammar(_grammar_2)
-	print()
-	display_terminals(_grammar_2)
-	print()
-	display_non_terminals(_grammar_2)
-	print()
-
-
-def display_rule(rule_input, search_by=GrammarRuleBy.HEAD, grammar=None):
-	_grammar = GRAMMAR if grammar is None else grammar
-	_g_rule = _grammar.rule(rule_input, search_by=search_by)
-	if _g_rule:
-		print(f"GETTING GRAMMAR RULE")
-		for _test_rule in _g_rule:
-			print(f"\t{rule_input}: {_test_rule.rule_body}")
-	else:
-		print(f"INVALID GRAMMAR RULE INPUT ---> {rule_input}")
-	print()
-
-
-def display_rules(grammar=None):
-	_grammar = GRAMMAR if grammar is None else grammar
-	_grammar_rules = GRAMMAR_RULES if grammar is None else _grammar.rules()
-	print()
-	print(f"GRAMMAR RULES:")
-	for rule in _grammar_rules:
-		print(rule)
-	print()
-
-
-def display_table(parse_table):
-	parse_table.print()
-
-
-def display_items(items, set_id):
-	print()
-	_text = underline_text(bold_text(apply_color(11, f"{set_id} ITEMS:")))
-	_text += "\n"
-	print(_text)
-	for _item in items:
-		print(f"\t{_item.rule_head}")
-		print(f"\t{_item.rule_body}")
-		print(f"\t{_item.status()}")
-		print()
-	print()
-
-
-def display_test_data(test_data):
-	print()
-	print(f"TEST INPUT DATA")
-	for i in test_data:
-		print(i)
-	print()
-
-
-def display_item_states(item_sets):
-	print(ITEM_STATES_TEXT)
-	print()
-	print(f"ITEM SETS:")
-	print()
-	print()
-	for item_state, _items in item_sets.items():
-		print(f"STATE: {item_state}")
-		for _item in _items:
-			print(f"\t{_item.rule_head} ---> {_item.status()}")
-		print()
-	print()
-
-
-def display_goto_mapping(goto_mapping):
-	print()
-	for i in goto_mapping:
-		print(f"{i}: {goto_mapping[i]}")
-
-	print()
-
-
-def display_result(input, parser_result):
-	if parser_result:
-		_color = 10
-		_text = underline_text(bold_text(apply_color(_color, f"INPUT IS VALID!!!")))
-		_text += f"\n    |"
-		_text += f"\n    |"
-		_text += f"\n    • ----> {bold_text(apply_color(11, input))}"
-		_border_text = f"-" * int(len(_text)/2)
-		_result = bold_text(apply_color(_color, _text))
-	else:
-		_color = 9
-		_text = underline_text(bold_text(apply_color(_color, f"INPUT IS INVALID!!!")))
-		_text += f"\n    |"
-		_text += f"\n    |"
-		_text += f"\n    • ----> {bold_text(apply_color(11, input))}"
-		_border_text = f"-" * int(len(_text)/2)
-		_result = _text
-	print(apply_color(_color, _border_text))
-	print(_result)
-	print(apply_color(_color, _border_text))
-	print()
-
-
-def read_source(source_file):
-	_filepath = source_file.get()
-	if not isinstance(_filepath, Path):
-		_filepath = Path(_filepath)
-	_file_data = ""
-	with open(_filepath, "r") as in_file:
-		_file_data = in_file.read()
-
-	if not bool(_file_data):
-		# TODO: create and raise custom error here
-		_error_details = f"Error Reading Source File Contents -- unable to read data contained within file @: {filepath}"
-		raise RuntimeError
-	return [i for i in _file_data.split("\n") if i]
-
-
-def tokenize(input, tokenizer):
-	tokenizer.set_input(input)
-	_tokens = tokenizer.tokenize()
-	tokenizer.reset()
-	return _tokens
-
-
-def parse_data(parse_context, parser):
-	_parse_context = parser.parse(parse_context)
-	print()
-	print(f"SYMBOL STACK:")
-	print(_parse_context.symbol_stack)
-	return _parse_context.result()
-
-
-"""
-def parse_and_display(test_data, tokenizer, parser, count=-1):
-    _test_data_queue = deque(test_data)
-    _counter = 0
-    while _test_data_queue and (_counter < count if (isinstance(count, int) and count > 0) else True):
-        _next_test_data_piece = _test_data_queue.popleft()
-        # _request_input_tokens = tokenize(_next_test_data_piece, tokenizer)
-        _text = bold_text(apply_color(14, f"NEXT TEST DATA PIECE")) + bold_text(" ---> ") + bold_text(apply_color(14, f"{_next_test_data_piece}"))
-        # _text += bold_text(apply_color(48, f"\nTOKENS"))
-        print()
-        print(_text)
-        # for _token in _request_input_tokens:
-        #     print(f"• {_token}")
-        print()
-        _parse_context = ParseContext(input=_next_test_data_piece, start_symbol="$")
-        _parse_result = parse_data(_parse_context, parser)
-        # _parse_result = parse_data(_request_input_tokens, parser)
-        display_result(_next_test_data_piece, _parse_result)
-        for _ in range(2):
-            print()
-        _counter += 1
-    print()
-"""
-
-
-def parse_and_display(parser_env, count=-1):
-	parser_env.run()
-	# _test_data_queue = deque(parser_env.test_data)
-	# _counter = 0
-	# while _test_data_queue and (_counter < count if (isinstance(count, int) and count > 0) else True):
-	# 	_next_test_data_piece = _test_data_queue.popleft()
-	# 	# _request_input_tokens = tokenize(_next_test_data_piece, tokenizer)
-	# 	_text = bold_text(apply_color(14, f"NEXT TEST DATA PIECE")) + bold_text(" ---> ") + bold_text(apply_color(14, f"{_next_test_data_piece}"))
-	# 	# _text += bold_text(apply_color(48, f"\nTOKENS"))
-	# 	print()
-	# 	print(_text)
-	# 	# for _token in _request_input_tokens:
-	# 	#     print(f"• {_token}")
-	# 	print()
-	# 	_parse_context = ParseContext(input=_next_test_data_piece, start_symbol="$")
-	# 	_parse_result = parse_data(_parse_context, parser)
-	# 	# _parse_result = parse_data(_request_input_tokens, parser)
-	# 	display_result(_next_test_data_piece, _parse_result)
-	# 	for _ in range(2):
-	# 		print()
-	# 	_counter += 1
-	# print()
-
-
-def parse_and_display_custom_input(tokenizer, parser, count=-1):
-	_tokenizer = TestGrammar6Tokenizer()
-	print(TEST_PARSING_TEXT)
-	while True:
-		_input = input(">>> ")
-		if not _input:
-			break
-		parse_and_display([_input], tokenizer, parser, count=count)
-
-
-_EXIT_OK_ = set()
-
-
-def sleeper(count):
-	yield Sleep(count)
-
-
-def countdown(length=5, rate=1, step=1):
-	_EXIT_OK_.add(True)
-
-	print(f"PROGRAM WILL EXIT IN...")
-	for i in range(1, length+1)[::-1]:
-		_time_unit = "SECOND...." if i == 1 else "SECONDS..."
-		print(f"{i} {_time_unit}")
-		yield Sleep(rate)
-	print(f"EXITING PROGRAM...")
-	_new_task = yield CreateTask(lambda name: print(f"HELLO {name}!!!"), "MICKEY MOUSE")
-	yield AwaitTask(_new_task)
-	yield EmitEvent(PyParseEventID.ON_QUIT)
-	return 10
-
-
-def close_at_finish(rate=.5):
-	_task_id = yield GetTaskID()
-	yield Sleep(rate)
-	_remaining_tasks = yield RemainingTasks()
-	if (_task_id in _remaining_tasks and len(_task_id) <= 1) and len(_EXIT_OK_) >= 1:
-		yield EmitEvent(PyParseEventID.ON_QUIT)
-		return
-	yield CreateTask(close_at_finish, rate=rate)
-
-
 class TestGrammar4ParserEnv(ParserEnvironment):
 
 	def __init__(self, parser=None, grammar=None, tokenizer=None, parse_table=None, env_id=None):
@@ -1372,7 +697,7 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 		if not self._initialized:
 			self._parser_context.setup()
 			self._init_grammar_(self.grammar)
-			self._init_test_data_(self, read_source(SourceFile(path=TEST_INPUT_1)))	
+			self._init_test_data_(self, TEST_INPUT_1)
 			# self._init_mainloop_(self._parser_context)
 			self._init_test_task_(self._parser_context)
 			self._initialized = True
@@ -1380,6 +705,20 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 			# TODO: create and raise custom error here
 			_error_details = f"parser environment ID: {self.env_id} cannot be re-initialized as parser environment initialization can only happen once per runtime..."
 			raise RuntimeError(_error_details)
+
+	def _read_source(self, source_file):
+		_filepath = source_file.get()
+		if not isinstance(_filepath, Path):
+			_filepath = Path(_filepath)
+		_file_data = ""
+		with open(_filepath, "r") as in_file:
+			_file_data = in_file.read()
+
+		if not bool(_file_data):
+			# TODO: create and raise custom error here
+			_error_details = f"Error Reading Source File Contents -- unable to read data contained within file @: {filepath}"
+			raise RuntimeError
+		return [i for i in _file_data.split("\n") if i]
 
 	def set_grammar(self, grammar):
 		self._grammar = grammar
@@ -1409,8 +748,8 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 		init_grammar_4(grammar)
 
 	@staticmethod
-	def _init_test_data_(parser_env, source_data):
-		_source_file = SourceFile(path=TEST_INPUT_1)
+	def _init_test_data_(parser_env, path_input):
+		_source_file = SourceFile(path=path_input)
 		_source_file_data = read_source(_source_file)
 		parser_env.set_test_data(_source_file_data)
 
@@ -1423,8 +762,6 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 	def _init_test_task_(parser_context):
 		_TEST_TASK_ID = "TEST_COUNTDOWN_TASK"
 		parser_context.submit(close_at_finish, rate=.10)
-		parser_context.submit(sleeper, 2)
-		parser_context.submit(sleeper, 8)
 		# parser_context.submit(countdown, length=10, rate=1, step=1, action_id=_TEST_TASK_ID)
 		parser_context.submit(countdown, length=10, rate=1, step=1, task_id=_TEST_TASK_ID)
 
@@ -1433,50 +770,6 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 		print(f"BUILDING PARSE TABLE:")
 		self.parse_table.build(self.grammar)
 		self.parse_table.print()
-
-
-@profile_callable(sort_by=SortBy.TIME)
-def parse_main():
-	# Initialized parser environment ID
-	PARSER_ENVIRONMENT_ID = "SCRATCH_TEST_PARSER_ENV"
-
-	# Generate tokens to feed the parser
-	_tokenizer = TestGrammar6Tokenizer()
-
-
-	# Create parse table, used to guide the LR(0) automaton that makes
-	# up the design for the shift/reduce parser
-	_parse_table = ParseTable(grammar=GRAMMAR, table_id="[ • -- TEST_PARSE_TABLE -- • ]", start_symbol="$")
-
-	# Display parse table
-	display_table(_parse_table)
-
-
-	# Instantiate parser back-end (actual parsing implementation)
-	# _parser_impl = CoreParser(init_state=0, grammar=GRAMMAR, parse_table=_parse_table)
-	_parser_impl = CoreParser2(init_state=0, grammar=GRAMMAR, parse_table=_parse_table)
-
-
-	# Instantiate parser environment
-	_test_grammar_4_env = TestGrammar4ParserEnv(env_id=PARSER_ENVIRONMENT_ID)
-
-	# Set parer env's 'parser', 'grammar', 'tokenizer' and 'parse_table' fields
-	_test_grammar_4_env.set_grammar(GRAMMAR)
-	_test_grammar_4_env.set_tokenizer(_tokenizer)
-	_test_grammar_4_env.set_table(_parse_table)
-	_test_grammar_4_env.set_parser(_parser_impl)
-
-	# Run parser environment (**TESTING (call to it's 'run' method will bemoved, and possibly renamed all together, that is, the 'run' method may be changed**)
-	_test_grammar_4_env.run()
-
-
-	# Initialize parser environment, as it's been all setup otherwise
-	# parse_and_display(_test_grammar_4_env, count=1)
-
-	# Add white space below final text that displays in order to better separate the text
-	# displayed from running this function and the profiler results displaying
-	for _ in range(5):
-		print()
 
 
 if __name__ == "__main__":
