@@ -1,6 +1,11 @@
 from enum import StrEnum, IntEnum, auto
 
 
+class PyParseLogName(StrEnum):
+
+    SCRATCH_FILENAME = "scratch_logfile.log"
+
+
 class PyParsePortID(IntEnum):
 
     # INPUT = auto()
@@ -23,6 +28,9 @@ class PyParseLoggerID(StrEnum):
 
     PARSER = auto()
     PARSE_ENV = auto()
+    RUNTIME = auto()
+    SHELL_INIT = auto()
+    LOGGING_INIT = auto()
 
 
 class ParserActionState(IntEnum):
@@ -67,10 +75,6 @@ class FileDescriptorMode(StrEnum):
 
     # TODO: implement remaining file descriptor modes
     # Appending related modes
-
-
-TEST_INPUT_1 = r"/Users/mickey/Desktop/Python/custom_packages/pyparse/files/data/example_grammar_input_2024_06_13.txt"
-TEST_INPUT_2 = r"/Users/mickey/Desktop/Python/custom_packages/pyparse/files/data/example_grammar_input_2024_07_16.txt"
 
 
 if __name__ == "__main__":

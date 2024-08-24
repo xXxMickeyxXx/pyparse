@@ -174,12 +174,24 @@ class GrammarRule:
         return f"{self.__class__.__name__}(rule_head={self.rule_head!r}, rule_body={list(self.rule_body)!r}, marker_symbol={self.marker_symbol!r}, rule_id={self.rule_id!r})"
 
     def __eq__(self, other):
-        return isinstance(self, type(other)) and (self.rule_id == other.rule_id and self.rule_body == other.rule_body)  # NOTE: this is how 'GrammarRule' should identify equality
-        # return isinstance(self, type(other)) and (self.rule_id == other.rule_id and self.status() == other.status())  # NOTE: this is how 'AugmentedGrammarRule' or 'AugmentedItem' should handle equality
+        # !!WARNING!! -  this implementation heavily dictates how several key functions/methods
+        #                work (such as when the parse table is being created and the next state/transition
+        #                needs to be determined. As noted below, the grammar rule needs to implement it a certain
+        #                way and the, currently **NOT** implemented 'AugmentedItem' needs to be implemented a
+        #                certain way)
+
+        # return isinstance(self, type(other)) and (self.rule_id == other.rule_id and self.rule_body == other.rule_body)  # NOTE: this is how 'GrammarRule' should identify equality
+        return isinstance(self, type(other)) and (self.rule_id == other.rule_id and self.status() == other.status())  # NOTE: this is how 'AugmentedGrammarRule' or 'AugmentedItem' should handle equality
 
     def __hash__(self):
-        return hash((self.rule_id, "".join(self.rule_body)))  # NOTE: this is how 'GrammarRule' should handle hashing
-        # return hash((self.rule_id, tuple(self.status())))  # NOTE: this is how 'AugmentedGrammarRule' or 'AugmentedItem' should handle hashing
+        # !!WARNING!! -  this implementation heavily dictates how several key functions/methods
+        #                work (such as when the parse table is being created and the next state/transition
+        #                needs to be determined. As noted below, the grammar rule needs to implement it a certain
+        #                way and the, currently **NOT** implemented 'AugmentedItem' needs to be implemented a
+        #                certain way)
+
+        # return hash((self.rule_id, "".join(self.rule_body)))  # NOTE: this is how 'GrammarRule' should handle hashing
+        return hash((self.rule_id, self.status()))  # NOTE: this is how 'AugmentedGrammarRule' or 'AugmentedItem' should handle hashing
 
     def __len__(self):
         return self.rule_size
@@ -356,15 +368,10 @@ def _grammar_rule_main():
     print()
     test_rule = GrammarRule("S", ["T", "i", "l", "l", "y"], rule_id="SHIT")
     test_rule_2 = GrammarRule("S", ["T", "i", "l", "l", "y"], rule_id="SHIT")
-
-    test_rule_copy = test_rule.copy()
     # test_rule.advance()
-    test_rule_copy.advance()
-    test_rule_copy.advance()
+
 
     print(f"'test_rule' == 'test_rule_2' ---> {test_rule == test_rule_2}")
-    print(f"'test_rule' == 'test_rule_copy' ---> {test_rule == test_rule_copy}")
-    # print(hash(test_rule) == hash(test_rule_copy))
 
 
 if __name__ == "__main__":

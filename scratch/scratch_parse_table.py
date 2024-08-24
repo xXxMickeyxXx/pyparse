@@ -49,16 +49,16 @@ class ParseTable:
     def table_id(self):
         return self._table_id
 
-    def add_action(self, state, symbol, action):
+    def add_action(self, state, symbol, action, overwrite=True):
         _action_key = (state, symbol)
-        if _action_key not in self._action:
+        if _action_key not in self._action or overwrite:
             self._action[_action_key] = action
             return True
         return False
 
-    def add_goto(self, state, non_terminal, next_state):
+    def add_goto(self, state, non_terminal, next_state, overwrite=True):
         _goto_key = (state, non_terminal)
-        if _goto_key not in self._goto:
+        if _goto_key not in self._goto or overwrite:
             self._goto[_goto_key] = next_state
             return True
         return False

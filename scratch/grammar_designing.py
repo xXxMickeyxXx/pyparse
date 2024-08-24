@@ -293,18 +293,19 @@ class Grammar:
                             table.add_action(state, terminal, (ParserActionType.REDUCE, item))
                         table.add_action(state, _init_rule_head, (ParserActionType.REDUCE, item))
                 elif next_symbol in _terminals:
-                    next_state = self._find_next_state(item_states, item)
+                    next_state = self.find_next_state(item_states, item)
                     table.add_action(state, next_symbol, (ParserActionType.SHIFT, next_state, item))
                 else:
-                    next_state = self._find_next_state(item_states, item)
+                    next_state = self.find_next_state(item_states, item)
                     table.add_goto(state, next_symbol, (next_state, item))
 
-    def _find_next_state(self, item_states, item):
+    def find_next_state(self, item):
         _item_copy = item.copy()
         _item_copy.advance()
-        for state, items in item_states.items():
-            if _item_copy in items:
-                return state
+        for state, items in self.item_states.items():
+            for _item in items:
+                if _item_copy == _item:
+                    return state
         return None
 
 

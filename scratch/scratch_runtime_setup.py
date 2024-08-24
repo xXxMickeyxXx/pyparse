@@ -29,8 +29,18 @@ from .scratch_init_grammar import (
 	init_grammar_5,
 	init_grammar_6
 )
+from .scratch_grammar_rules_filter import (
+	RuleFilter,
+	RuleByID,
+	RuleByHead,
+	RuleByBody
+)
 from .scratch_parser_action import countdown, sleeper, close_at_finish
 from .source_descriptor import SourceFile
+from .scratch_package_paths import (
+	TEST_INPUT_1,
+	TEST_INPUT_2
+)
 from .scratch_utils import generate_id, read_source
 from .utils import apply_color, bold_text, underline_text, center_text
 from .scratch_cons import (
@@ -39,11 +49,9 @@ from .scratch_cons import (
 	ParserActionState,
 	ParserActionType,
 	PyParseLoggerID,
-	GrammarRuleBy,
-	TEST_INPUT_1,
-	TEST_INPUT_2
+	GrammarRuleBy
 )
-		
+
 
 		###################################################################################################################################
 		#                                                                                                                   			  #
@@ -156,115 +164,115 @@ class ParserSettings:
 
 class ParserAction:
 
-    def __init__(self, target, action_type, state=ParserActionState.CREATED, action_id=None):
-        self._target = target
-        self._action_id = action_id or generate_id()
-        if action_type not in [i for i in ParserActionType]:
-        	_error_details = f"unable to initialize instance of '{self.__class__.__name__}', parser action ID: {self._action_id} as an invalid 'action_type' was submitted: {action_type}..."
-        	raise RuntimeError(_error_details)
-        self._action_type = action_type
-        self._state = state
-        self._send_value = None
-        self._send_value_used = False
-        self._result = None
-        self._context = None
-        self._task_finished = False
-        self._channel = None
-        self._task_finished = False
+	def __init__(self, target, action_type, state=ParserActionState.CREATED, action_id=None):
+		self._target = target
+		self._action_id = action_id or generate_id()
+		if action_type not in [i for i in ParserActionType]:
+			_error_details = f"unable to initialize instance of '{self.__class__.__name__}', parser action ID: {self._action_id} as an invalid 'action_type' was submitted: {action_type}..."
+			raise RuntimeError(_error_details)
+		self._action_type = action_type
+		self._state = state
+		self._send_value = None
+		self._send_value_used = False
+		self._result = None
+		self._context = None
+		self._task_finished = False
+		self._channel = None
+		self._task_finished = False
 
-        self._initialize()
-        self.logger.submit_log(
-            function=f"{self.__class__.__name__}.__init__",
-            action_id=f"{self._action_id}"
-        )
+		self._initialize()
+		self.logger.submit_log(
+			function=f"{self.__class__.__name__}.__init__",
+			action_id=f"{self._action_id}"
+		)
 
-    @property
-    def target(self):
-        return self._target
+	@property
+	def target(self):
+		return self._target
 
-    @property
-    def action_type(self):
-    	return self._action_type
+	@property
+	def action_type(self):
+		return self._action_type
 
-    @property
-    def action_id(self):
-        return self._action_id
+	@property
+	def action_id(self):
+		return self._action_id
 
-    @property
-    def state(self):
-        return self._state
+	@property
+	def state(self):
+		return self._state
 
-    @property
-    def task_finished(self):
-        return self._task_finished
+	@property
+	def task_finished(self):
+		return self._task_finished
 
-    @property
-    def context(self):
-        return self._context
+	@property
+	def context(self):
+		return self._context
 
-    @property
-    def logger(self):
-        return _task_logger
+	@property
+	def logger(self):
+		return _task_logger
 
-    def _initialize(self):
-        self.initialize()
+	def _initialize(self):
+		self.initialize()
 
-    def initialize(self):
-        self.state.set_task(self)
+	def initialize(self):
+		self.state.set_task(self)
 
-    def set_finished(self, finished_bool):
-        self._task_finished = finished_bool
+	def set_finished(self, finished_bool):
+		self._task_finished = finished_bool
 
-    def send(self, value):
-        old_val = self._send_value
-        self._send_value = value
-        self._send_value_used = False
-        return old_val
+	def send(self, value):
+		old_val = self._send_value
+		self._send_value = value
+		self._send_value_used = False
+		return old_val
 
-    def result_factory(self):
-        return PySynchronyResult(result_id=self.action_id)
+	def result_factory(self):
+		return PySynchronyResult(result_id=self.action_id)
 
-    def set_context(self, context):
-        self._context = context
+	def set_context(self, context):
+		self._context = context
 
-    def get_status(self):
-        return self.state.status
+	def get_status(self):
+		return self.state.status
 
-    def result(self):
-        # TODO: update so that it call's the result method for getting the result from the result obj
-        return self._result
+	def result(self):
+		# TODO: update so that it call's the result method for getting the result from the result obj
+		return self._result
 
-    def set_result(self, result):
-        self._result = result
+	def set_result(self, result):
+		self._result = result
 
-    def update_state(self, state, *args, **kwargs):
-        self._state = state
+	def update_state(self, state, *args, **kwargs):
+		self._state = state
 
-    def update_status(self, status):
-        self._state.update_status(status)
+	def update_status(self, status):
+		self._state.update_status(status)
 
-    def quit(self):
-        self.target.close()
+	def quit(self):
+		self.target.close()
 
-    def throw(self, error, *args):
-        return self.target.throw(error, *args)
+	def throw(self, error, *args):
+		return self.target.throw(error, *args)
 
-    def execute(self):
-        if not self._send_value_used:
-            _send_value = self._send_value
-            self._send_value_used = True
-        else:
-            _send_value = None
-        result_val = self.target.send(_send_value)
-        self.set_result(result_val)
-        _action_id = self.action_id
-        self.logger.submit_log(
-            message=f"Performing call on target associated with task ID: {_action_id}",
-            function=f"{self.__class__.__name__}.execute",
-            action_id=f"{_action_id}"
-        )
-        self.set_result(result_val)
-        return result_val
+	def execute(self):
+		if not self._send_value_used:
+			_send_value = self._send_value
+			self._send_value_used = True
+		else:
+			_send_value = None
+		result_val = self.target.send(_send_value)
+		self.set_result(result_val)
+		_action_id = self.action_id
+		self.logger.submit_log(
+			message=f"Performing call on target associated with task ID: {_action_id}",
+			function=f"{self.__class__.__name__}.execute",
+			action_id=f"{_action_id}"
+		)
+		self.set_result(result_val)
+		return result_val
 
 
 class ParserSysCall(PySynchronySysCall):
@@ -353,166 +361,104 @@ class CoreParser2:
 	def create_event(event_id, **data):
 		return PySynchronyEvent(event_id, **data)
 
-	# TODO: interface should include this as an 'abstractmethod' 
+	# # TODO: interface should include this as an 'abstractmethod' 
 	# def parse(self, parse_context):
-	#     # NOTE: passing 'None' argument to the 'event_id' until a consistent one is specified for this implementation/system
+	# 	# NOTE: passing 'None' argument to the 'event_id' until a consistent one is specified for this implementation/system
 
-	#     _parse_context = parse_context
-	#     parse_context.append_state(self.init_state)
+	# 	_parse_context = parse_context
+	# 	parse_context.append_state(self.init_state)
 
-	#     _action_search = None
-	#     _previous_action = None
-	#     _action = None
-	#     _previous_symbol = None
-	#     _current_symbol = parse_context.current_symbol()
-	#     _current_state = parse_context.state
-	#     while not parse_context.done_parsing:
-	#         _current_symbol = parse_context.current_symbol()
-	#         _current_state = parse_context.state            
+	# 	_action_search = None
+	# 	_previous_action = None
+	# 	_action = None
+	# 	_previous_symbol = None
+	# 	_current_symbol = parse_context.current_symbol()
+	# 	_current_state = parse_context.state
+	# 	while not parse_context.done_parsing:
+	# 		_current_symbol = parse_context.current_symbol()
+	# 		_current_state = parse_context.state            
 
-	#         _action_search = self.action(_current_state, _current_symbol, default=(ParserActionType.ERROR, None, None))
-	#         _action = _action_search[0]
-	#         print()
-	#         print(f"STATE STACK: {parse_context.stack}")
-	#         print(f"SYMBOL STACK: {parse_context.symbol_stack}")
-	#         print(f"CURRENT STATE: {_current_state}")
-	#         print(f"CURRENT SYMBOL: {_current_symbol}")
-	#         print(f"PREVIOUS SYMBOL: {_previous_symbol}")
-	#         print(f"ACTION SEARCH: {_action_search}")
-	#         print(f"ACTION: {_action}")
-	#         if _action == ParserActionType.SHIFT:
-	#             _next_state_ = _action_search[1]
-	#             _item = _action_search[2]
-	#             parse_context.append_state(_next_state_)
-	#             _previous_symbol = _current_symbol
-	#             parse_context.append_symbol(_current_symbol)
-	#             parse_context.advance()
-	#             print(f"STATE AFTER SHIFT: {parse_context.state}")
-	#         elif _action == ParserActionType.REDUCE:
-	#             _item = _action_search[1]
-	#             for _ in range(_item.rule_size):
-	#                 _popped_state = parse_context.pop_state()
-	#                 _popped_symbol = parse_context.pop_symbol()
-	#             _goto_state = self.goto(parse_context.state, _item.rule_head)
-	#             _next_state = _goto_state[0]
-	#             parse_context.append_state(_next_state)
-	#             parse_context.append_symbol(_item.rule_head)
-	#             print(f"ON GOTO IN REDUCE ({parse_context.state}, {_item.rule_head}): {_goto_state}")
-	#         elif _action == ParserActionType.ERROR:
-	#             parse_context.set_result(False)
-	#         elif _action == ParserActionType.ACCEPT:
-	#             parse_context.set_result(True)
-	#     return _parse_context
+	# 		_action_search = self.parse_table.action(_current_state, _current_symbol, default=(ParserActionType.ERROR, None, None))
+	# 		_action = _action_search[0]
+	# 		print()
+	# 		print(f"STATE STACK: {parse_context.stack}")
+	# 		print(f"SYMBOL STACK: {parse_context.symbol_stack}")
+	# 		print(f"CURRENT STATE: {_current_state}")
+	# 		print(f"CURRENT SYMBOL: {_current_symbol}")
+	# 		print(f"PREVIOUS SYMBOL: {_previous_symbol}")
+	# 		print(f"ACTION SEARCH: {_action_search}")
+	# 		print(f"ACTION: {_action}")
+	# 		if _action == ParserActionType.SHIFT:
+	# 			_next_state_ = _action_search[1]
+	# 			_item = _action_search[2]
+	# 			parse_context.append_state(_next_state_)
+	# 			_previous_symbol = _current_symbol
+	# 			parse_context.append_symbol(_current_symbol)
+	# 			parse_context.advance()
+	# 			print(f"STATE AFTER SHIFT: {parse_context.state}")
+	# 		elif _action == ParserActionType.REDUCE:
+	# 			_item = _action_search[1]
+	# 			for _ in range(_item.rule_size):
+	# 				_popped_state = parse_context.pop_state()
+	# 				_popped_symbol = parse_context.pop_symbol()
+	# 			_goto_state = self.parse_table.goto(parse_context.state, _item.rule_head)
+	# 			_next_state = _goto_state[0]
+	# 			parse_context.append_state(_next_state)
+	# 			parse_context.append_symbol(_item.rule_head)
+	# 			print(f"ON GOTO IN REDUCE ({parse_context.state}, {_item.rule_head}): {_goto_state}")
+	# 		elif _action == ParserActionType.ERROR:
+	# 			parse_context.set_result(False)
+	# 		elif _action == ParserActionType.ACCEPT:
+	# 			parse_context.set_result(True)
+	# 	return _parse_context
 
+	# # TODO: interface should include this as an 'abstractmethod' 
 	def parse(self, parse_context):
-		raise NotImplementedError
+		# NOTE: passing 'None' argument to the 'event_id' until a consistent one is specified for this implementation/system
+
+		self.init_parse_context(parse_context)
+
+		# NOTE: remove below (up unti' series of consecutive '#'s) code as it's for coloring terminal debug output
+		_xor_val = 208 ^ 226
+		_color_code = 226
+
+		####################
+
+		_current_action = None
+		_current_state = parse_context.state
+		_current_symbol = None
+		_end_of_input = False
+		while not parse_context.done_parsing:
+			
+			_color_code ^= _xor_val
+			_debug_text_mainloop_top = "---------- TOP OF 'parse' MAINLOOP ----------\n"
+			_colored_debug_text = bold_text(apply_color(_color_code, _debug_text_mainloop_top))
+			print(_colored_debug_text)
+
+
+			_current_symbol = parse_context.current_symbol()
+
+				
+
+
+			parse_context.set_result(False)
+
+
+			_debug_text_mainloop_bottom = "---------- BOTTOM OF 'parse' MAINLOOP ----------\n"
+			_colored_debug_text = bold_text(apply_color(_color_code, _debug_text_mainloop_bottom))
+			print(_colored_debug_text)
+
+
+		return parse_context
+
+	def init_parse_context(self, parse_context):
+		parse_context.append_state(self.init_state)
 
 	def event_factory(self, event_id, **data):
 		return PySynchronyEvent(event_id, **data)
 
 	def mainloop(self):
 		print(f"(PARSER ID: {self.parser_id} SAYS): Hello from 'mainloop'!!!")
-
-
-class ParseContext:
-
-	def __init__(self, input=None, start_symbol="$"):
-		self._input = input
-		self._input_len = len(input)
-		self._start_symbol = start_symbol
-		self._result = None
-		self._result_set = False
-		self._pointer = 0
-		self._state = None
-		self._stack = None
-		self._symbol_stack = None
-
-	@property
-	def input(self):
-		if not bool(self._input):
-			_error_details = f"input has not yet been set for instance of '{self.__class__.__name__}'..."
-			raise RuntimeError(_error_details)
-		return self._input
-
-	@property
-	def stack(self):
-		if self._stack is None:
-			self._stack = self.stack_factory()
-		return self._stack
-
-	@property
-	def symbol_stack(self):
-		if self._symbol_stack is None:
-			self._symbol_stack = self.stack_factory()
-		return self._symbol_stack
-
-	@property
-	def can_advance(self):
-		return self._pointer < self._input_len
-
-	@property
-	def at_end(self):
-		return not self.can_advance
-
-	@property
-	def state(self):
-		return self.stack[-1] if self.stack else None
-
-	@property
-	def done_parsing(self):
-		return self._result_set and self._result is not None
-
-	def result(self):
-		return self._result
-
-	def set_result(self, result):
-		if not self._result_set and self._result is None:
-			self._result = result
-			self._result_set = True
-
-	def append_state(self, element):
-		self.stack.append(element)
-		self.update(element)
-
-	def pop_state(self):
-		_retval = self.stack.pop()
-		self.update(self.stack[-1] if self.stack else None)
-		return _retval
-
-	def append_symbol(self, element):
-		self.symbol_stack.append(element)
-
-	def pop_symbol(self):
-		return self.symbol_stack.pop()
-
-	def update(self, state):
-		self._state = state
-
-	def stack_factory(self):
-		return deque()
-
-	def set_input(self, input):
-		if not bool(self._input):
-			self._input = input
-
-	def current_symbol(self):
-		if self._pointer < self._input_len:
-			return self.input[self._pointer]
-		return self._start_symbol
-
-	def advance(self):
-		if not self.can_advance:
-			_error_details = f"unable to consume any further symbols as the end of input has been reached..."
-			raise RuntimeError(_error_details)
-		self._pointer += 1
-
-	def consume(self):
-		if not self.can_advance:
-			_error_details = f"unable to consume any further symbols as the end of input has been reached..."
-			raise RuntimeError(_error_details)
-		_retval = self.current_symbol()
-		self.advance()
-		return _retval
 
 
 class ParserContext(PySynchronyScheduler):
@@ -638,6 +584,206 @@ class ParserContext(PySynchronyScheduler):
 		# self.register_handler(PyParsePortID.ACTIONS, self._actions_handler_for_port_imp)
 		# self.register_handler(PyParsePortID.PARSE_REQUEST, self._parse_request_handler_for_port_imp)
 		return self.event_loop.run()
+
+
+class ParseContext:
+
+	def __init__(self, input=None, start_symbol="$"):
+		self._input = input
+		self._input_len = len(input)
+		self._start_symbol = start_symbol
+		self._result = None
+		self._result_set = False
+		self._pointer = 0
+		self._state = None
+		self._stack = None
+		self._symbol_stack = None
+
+	@property
+	def input(self):
+		if not bool(self._input):
+			_error_details = f"input has not yet been set for instance of '{self.__class__.__name__}'..."
+			raise RuntimeError(_error_details)
+		return self._input
+
+	@property
+	def stack(self):
+		if self._stack is None:
+			self._stack = self.stack_factory()
+		return self._stack
+
+	@property
+	def symbol_stack(self):
+		if self._symbol_stack is None:
+			self._symbol_stack = self.stack_factory()
+		return self._symbol_stack
+
+	@property
+	def can_advance(self):
+		return self._pointer < self._input_len
+
+	@property
+	def at_end(self):
+		return not self.can_advance
+
+	@property
+	def state(self):
+		return self.stack[-1] if self.stack else None
+
+	@property
+	def done_parsing(self):
+		return self._result_set and self._result is not None
+
+	def result(self):
+		return self._result
+
+	def set_result(self, result):
+		if not self._result_set and self._result is None:
+			self._result = result
+			self._result_set = True
+
+	def append_state(self, element):
+		self.stack.append(element)
+		self.update(element)
+
+	def pop_state(self):
+		_retval = self.stack.pop()
+		self.update(self.stack[-1] if self.stack else None)
+		return _retval
+
+	def append_symbol(self, element):
+		self.symbol_stack.append(element)
+
+	def pop_symbol(self):
+		return self.symbol_stack.pop()
+
+	def update(self, state):
+		self._state = state
+
+	def stack_factory(self):
+		return deque()
+
+	def set_input(self, input):
+		if not bool(self._input):
+			self._input = input
+
+	def current_symbol(self):
+		if self._pointer < self._input_len:
+			return self.input[self._pointer]
+		return self._start_symbol
+
+	def advance(self):
+		if not self.can_advance:
+			_error_details = f"unable to consume any further symbols as the end of input has been reached..."
+			raise RuntimeError(_error_details)
+		self._pointer += 1
+
+	def consume(self):
+		if not self.can_advance:
+			_error_details = f"unable to consume any further symbols as the end of input has been reached..."
+			raise RuntimeError(_error_details)
+		_retval = self.current_symbol()
+		self.advance()
+		return _retval
+
+
+"""
+class TempTableBuilder:
+
+	def __init__(self, grammar):
+		self._grammar = grammar
+
+	def build_table(self, table):
+		_rules = self._grammar.rules()
+		item_states = self._grammar.generate_states()
+		_init_rule = _rules[0]
+		_init_rule_head = _init_rule.rule_head
+		_terminals = self._grammar.terminals()
+		for state, items in item_states.items():
+			for item in items:
+				next_symbol = item.next_symbol()
+				if item.can_reduce:
+					_aug_start_rule_head = _init_rule.rule_head
+					if item.rule_head == _aug_start_rule_head:
+						table.add_action(state, _aug_start_rule_head, (ParserActionType.ACCEPT, item))
+					else:
+						for terminal in _terminals:
+							table.add_action(state, terminal, (ParserActionType.REDUCE, item))
+						table.add_action(state, _init_rule_head, (ParserActionType.REDUCE, item))
+				elif next_symbol in _terminals:
+					next_state = self._find_next_state(item_states, item)
+					table.add_action(state, next_symbol, (ParserActionType.SHIFT, next_state, item))
+				else:
+					next_state = self._find_next_state(item_states, item)
+					table.add_goto(state, next_symbol, (next_state, item))
+
+	def _find_next_state(self, item_states, item):
+		_item_copy = item.copy()
+		_item_copy.advance()
+		for state, items in item_states.items():
+			if _item_copy in items:
+				return state
+		return None
+"""
+
+
+class TempTableBuilder:
+	def __init__(self, grammar):
+		self._grammar = grammar
+
+	@property
+	def item_states(self):
+		return self._grammar.generate_states()
+
+	def build_table(self, table):
+		_rules = self._grammar.rules()
+		item_states = self.item_states
+		_init_rule = _rules[0]
+		_init_rule_head = _init_rule.rule_head
+		_terminals = self._grammar.terminals()
+		_non_terminals = self._grammar.non_terminals()
+
+		for state, items in item_states.items():
+			for item in items:
+				next_symbol = item.next_symbol()
+
+				if item.can_reduce:  # Rule is ready for reduction
+					if item.rule_head == _init_rule_head:
+						# Accept action for the start rule
+						table.add_action(state, '$', (ParserActionType.ACCEPT,))
+					else:
+						# Add reduce actions for terminals
+						for terminal in _terminals:
+							table.add_action(state, terminal, (ParserActionType.REDUCE, item))
+
+				elif next_symbol in _terminals:
+					# Shift action
+					next_state = self.find_next_state(item)
+					if next_state is not None:
+						table.add_action(state, next_symbol, (ParserActionType.SHIFT, next_state))
+						
+				elif next_symbol in _non_terminals:
+					# Goto action for non-terminals
+					next_state = self.find_next_state(item)
+					if next_state is not None:
+						table.add_goto(state, next_symbol, next_state)
+
+	def find_next_state(self, item):
+		_item_copy = item.copy()
+		_item_copy.advance()
+		if _item_copy.can_reduce:
+			return None
+		else:
+			for state, items in self.item_states.items():
+				for _item in items:
+					if _item_copy == _item:
+						return state
+
+			# NOTE: if made it here, then an error has occurred as it should either have
+			# 		found the next state or returned 'None', signifying the rule can no
+			# 		longer advance, and is thus, reduceable (i.e. 'can_reduce')
+			_error_details = f"an error has occurred while attempting to find the next item associated with rule ID: {_item_copy.rule_id}; please ensure 'item' associated with grammar rule exists and is part of grammar, then try again..."
+			raise RuntimeError(_error_details)
 
 
 class TestGrammar4ParserEnv(ParserEnvironment):
@@ -768,9 +914,41 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 	# TODO: remove this once done testing with it
 	def __build_table__(self):
 		print(f"BUILDING PARSE TABLE:")
-		self.parse_table.build(self.grammar)
-		self.parse_table.print()
+		_tbl_builder = TempTableBuilder(self.grammar)
+		self.parse_table.build(_tbl_builder)
+		# self.parse_table.build(self.grammar)
+		# self.parse_table.print()
+
+	def parse(self, parse_context):
+		self.__build_table__()
+		return self.parser.parse(parse_context)
 
 
 if __name__ == "__main__":
-	pass
+	init_grammar_4(GRAMMAR)
+	_tbl_builder = TempTableBuilder(GRAMMAR)
+
+	for k, v in GRAMMAR.generate_states().items():
+		print(f"STATES: {k}")
+		for i in v:
+			print(i)
+			print()
+		print()
+		print()
+		print()
+
+
+	_selected_state = GRAMMAR.select(RuleByID("E_rule_2"))
+	_e_rule_2 = _selected_state[0] if _selected_state else None
+	_e_rule_2.advance()
+	print(f"FINDING NEXT STATE FOR ITEM:")
+	print(_e_rule_2)
+
+	print()
+	_next_state = _tbl_builder.find_next_state(_e_rule_2)
+	# print(f"ITEM:")
+	# print(_e_rule_2)
+	print()
+	print(f"FOUND STATE: {_next_state}")
+	print(f"CORRECT STATE: {_next_state == 6}")
+	print()
