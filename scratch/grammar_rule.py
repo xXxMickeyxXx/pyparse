@@ -217,6 +217,21 @@ class GrammarRule:
     #     self._state = state
     #     return self
 
+    def from_marker(self, offset=0):
+        _mkr_idx = self.augmented_item.index(self.marker_symbol)
+        if  not isinstance(offset, int):
+            # TODO: create and raise custom error here
+            _error_details = f"invalid 'offset' argument type; must be of an 'int' type of value..."
+            raise TypeError(_error_details)
+        if offset >= 0:
+            if offset == 0:
+                return [self.augmented_item[_mkr_idx + 1]]
+            return self.augmented_item[_mkr_idx+1: _mkr_idx+1+offset+1]
+        else:
+            return self.augmented_item[_mkr_idx - 1 - offset: _mkr_idx]
+
+        print(self.marker_pos)
+
     def augmented_item_factory(self):
         # TODO: replace 'GrammarRule' logic relating to augmentation with
         #       'AugmenteGrammarRule' (which may be called something different

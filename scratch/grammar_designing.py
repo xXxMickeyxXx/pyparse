@@ -10,8 +10,8 @@ from .scratch_grammar_rules_filter import (
     RuleFilter,
     RuleByID,
     RuleByHead,
-    RuleByBody
-
+    RuleByBody,
+    AugItemStatus
 )
 
 from . import item_details
@@ -233,7 +233,7 @@ class Grammar:
         return self._rules
 
     def select(self, filter, copy=False, deepcopy=True):
-        return tuple([i for i in self.rules() if filter.matches(i)])
+        return tuple([i for i in self.rules() if filter.filter(i)])
 
     def non_terminals(self):
         if self._non_terminals_cache is None or not self._non_terminals_cache:
@@ -351,28 +351,28 @@ if __name__ == "__main__":
     # # B_rule_2.bind_action(0, "1", (ParserActionType.SHIFT, 2))
 
 
-    _states = _test_grammar.generate_states()
+    # _states = _test_grammar.generate_states()
 
 
-    _state_color_id = 170
-    _color_id = 208
-    print(f"ITEM STATES:\n")
-    for idx, i in enumerate(_states.values()):
-        _state_color_id ^= 8
-        print(apply_color(_state_color_id, f"\tSTATE: {idx}"))
-        for _item in i:
-            _color_id ^= 12
-            print(apply_color(_color_id, f"\t\t\t{repr(_item)}\n"))
-            print(apply_color(_color_id, f"\t\t\t\tSTATUS: {_item.status()}"))
-            print()
-            print()
-        print()
-    print()
-    print()
-    print(apply_color(10, f"There are {len(_states)} unique item sets/states!"))
-    print()
+    # _state_color_id = 170
+    # _color_id = 208
+    # print(f"ITEM STATES:\n")
+    # for idx, i in enumerate(_states.values()):
+    #     _state_color_id ^= 8
+    #     print(apply_color(_state_color_id, f"\tSTATE: {idx}"))
+    #     for _item in i:
+    #         _color_id ^= 12
+    #         print(apply_color(_color_id, f"\t\t\t{repr(_item)}\n"))
+    #         print(apply_color(_color_id, f"\t\t\t\tSTATUS: {_item.status()}"))
+    #         print()
+    #         print()
+    #     print()
+    # print()
+    # print()
+    # print(apply_color(10, f"There are {len(_states)} unique item sets/states!"))
+    # print()
 
-    # init_rule = _test_grammar.select(RuleByID("INIT_RULE"))
+    # init_rule = _test_grammar.filter(RuleByID("INIT_RULE"))
     # init_rule = init_rule[0] if init_rule else None
     # if init_rule:
     #     print(f"RULE ID: '{init_rule.rule_id}':  {init_rule.rule_head} ---> {init_rule.rule_body}")
@@ -415,3 +415,44 @@ if __name__ == "__main__":
     # for i in _current_grammar_rules:
     #     print(i)
     # print()
+
+    _sel_e_rule_1 = _test_grammar.select(RuleByID("E_rule_1"))[0]
+    _sel_e_rule_1.advance()
+    # _sel_e_rule_1.advance()
+    _test_offset = -1
+    print(f"ACTUAL BODY WITH MARKER: {_sel_e_rule_1.status()}")
+    print(f"FROM MARKER: {_sel_e_rule_1.from_marker(offset=_test_offset)}")
+
+
+    # def find_item(filter, grammar):
+    #     _retval = (None, None)
+    #     _item_states = grammar.generate_states()
+    #     for state, items in _item_states.items():
+    #         for _item in items:
+    #             _filtered = filter.filter(_item)
+    #             if _filtered:
+    #                 _retval = _item
+    #                 break
+    #     return _retval
+
+
+    # _filter = AugItemStatus(_sel_e_rule_1)
+    # _possible_item = find_item(_filter, _test_grammar)[0: 2]
+    # # _possible_item = find_item(_filter, _test_grammar)
+    # print()
+    # print(f"ATTEMPTED TO FIND MATCH OF AUGMENTED ITEM USING FILTER:")
+    # print()
+    # print(_filter)
+    # print()
+    # if _possible_item:
+    #     print(f"FOUND MATCH:")
+    #     print()
+    #     print(f"ORIGINAL:")
+    #     print(_sel_e_rule_1)
+    #     print()
+    #     print(f"FOUND VALUE:")
+    #     print(_possible_item)
+    #     print()
+    # else:
+    #     print()
+    #     print(f"NO MATCH FOUND WITH RULE ID: {_sel_e_rule_1.rule_id} WITH THE STATE OF:\n\n\t{_sel_e_rule_1.status()}")

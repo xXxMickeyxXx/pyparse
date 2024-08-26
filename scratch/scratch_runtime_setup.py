@@ -426,7 +426,7 @@ class CoreParser2:
 
 		_current_action = None
 		_current_state = parse_context.state
-		_current_symbol = None
+		_current_symbol = parse_context.current_symbol
 		_end_of_input = False
 		while not parse_context.done_parsing:
 			
@@ -437,11 +437,52 @@ class CoreParser2:
 
 
 			_current_symbol = parse_context.current_symbol()
+			_current_state = parse_context.state
+			_current_action = self.parse_table.action(_current_state, _current_symbol, default=(ParserActionType.ERROR, None))
 
-				
+			_debug_text = f"CURRRENT STATE: {_current_state}\n, CURRENT SYMBOL: {_current_symbol}\n, CURRENT ACTION: {_current_action}\n"
+			print(bold_text(apply_color(_color_code, _debug_text)))
 
+			_action = _current_action[0]
+			# if _action == ParserActionType.ERROR:
+			# 	parse_context.set_result(False)
+			# elif _action == ParserActionType.SHIFT:
+			# 	parse_context.append_state(_current_action[1])
+			# 	parse_context.append_symbol(_current_symbol)
+			# 	parse_context.advance()
+			# elif _action == ParserActionType.REDUCE:
+			# 	for _ in range(3):
+			# 		if parse_context.stack:
+			# 			parse_context.pop_state()
+			# 		if parse_context.symbol_stack:
+			# 			parse_context.pop_symbol()
+			# 	_goto_state = self.parse_table.goto(parse_context.state, _current_action[1])
+			# 	print(f"GOTO STATE: {_goto_state}")
+			# elif _action == ParserActionType.ACCEPT:
+			# 	parse_context.set_result(True)
 
-			parse_context.set_result(False)
+			if _action == ParserActionType.SHIFT:
+				_next_state_ = _current_action[1]
+				parse_context.append_state(_next_state_)
+				parse_context.append_symbol(_current_symbol)
+				parse_context.advance()
+				print(f"STATE AFTER SHIFT: {parse_context.state}")
+			elif _action == ParserActionType.REDUCE:
+				for _ in range(3):
+					if parse_context.stack:
+						_popped_state = parse_context.pop_state()
+					if parse_context.symbol_stack:
+						_popped_symbol = parse_context.pop_symbol()
+				_goto_state = self.parse_table.goto(parse_context.state, _current_action[1])
+				_next_state = _goto_state[0]
+				parse_context.append_state(_next_state)
+				parse_context.append_symbol(_item.rule_head)
+				print(f"ON GOTO IN REDUCE ({parse_context.state}, {_item.rule_head}): {_goto_state}")
+			elif _action == ParserActionType.ERROR:
+				parse_context.set_result(False)
+			elif _action == ParserActionType.ACCEPT:
+				parse_context.set_result(True)
+
 
 
 			_debug_text_mainloop_bottom = "---------- BOTTOM OF 'parse' MAINLOOP ----------\n"
@@ -588,9 +629,11 @@ class ParserContext(PySynchronyScheduler):
 
 class ParseContext:
 
-	def __init__(self, input=None, start_symbol="$"):
+	def __init__(self, input=None, start_symbol="$", end_symbol="$"):
 		self._input = input
 		self._input_len = len(input)
+		self._runtime_input = None
+		self._end_symbol = end_symbol
 		self._start_symbol = start_symbol
 		self._result = None
 		self._result_set = False
@@ -634,6 +677,25 @@ class ParseContext:
 	def done_parsing(self):
 		return self._result_set and self._result is not None
 
+	@property
+	def runtime_input(self):
+		if self._runtime_input is None:
+			self.reset()
+			self._runtime_input = self._start_symbol + self._input + self.end_symbol
+			self._runtime_input_len = len(self._runtime_input)
+		return self._runtime_input
+
+	def reset(self):
+		self._input = ""
+		self._input_len = len(self._input)
+		self._runtime_input = None
+		self._result = None
+		self._result_set = False
+		self._pointer = 0
+		self._state = None
+		self._stack = None
+		self._symbol_stack = None
+
 	def result(self):
 		return self._result
 
@@ -670,7 +732,7 @@ class ParseContext:
 	def current_symbol(self):
 		if self._pointer < self._input_len:
 			return self.input[self._pointer]
-		return self._start_symbol
+		return self._end_symbol
 
 	def advance(self):
 		if not self.can_advance:
@@ -687,6 +749,7 @@ class ParseContext:
 		return _retval
 
 
+# NOTE: remove draft 'TempTableBuilder' implementations once finished
 """
 class TempTableBuilder:
 
@@ -724,12 +787,21 @@ class TempTableBuilder:
 			if _item_copy in items:
 				return state
 		return None
-"""
 
 
 class TempTableBuilder:
-	def __init__(self, grammar):
+	def __init__(self, grammar, start_symbol="$", end_symbol="$"):
 		self._grammar = grammar
+		self._start_symbol = start_symbol
+		self._end_symbol = end_symbol
+
+	@property
+	def start_symbol(self):
+		return self._start_symbol
+
+	@property
+	def end_symbol(self):
+		return self._end_symbol
 
 	@property
 	def item_states(self):
@@ -746,11 +818,10 @@ class TempTableBuilder:
 		for state, items in item_states.items():
 			for item in items:
 				next_symbol = item.next_symbol()
-
 				if item.can_reduce:  # Rule is ready for reduction
 					if item.rule_head == _init_rule_head:
 						# Accept action for the start rule
-						table.add_action(state, '$', (ParserActionType.ACCEPT,))
+						table.add_action(state, self.end_symbol, (ParserActionType.ACCEPT,))
 					else:
 						# Add reduce actions for terminals
 						for terminal in _terminals:
@@ -767,6 +838,8 @@ class TempTableBuilder:
 					next_state = self.find_next_state(item)
 					if next_state is not None:
 						table.add_goto(state, next_symbol, next_state)
+				else:
+					table.add_action(state, next_symbol, (ParserActionType.ERROR, None))
 
 	def find_next_state(self, item):
 		_item_copy = item.copy()
@@ -784,6 +857,199 @@ class TempTableBuilder:
 			# 		longer advance, and is thus, reduceable (i.e. 'can_reduce')
 			_error_details = f"an error has occurred while attempting to find the next item associated with rule ID: {_item_copy.rule_id}; please ensure 'item' associated with grammar rule exists and is part of grammar, then try again..."
 			raise RuntimeError(_error_details)
+
+
+class TempTableBuilder2:
+	def __init__(self, grammar, start_symbol="$", end_symbol="$"):
+		self._grammar = grammar
+		self._start_symbol = start_symbol
+		self._end_symbol = end_symbol
+
+	@property
+	def start_symbol(self):
+		return self._start_symbol
+
+	@property
+	def end_symbol(self):
+		return self._end_symbol
+
+	@property
+	def item_states(self):
+		return self._grammar.generate_states()
+
+	def build_table(self, table):
+		_rules = self._grammar.rules()
+		item_states = self.item_states
+		_init_rule = _rules[0]
+		_init_rule_head = _init_rule.rule_head
+		_terminals = self._grammar.terminals()
+		_non_terminals = self._grammar.non_terminals()
+
+		# for state, items in item_states.items():
+
+		# 	for _item in items:
+		# 		if _item.can_reduce:
+		# 			if _item.rule_head == _init_rule_head:
+		# 				table.add_action(state, _init_rule_head, (ParserActionType.ACCEPT))
+		# 			else:
+		# 				for
+		# 				table.add_action(state, _item.rule_head)
+
+		for state, items in item_states.items():
+			# print(f"STATE ---> {state}")
+			for item in items:
+				next_symbol = item.next_symbol()
+				print(f"NEXT SYMBOL ---> {next_symbol}")
+				if item.can_reduce:  # Rule is ready for reduction
+					if item.rule_head == _init_rule_head:
+						# Accept action for the start rule
+						table.add_action(state, self.end_symbol, (ParserActionType.ACCEPT,))
+					else:
+						# Add reduce actions for terminals
+						for terminal in _terminals:
+							table.add_action(state, terminal, (ParserActionType.REDUCE, item))
+
+				elif next_symbol in _terminals:
+					# Shift action
+					next_state = self.find_next_state(item)
+					if next_state is not None:
+						table.add_action(state, next_symbol, (ParserActionType.SHIFT, next_state))
+						
+				elif next_symbol in _non_terminals:
+					# Goto action for non-terminals
+					next_state = self.find_next_state(item)
+					if next_state is not None:
+						table.add_goto(state, next_symbol, next_state)
+				else:
+					table.add_action(state, next_symbol, (ParserActionType.ERROR, None))
+
+	def find_next_state(self, item):
+		# print(f"FINDING NEXT STATE:")
+		_item_copy = item.copy()
+		if not _item_copy.can_reduce:
+			_item_copy.advance()
+			for state, items in self.item_states.items():
+				# print(f"STATE: {state}")
+				for _item in items:
+					# if _item.rule_head == "$":
+						# print(f"TOP-LEVEL-RULE-HEAD")
+						# print(_item)
+
+					if _item_copy == _item and _item.can_reduce:
+						# print(f"END-FINDING-NEXT-STATE:")
+						return None
+					if _item_copy.status() == _item.status():
+						# print(f"END-FINDING-NEXT-STATE:")
+						return state
+		else:
+			return None
+			# # NOTE: if made it here, then an error has occurred as it should either have
+			# # 		found the next state or returned 'None', signifying the rule can no
+			# # 		longer advance, and is thus, reduceable (i.e. 'can_reduce')
+			# _error_details = f"an error has occurred while attempting to find the next item associated with rule ID: {_item_copy.rule_id}; please ensure 'item' associated with grammar rule exists and is part of grammar, then try again..."
+			# raise RuntimeError(_error_details)
+"""
+
+
+class TempTableBuilder:
+	def __init__(self, grammar, start_symbol="$", end_symbol="$"):
+		self._grammar = grammar
+		self._start_symbol = start_symbol
+		self._end_symbol = end_symbol
+
+	@property
+	def start_symbol(self):
+		return self._start_symbol
+
+	@property
+	def end_symbol(self):
+		return self._end_symbol
+
+	@property
+	def item_states(self):
+		return self._grammar.generate_states()
+
+	def build_table(self, table):
+		# STATE 0 PARSE TABLE TRANSITION DECLARATIONS:
+		table.add_action(0, "0", (ParserActionType.SHIFT, 3))
+		table.add_action(0, "1", (ParserActionType.SHIFT, 4))
+		table.add_action(0, "*", (ParserActionType.ERROR, None))
+		table.add_action(0, "+", (ParserActionType.ERROR, None))
+		table.add_action(0, "$", (ParserActionType.ERROR, None))		
+		table.add_goto(0, "E", 1)
+		table.add_goto(0, "B", 2)
+
+		# STATE 1 PARSE TABLE TRANSITION DECLARATIONS:
+		table.add_action(1, "*", (ParserActionType.SHIFT, 5))
+		table.add_action(1, "+", (ParserActionType.SHIFT, 6))
+		table.add_action(1, "$", (ParserActionType.ACCEPT, None))
+		table.add_action(1, "0", (ParserActionType.ERROR, None))
+		table.add_action(1, "1", (ParserActionType.ERROR, None))
+		table.add_goto(1, "E", None)
+		table.add_goto(1, "B", None)
+
+		# STATE 2 PARSE TABLE TRANSITION DECLARATIONS:
+		table.add_action(2, "*", (ParserActionType.REDUCE, "E"))
+		table.add_action(2, "+", (ParserActionType.REDUCE, "E"))
+		table.add_action(2, "$", (ParserActionType.REDUCE, "E"))
+		table.add_action(2, "0", (ParserActionType.ERROR, None))
+		table.add_action(2, "1", (ParserActionType.ERROR, None))
+		table.add_goto(2, "E", None)
+		table.add_goto(2, "B", None)
+
+		# STATE 3 PARSE TABLE TRANSITION DECLARATIONS:
+		table.add_action(3, "*", (ParserActionType.REDUCE, "B"))
+		table.add_action(3, "+", (ParserActionType.REDUCE, "B"))
+		table.add_action(3, "$", (ParserActionType.REDUCE, "B"))
+		table.add_action(3, "0", (ParserActionType.ERROR, None))
+		table.add_action(3, "1", (ParserActionType.ERROR, None))
+		table.add_goto(3, "E", None)
+		table.add_goto(3, "B", None)
+
+		# STATE 4 PARSE TABLE TRANSITION DECLARATIONS:
+		table.add_action(4, "*", (ParserActionType.REDUCE, "B"))
+		table.add_action(4, "+", (ParserActionType.REDUCE, "B"))
+		table.add_action(4, "$", (ParserActionType.REDUCE, "B"))
+		table.add_action(4, "0", (ParserActionType.ERROR, None))
+		table.add_action(4, "1", (ParserActionType.ERROR, None))
+		table.add_goto(4, "E", None)
+		table.add_goto(4, "B", None)
+
+		# STATE 5 PARSE TABLE TRANSITION DECLARATIONS:
+		table.add_action(5, "0", (ParserActionType.SHIFT, 3))
+		table.add_action(5, "1", (ParserActionType.SHIFT, 4))
+		table.add_action(5, "*", (ParserActionType.ERROR, None))
+		table.add_action(5, "+", (ParserActionType.ERROR, None))
+		table.add_action(5, "$", (ParserActionType.ERROR, None))
+		table.add_goto(5, "E", None)
+		table.add_goto(5, "B", 7)
+
+		# STATE 6 PARSE TABLE TRANSITION DECLARATIONS:
+		table.add_action(6, "0", (ParserActionType.SHIFT, 3))
+		table.add_action(6, "1", (ParserActionType.SHIFT, 4))
+		table.add_action(6, "*", (ParserActionType.ERROR, None))
+		table.add_action(6, "+", (ParserActionType.ERROR, None))
+		table.add_action(6, "$", (ParserActionType.ERROR, None))
+		table.add_goto(6, "E", None)
+		table.add_goto(6, "B", 8)
+
+		# STATE 7 PARSE TABLE TRANSITION DECLARATIONS:
+		table.add_action(7, "*", (ParserActionType.REDUCE, "E"))
+		table.add_action(7, "+", (ParserActionType.REDUCE, "E"))
+		table.add_action(7, "$", (ParserActionType.REDUCE, "E"))
+		table.add_action(7, "0", (ParserActionType.ERROR, None))
+		table.add_action(7, "1", (ParserActionType.ERROR, None))
+		table.add_goto(7, "E", None)
+		table.add_goto(7, "B", None)
+
+		# STATE 8 PARSE TABLE TRANSITION DECLARATIONS:
+		table.add_action(8, "*", (ParserActionType.REDUCE, "E"))
+		table.add_action(8, "+", (ParserActionType.REDUCE, "E"))
+		table.add_action(8, "$", (ParserActionType.REDUCE, "E"))
+		table.add_action(8, "0", (ParserActionType.ERROR, None))
+		table.add_action(8, "1", (ParserActionType.ERROR, None))
+		table.add_goto(8, "E", None)
+		table.add_goto(8, "B", None)
 
 
 class TestGrammar4ParserEnv(ParserEnvironment):
@@ -916,8 +1182,6 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 		print(f"BUILDING PARSE TABLE:")
 		_tbl_builder = TempTableBuilder(self.grammar)
 		self.parse_table.build(_tbl_builder)
-		# self.parse_table.build(self.grammar)
-		# self.parse_table.print()
 
 	def parse(self, parse_context):
 		self.__build_table__()
@@ -929,26 +1193,12 @@ if __name__ == "__main__":
 	_tbl_builder = TempTableBuilder(GRAMMAR)
 
 	for k, v in GRAMMAR.generate_states().items():
-		print(f"STATES: {k}")
 		for i in v:
-			print(i)
+			print(f"STATE: {k}\nITEM:\n{i}")
+			_next_state = _tbl_builder.find_next_state(i)
+			print(f"FOUND STATE: {_next_state}")
 			print()
-		print()
-		print()
-		print()
+			print()
 
-
-	_selected_state = GRAMMAR.select(RuleByID("E_rule_2"))
-	_e_rule_2 = _selected_state[0] if _selected_state else None
-	_e_rule_2.advance()
-	print(f"FINDING NEXT STATE FOR ITEM:")
-	print(_e_rule_2)
-
-	print()
-	_next_state = _tbl_builder.find_next_state(_e_rule_2)
-	# print(f"ITEM:")
-	# print(_e_rule_2)
-	print()
-	print(f"FOUND STATE: {_next_state}")
-	print(f"CORRECT STATE: {_next_state == 6}")
-	print()
+		for _ in range(3):
+			print()
