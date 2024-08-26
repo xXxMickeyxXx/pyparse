@@ -30,10 +30,13 @@ from .scratch_init_grammar import (
 	init_grammar_6
 )
 from .scratch_grammar_rules_filter import (
-	RuleFilter,
-	RuleByID,
-	RuleByHead,
-	RuleByBody
+	RuleSelector,
+	AndRuleSelector,
+	OrRuleSelector,
+	NotRuleSelector,
+	RuleIDSelector,
+	RuleHeadSelector,
+	RuleBodySelector
 )
 from .scratch_parser_action import countdown, sleeper, close_at_finish
 from .source_descriptor import SourceFile
@@ -425,8 +428,8 @@ class CoreParser2:
 		####################
 
 		_current_action = None
-		_current_state = parse_context.state
-		_current_symbol = parse_context.current_symbol
+		_current_state = parse_context.state()
+		_current_symbol = parse_context.current_symbol()
 		_end_of_input = False
 		while not parse_context.done_parsing:
 			
@@ -435,54 +438,53 @@ class CoreParser2:
 			_colored_debug_text = bold_text(apply_color(_color_code, _debug_text_mainloop_top))
 			print(_colored_debug_text)
 
-
-			_current_symbol = parse_context.current_symbol()
-			_current_state = parse_context.state
 			_current_action = self.parse_table.action(_current_state, _current_symbol, default=(ParserActionType.ERROR, None))
+			# _test_action_1 = self.parse_table.action(1, "$")
+			# print(f"TEST ACTION:\n\t ---> {_test_action_1}")
+			# if len(_test_action_1) >= 2: 
+			# 	_test_action_item_1 = _test_action_1[1]
+			# 	print(_test_action_item_1)
+			# 	print(f"^^^^TEST ACTION ITEM^^^^")
+			# 	print(f"ITEM:\n\n{_test_action_item_1}\n\n\n")
 
 			_debug_text = f"CURRRENT STATE: {_current_state}\n, CURRENT SYMBOL: {_current_symbol}\n, CURRENT ACTION: {_current_action}\n"
 			print(bold_text(apply_color(_color_code, _debug_text)))
 
 			_action = _current_action[0]
-			# if _action == ParserActionType.ERROR:
-			# 	parse_context.set_result(False)
-			# elif _action == ParserActionType.SHIFT:
-			# 	parse_context.append_state(_current_action[1])
-			# 	parse_context.append_symbol(_current_symbol)
-			# 	parse_context.advance()
-			# elif _action == ParserActionType.REDUCE:
-			# 	for _ in range(3):
-			# 		if parse_context.stack:
-			# 			parse_context.pop_state()
-			# 		if parse_context.symbol_stack:
-			# 			parse_context.pop_symbol()
-			# 	_goto_state = self.parse_table.goto(parse_context.state, _current_action[1])
-			# 	print(f"GOTO STATE: {_goto_state}")
-			# elif _action == ParserActionType.ACCEPT:
-			# 	parse_context.set_result(True)
+
+			print()
+			print(f"CURRENT STATE: {parse_context.state()}")
+			print(f"CURRENT STATE STACK: {parse_context.stack}")
+			print()
+			print(f"CURRENT SYMBOL: {parse_context.current_symbol()}")
+			print(f"CURRENT SYMBOL STACK: {parse_context.symbol_stack}")
+			print()
+			print()
 
 			if _action == ParserActionType.SHIFT:
-				_next_state_ = _current_action[1]
-				parse_context.append_state(_next_state_)
+				parse_context.append_state(_current_action[1])
 				parse_context.append_symbol(_current_symbol)
 				parse_context.advance()
-				print(f"STATE AFTER SHIFT: {parse_context.state}")
 			elif _action == ParserActionType.REDUCE:
-				for _ in range(3):
-					if parse_context.stack:
-						_popped_state = parse_context.pop_state()
-					if parse_context.symbol_stack:
-						_popped_symbol = parse_context.pop_symbol()
-				_goto_state = self.parse_table.goto(parse_context.state, _current_action[1])
+				print(f"CURRENT ACTION WITHIN 'ParserActionType.REDUCE' BLOCK:")
+				print(_current_action)
+				_reduce_item = _current_action[1]
+				for _ in range(_reduce_item.rule_size):
+					_popped_state = parse_context.pop_state()
+					_popped_symbol = parse_context.pop_symbol()
+				_goto_state = self.parse_table.goto(parse_context.state(), _reduce_item.rule_head)
+				print(f"GOTO STATE ---> {_goto_state}")
 				_next_state = _goto_state[0]
 				parse_context.append_state(_next_state)
-				parse_context.append_symbol(_item.rule_head)
-				print(f"ON GOTO IN REDUCE ({parse_context.state}, {_item.rule_head}): {_goto_state}")
+				parse_context.append_symbol(_reduce_item.rule_head)
+				print(f"ON GOTO IN REDUCE ({parse_context.state()}, {_reduce_item.rule_head}): {_goto_state}")
 			elif _action == ParserActionType.ERROR:
 				parse_context.set_result(False)
 			elif _action == ParserActionType.ACCEPT:
 				parse_context.set_result(True)
 
+			_current_symbol = parse_context.current_symbol()
+			_current_state = parse_context.state()
 
 
 			_debug_text_mainloop_bottom = "---------- BOTTOM OF 'parse' MAINLOOP ----------\n"
@@ -670,10 +672,6 @@ class ParseContext:
 		return not self.can_advance
 
 	@property
-	def state(self):
-		return self.stack[-1] if self.stack else None
-
-	@property
 	def done_parsing(self):
 		return self._result_set and self._result is not None
 
@@ -684,6 +682,9 @@ class ParseContext:
 			self._runtime_input = self._start_symbol + self._input + self.end_symbol
 			self._runtime_input_len = len(self._runtime_input)
 		return self._runtime_input
+
+	def state(self):
+		return self.stack[-1] if self.stack else None
 
 	def reset(self):
 		self._input = ""
@@ -952,10 +953,18 @@ class TempTableBuilder2:
 
 
 class TempTableBuilder:
+
+	__slots__ = ("_grammar", "_item_states", "_start_symbol", "_end_symbol")
+
 	def __init__(self, grammar, start_symbol="$", end_symbol="$"):
 		self._grammar = grammar
+		self._item_states = grammar.generate_states() if grammar is not None else None
 		self._start_symbol = start_symbol
 		self._end_symbol = end_symbol
+
+	@property
+	def grammar(self):
+		return self._grammar
 
 	@property
 	def start_symbol(self):
@@ -967,85 +976,109 @@ class TempTableBuilder:
 
 	@property
 	def item_states(self):
-		return self._grammar.generate_states()
+		if self._item_states:
+			self._item_states = self.grammar.generate_states()
+		return self._item_states
+
+	def select(self, selector):
+		return self.grammar.select(selector)
 
 	def build_table(self, table):
+		INIT_RULE = self.select(RuleIDSelector("INIT_RULE"))[0]
+		E_times_B = self.select(RuleIDSelector("E_rule_1"))[0]
+		E_plus_B = self.select(RuleIDSelector("E_rule_2"))[0]
+		E_is_B = self.select(RuleIDSelector("E_rule_3"))[0]
+		B_is_0 = self.select(RuleIDSelector("B_rule_1"))[0]
+		B_is_1 = self.select(RuleIDSelector("B_rule_2"))[0]
+
 		# STATE 0 PARSE TABLE TRANSITION DECLARATIONS:
+		E_times_B_copy_1 = E_times_B.copy()
+		E_plus_B_copy_1 = E_plus_B.copy()
+		E_is_B_copy_1 = E_is_B.copy()
 		table.add_action(0, "0", (ParserActionType.SHIFT, 3))
 		table.add_action(0, "1", (ParserActionType.SHIFT, 4))
 		table.add_action(0, "*", (ParserActionType.ERROR, None))
 		table.add_action(0, "+", (ParserActionType.ERROR, None))
 		table.add_action(0, "$", (ParserActionType.ERROR, None))		
-		table.add_goto(0, "E", 1)
-		table.add_goto(0, "B", 2)
+		table.add_goto(0, "E", (1, E_times_B_copy_1.advance_by(1)))
+		table.add_goto(0, "E", (1, E_plus_B_copy_1.advance_by(1)))
+		table.add_goto(0, "B", (2, E_is_B_copy_1.advance_by(1)))
 
 		# STATE 1 PARSE TABLE TRANSITION DECLARATIONS:
+		INIT_RULE_copy = INIT_RULE.copy()
 		table.add_action(1, "*", (ParserActionType.SHIFT, 5))
 		table.add_action(1, "+", (ParserActionType.SHIFT, 6))
-		table.add_action(1, "$", (ParserActionType.ACCEPT, None))
+		table.add_action(1, "$", (ParserActionType.ACCEPT, INIT_RULE_copy.advance_by(1)))
 		table.add_action(1, "0", (ParserActionType.ERROR, None))
 		table.add_action(1, "1", (ParserActionType.ERROR, None))
 		table.add_goto(1, "E", None)
 		table.add_goto(1, "B", None)
 
 		# STATE 2 PARSE TABLE TRANSITION DECLARATIONS:
-		table.add_action(2, "*", (ParserActionType.REDUCE, "E"))
-		table.add_action(2, "+", (ParserActionType.REDUCE, "E"))
-		table.add_action(2, "$", (ParserActionType.REDUCE, "E"))
+		E_is_B_copy_2 = E_is_B.copy()
+		table.add_action(2, "*", (ParserActionType.REDUCE, E_is_B_copy_2.advance_by(1)))
+		table.add_action(2, "+", (ParserActionType.REDUCE, E_is_B_copy_2.advance_by(1)))
+		table.add_action(2, "$", (ParserActionType.REDUCE, E_is_B_copy_2.advance_by(1)))
 		table.add_action(2, "0", (ParserActionType.ERROR, None))
 		table.add_action(2, "1", (ParserActionType.ERROR, None))
 		table.add_goto(2, "E", None)
 		table.add_goto(2, "B", None)
 
 		# STATE 3 PARSE TABLE TRANSITION DECLARATIONS:
-		table.add_action(3, "*", (ParserActionType.REDUCE, "B"))
-		table.add_action(3, "+", (ParserActionType.REDUCE, "B"))
-		table.add_action(3, "$", (ParserActionType.REDUCE, "B"))
+		B_is_0_copy = B_is_0.copy()
+		table.add_action(3, "*", (ParserActionType.REDUCE, B_is_0_copy.advance_by(1)))
+		table.add_action(3, "+", (ParserActionType.REDUCE, B_is_0_copy.advance_by(1)))
+		table.add_action(3, "$", (ParserActionType.REDUCE, B_is_0_copy.advance_by(1)))
 		table.add_action(3, "0", (ParserActionType.ERROR, None))
 		table.add_action(3, "1", (ParserActionType.ERROR, None))
 		table.add_goto(3, "E", None)
 		table.add_goto(3, "B", None)
 
 		# STATE 4 PARSE TABLE TRANSITION DECLARATIONS:
-		table.add_action(4, "*", (ParserActionType.REDUCE, "B"))
-		table.add_action(4, "+", (ParserActionType.REDUCE, "B"))
-		table.add_action(4, "$", (ParserActionType.REDUCE, "B"))
+		B_is_1_copy = B_is_1.copy()
+		table.add_action(4, "*", (ParserActionType.REDUCE, B_is_1_copy.advance_by(1)))
+		table.add_action(4, "+", (ParserActionType.REDUCE, B_is_1_copy.advance_by(1)))
+		table.add_action(4, "$", (ParserActionType.REDUCE, B_is_1_copy.advance_by(1)))
 		table.add_action(4, "0", (ParserActionType.ERROR, None))
 		table.add_action(4, "1", (ParserActionType.ERROR, None))
 		table.add_goto(4, "E", None)
 		table.add_goto(4, "B", None)
 
 		# STATE 5 PARSE TABLE TRANSITION DECLARATIONS:
+		E_times_B_copy_2 = E_times_B.copy()
 		table.add_action(5, "0", (ParserActionType.SHIFT, 3))
 		table.add_action(5, "1", (ParserActionType.SHIFT, 4))
 		table.add_action(5, "*", (ParserActionType.ERROR, None))
 		table.add_action(5, "+", (ParserActionType.ERROR, None))
 		table.add_action(5, "$", (ParserActionType.ERROR, None))
 		table.add_goto(5, "E", None)
-		table.add_goto(5, "B", 7)
+		table.add_goto(5, "B", (7, E_times_B_copy_2.advance_by(2)))
 
 		# STATE 6 PARSE TABLE TRANSITION DECLARATIONS:
+		E_plus_B_copy_2 = E_plus_B.copy()
 		table.add_action(6, "0", (ParserActionType.SHIFT, 3))
 		table.add_action(6, "1", (ParserActionType.SHIFT, 4))
 		table.add_action(6, "*", (ParserActionType.ERROR, None))
 		table.add_action(6, "+", (ParserActionType.ERROR, None))
 		table.add_action(6, "$", (ParserActionType.ERROR, None))
 		table.add_goto(6, "E", None)
-		table.add_goto(6, "B", 8)
+		table.add_goto(6, "B", (8, E_plus_B_copy_2.advance_by(2)))
 
 		# STATE 7 PARSE TABLE TRANSITION DECLARATIONS:
-		table.add_action(7, "*", (ParserActionType.REDUCE, "E"))
-		table.add_action(7, "+", (ParserActionType.REDUCE, "E"))
-		table.add_action(7, "$", (ParserActionType.REDUCE, "E"))
+		E_times_B_copy_3 = E_times_B.copy()
+		table.add_action(7, "*", (ParserActionType.REDUCE, E_times_B_copy_3.advance_by(3)))
+		table.add_action(7, "+", (ParserActionType.REDUCE, E_times_B_copy_3.advance_by(3)))
+		table.add_action(7, "$", (ParserActionType.REDUCE, E_times_B_copy_3.advance_by(3)))
 		table.add_action(7, "0", (ParserActionType.ERROR, None))
 		table.add_action(7, "1", (ParserActionType.ERROR, None))
 		table.add_goto(7, "E", None)
 		table.add_goto(7, "B", None)
 
 		# STATE 8 PARSE TABLE TRANSITION DECLARATIONS:
-		table.add_action(8, "*", (ParserActionType.REDUCE, "E"))
-		table.add_action(8, "+", (ParserActionType.REDUCE, "E"))
-		table.add_action(8, "$", (ParserActionType.REDUCE, "E"))
+		E_plus_B_copy_3 = E_plus_B.copy()
+		table.add_action(8, "*", (ParserActionType.REDUCE, E_plus_B_copy_3.advance_by(3)))
+		table.add_action(8, "+", (ParserActionType.REDUCE, E_plus_B_copy_3.advance_by(3)))
+		table.add_action(8, "$", (ParserActionType.REDUCE, E_plus_B_copy_3.advance_by(3)))
 		table.add_action(8, "0", (ParserActionType.ERROR, None))
 		table.add_action(8, "1", (ParserActionType.ERROR, None))
 		table.add_goto(8, "E", None)
@@ -1189,16 +1222,12 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 
 
 if __name__ == "__main__":
+
 	init_grammar_4(GRAMMAR)
-	_tbl_builder = TempTableBuilder(GRAMMAR)
+	_tbl_builder = TempTableBuilder(GRAMMAR, selector=RuleIDSelector)
+	
 
-	for k, v in GRAMMAR.generate_states().items():
-		for i in v:
-			print(f"STATE: {k}\nITEM:\n{i}")
-			_next_state = _tbl_builder.find_next_state(i)
-			print(f"FOUND STATE: {_next_state}")
-			print()
-			print()
-
-		for _ in range(3):
-			print()
+	_g_states = GRAMMAR.generate_states()
+	_val = _tbl_builder.select("E_rule_2")
+	print(f"VAL(?):")
+	print((_val))

@@ -262,7 +262,13 @@ class GrammarRule:
                 self._marker_pos += 1
                 _marker_sym = self.augmented_item.pop(_current_pos)
                 self.augmented_item.insert(self._marker_pos, _marker_sym)
-        return self.status()
+        # return self.status()
+        return self
+
+    def advance_by(self, count):
+        for _ in range(count):
+            self.advance()
+        return self
 
     def bind_state(self, current_state, look_ahead, next_state):
         # NOTE: need to find a better name for this
@@ -311,7 +317,13 @@ class GrammarRule:
             self._marker_pos -= 1
             _marker_sym = self.augmented_item.pop(_current_pos)
             self.augmented_item.insert(self._marker_pos, _marker_sym)
-        return self.status()
+        # return self.status()
+        return self
+
+    def reverse_by(self, count):
+        for _ in range(count):
+            self.reverse()
+        return self
 
     def status(self):
         return self.augmented_item

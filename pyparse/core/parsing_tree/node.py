@@ -35,10 +35,14 @@ class DFSNodeTreeTraveler(NodeTraveler):
 
 	def traverse(self, node):
 		print(f"NodeID: {node.node_id}")
+		_has_data = node.has_data
+		print(f"DOES NODE ID: {node.node_id} HAVE DATA ---> {_has_data}")
+		if _has_data:
+			print(f"NODE DATA ---> {node.data}")
 		if not node.is_leaf:
 			for _node in node.branches():
 				_node.traverse(self)
-		return "HEY"
+		return
 
 
 class Node(ABC):
@@ -169,38 +173,77 @@ if __name__ == "__main__":
 		print()
 
 
-	_root_node = Node("[TEST_ROOT_NODE]")
-	_non_leaf_node_1 = Node(f"[{'non_leaf_node_1'.upper()}]")
-	_non_leaf_node_2 = Node(f"[{'non_leaf_node_2'.upper()}]")
-	_non_leaf_node_3 = Node(f"[{'non_leaf_node_3'.upper()}]")
+	class DataNode(Node):
 
-	_leaf_node_1 = Node(f"[{'leaf_node_1'.upper()}]", is_leaf=True)
-	_leaf_node_2 = Node(f"[{'leaf_node_2'.upper()}]", is_leaf=True)
-	_leaf_node_3 = Node(f"[{'leaf_node_3'.upper()}]", is_leaf=True)
-	_leaf_node_4 = Node(f"[{'leaf_node_4'.upper()}]", is_leaf=True)
-	_leaf_node_5 = Node(f"[{'leaf_node_5'.upper()}]", is_leaf=True)
-	_leaf_node_6 = Node(f"[{'leaf_node_6'.upper()}]", is_leaf=True)
+		def __init__(self, data=None, node_id=generate_id(), is_leaf=False):
+			super().__init__(node_id, is_leaf=is_leaf)
+			self._data = data
+			self._data_set = self._data is not None or bool(self._data)
 
+		@property
+		def data(self):
+			if (self._data is None or not bool(self._data)) and not self._data_set:
+				# TODO: create and raise custom error here
+				_error_details = f"unable to retrieve data on this node (ID: {self.node_id}) as it's data field has not yet been set; set field by calling node's 'set_data' method and try again..."
+				raise AttributeError(_error_details)
+			return self._data
+
+		@property
+		def has_data(self):
+			return self._data_set and (self._data is not None or bool(self._data))
+
+		def set_data(self, data):
+			if not self._data_set and (self._data is None or not bool(self._data)):
+				self._data = data
+				self._data_set = True
+				return None
+			# TODO: create and raise custom error here
+			_error_details = f"unable to set data on this node (ID: {self.node_id}) as previous data occupies the data field; remove it by calling node's 'reset' method, and try again..."
+
+		def reset(self):
+			self._data = None
+			self._data_set = False
+
+
+
+	_root_node = DataNode(data="DEXTER", node_id="[TEST_ROOT_NODE]")
+	_non_leaf_node_1 = DataNode(data="Violet", node_id=f"[{'non_leaf_node_1'.upper()}]")
+	_non_leaf_node_2 = DataNode(data="Theo", node_id=f"[{'non_leaf_node_2'.upper()}]")
+	_non_leaf_node_3 = DataNode(data="Penny", node_id=f"[{'non_leaf_node_3'.upper()}]")
+
+	_leaf_node_1 = DataNode(data="Mickey", node_id=f"[{'leaf_node_1'.upper()}]", is_leaf=True)
+	_leaf_node_2 = DataNode(data="Sarah", node_id=f"[{'leaf_node_2'.upper()}]", is_leaf=True)
+	_leaf_node_3 = DataNode(data="Katie", node_id=f"[{'leaf_node_3'.upper()}]", is_leaf=True)
+	_leaf_node_4 = DataNode(data="Sam", node_id=f"[{'leaf_node_4'.upper()}]", is_leaf=True)
+	_leaf_node_5 = DataNode(data="Dad", node_id=f"[{'leaf_node_5'.upper()}]", is_leaf=True)
+	_leaf_node_6 = DataNode(data="Mom", node_id=f"[{'leaf_node_6'.upper()}]", is_leaf=True)
+	
+	_non_leaf_node_7 = DataNode(data="non_leaf_node_7", node_id=f"[{'non_leaf_node_7'.upper()}]")
+
+	_non_leaf_node_7.add(_leaf_node_4)
+	_non_leaf_node_7.add(_leaf_node_5)
 
 	_root_node.add(_non_leaf_node_1)
 	_root_node.add(_non_leaf_node_2)
 	_root_node.add(_non_leaf_node_3)
 	_root_node.add(_leaf_node_1)
+	_root_node.add(_non_leaf_node_7)
 
 	_non_leaf_node_1.add(_leaf_node_2)
 	_non_leaf_node_1.add(_leaf_node_3)
-	_non_leaf_node_2.add(_leaf_node_4)
-	_non_leaf_node_2.add(_leaf_node_5)
 	_non_leaf_node_3.add(_leaf_node_6)
 
 
 	_bfs_search = BFSNodeTreeTraveler()
+	val_1 = _root_node.traverse(_bfs_search)
+	print()
+	print()
 	_dfs_search = DFSNodeTreeTraveler()
-	val_1 = _root_node.traverse(_dfs_search)
-	print()
-	print()
-	val_2 = _root_node.traverse(_bfs_search)
+	val_2 = _root_node.traverse(_dfs_search)
+
 	print()
 	print(val_1)
+	print()
+	print()
 	print(val_2)
 	print()

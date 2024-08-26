@@ -7,11 +7,13 @@ from .scratch_marker_symbol import MarkerSymbol
 from .scratch_cons import GrammarRuleBy, ParserActionType
 from .scratch_utils import generate_id
 from .scratch_grammar_rules_filter import (
-    RuleFilter,
-    RuleByID,
-    RuleByHead,
-    RuleByBody,
-    AugItemStatus
+    RuleSelector,
+    AndRuleSelector,
+    OrRuleSelector,
+    NotRuleSelector,
+    RuleIDSelector,
+    RuleHeadSelector,
+    RuleBodySelector
 )
 
 from . import item_details
@@ -152,11 +154,6 @@ class Grammar:
         return _retval
 
     def closure(self, rule):
-        # print()
-        # print(f"CLOSING RULE")
-        # print(f"\t• {rule.rule_head} ---> {rule.rule_body}")
-        # print(f"\t• {rule.status()}")
-        # print()
         _non_terminals = self.non_terminals()
         _closure_group = [rule]
         _rule_queue = deque(_closure_group)
@@ -165,7 +162,7 @@ class Grammar:
             _next_rule = _rule_queue.popleft()
             _next_symbol = _next_rule.next_symbol(default=None)
             if _next_symbol in _non_terminals:
-                _found_rules = self.select(RuleByHead(_next_symbol), copy=False)
+                _found_rules = self.select(RuleHeadSelector(_next_symbol), copy=False)
                 _closure_group_rule_ids = [i.rule_id for i in _closure_group]
                 for _check_rule in _found_rules:
                     if _check_rule in _closure_group:
@@ -173,12 +170,6 @@ class Grammar:
                     _closure_group.append(_check_rule)
                     _rule_queue.append(_check_rule)
         _retval = tuple([i.copy(deepcopy=True) for i in _closure_group])
-        # print()
-        # print(f"CLOSURE RESULT:")
-        # print()
-        # for i in _retval:
-        #     print(f"\t• {i}")
-        # print()
         return _retval
 
     def create_rule(self, *args, **kwargs):
@@ -213,11 +204,11 @@ class Grammar:
             self._non_terminals_cache = None
             self._item_states_cache = None
 
-    def remove_rule(self, filter):
-        _selected_rules = self.select(filter)
+    def remove_rule(self, selector):
+        _selected_rules = self.select(selector)
         if not _selected_rules:
             # TODO: create and raise custom error here
-            _error_details = f"unable to remove rule(s) which satisfy filter: {filter}; please verify rule(s) exist within this instance of '{self.__class__.__name__}' and try again..."
+            _error_details = f"unable to remove rule(s) which satisfy selector: {selector}; please verify rule(s) exist within this instance of '{self.__class__.__name__}' and try again..."
             raise RuntimeError(_error_details)
         self._rules = [i for i in self._rules if i not in _selected_rules]
         return _selected_rules
@@ -232,8 +223,8 @@ class Grammar:
     def rules(self):
         return self._rules
 
-    def select(self, filter, copy=False, deepcopy=True):
-        return tuple([i for i in self.rules() if filter.filter(i)])
+    def select(self, selector, copy=False, deepcopy=True):
+        return tuple([i for i in self.rules() if selector.select(i)])
 
     def non_terminals(self):
         if self._non_terminals_cache is None or not self._non_terminals_cache:
@@ -416,13 +407,25 @@ if __name__ == "__main__":
     #     print(i)
     # print()
 
-    _sel_e_rule_1 = _test_grammar.select(RuleByID("E_rule_1"))[0]
-    _sel_e_rule_1.advance()
-    # _sel_e_rule_1.advance()
-    _test_offset = -1
-    print(f"ACTUAL BODY WITH MARKER: {_sel_e_rule_1.status()}")
-    print(f"FROM MARKER: {_sel_e_rule_1.from_marker(offset=_test_offset)}")
+    _sel_1 = _test_grammar.select(RuleIDSelector("E_rule_1"))
+    _sel_2 = _test_grammar.select(RuleIDSelector("E_rule_2"))
+    _sel_3 = _test_grammar.select(RuleIDSelector("E_rule_3"))
+    _sel_4 = _test_grammar.select(RuleIDSelector("B_rule_1"))
+    _sel_5 = _test_grammar.select(RuleIDSelector("B_rule_2"))
+    _sel_6 = _test_grammar.select(RuleIDSelector("INIT_RULE"))
 
+    _test_list = [_sel_1, _sel_2, _sel_3, _sel_4, _sel_5, _sel_6]
+
+    print(f"SEARCHING THROUGH GRAMMAR RULE/ITEM SELECTIONS")
+    print()
+    for i in _test_list:
+        print(f"SELECTION:")
+        _item = None
+        if i:
+            _item = i[0]
+            print(f"RULE/ITEM ID: {_item.rule_id}")
+        print()
+            
 
     # def find_item(filter, grammar):
     #     _retval = (None, None)

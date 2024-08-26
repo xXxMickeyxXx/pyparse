@@ -54,9 +54,13 @@ class ParserActionType(StrEnum):
 
 class GrammarRuleBy(IntEnum):
 
+    # TODO: determine what this will be used for, as it's currently a vestiage of
+    #       a past concept.
+
     ID = auto()
     HEAD = auto()
     BODY = auto()
+    STATUS = auto()
 
 
 class FileDescriptorMode(StrEnum):
