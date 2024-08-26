@@ -45,7 +45,7 @@ from .scratch_package_paths import (
 	TEST_INPUT_2
 )
 from .scratch_utils import generate_id, read_source
-from .utils import apply_color, bold_text, underline_text, center_text
+from .utils import display_result, apply_color, bold_text, underline_text, center_text
 from .scratch_cons import (
 	PyParsePortID,
 	PyParseEventID,
@@ -296,13 +296,14 @@ class CoreParser2:
 	# TODO: definitely need to split this class up into separate components; verify all of the additional overhead is needed as well
 
 	# __slots__ = ("_scheduler", "_parser_id", "_grammar", "_parse_table", "_parser_settings", "_init_state", "_state", "_channel", "_logger", "_ports")
-	__slots__ = ("_parser_id", "_grammar", "_parse_table", "_parser_settings", "_init_state", "_state", "_channel", "_logger", "_ports")
+	__slots__ = ("_parser_id", "_grammar", "_parse_table", "_parser_settings", "_init_state", "_state", "_channel", "_logger", "_ports", "_debug_mode")
 
 	# def __init__(self, scheduler, init_state=0, grammar=None, parse_table=None, parser_id=None):
-	def __init__(self, init_state=0, grammar=None, parse_table=None, parser_id=None):
+	def __init__(self, init_state=0, grammar=None, parse_table=None, debug_mode=False, parser_id=None):
 		self._parser_id = parser_id or generate_id()
 		self._grammar = grammar
 		self._parse_table = parse_table
+		self._debug_mode = debug_mode
 		self._parser_settings = ParserSettings(self)
 		self._init_state = init_state
 		self._state = None
@@ -328,6 +329,10 @@ class CoreParser2:
 			_error_details = f"unable to access 'parse_table' as one has not yet been associated with instance of {self.__class__.__name__}..."
 			raise RuntimeError(_error_details)
 		return self._parse_table
+	
+	@property
+	def debug_mode(self):
+		return self._debug_mode
 	
 	@property
 	def init_state(self):
@@ -433,10 +438,11 @@ class CoreParser2:
 		_end_of_input = False
 		while not parse_context.done_parsing:
 			
-			_color_code ^= _xor_val
-			_debug_text_mainloop_top = "---------- TOP OF 'parse' MAINLOOP ----------\n"
-			_colored_debug_text = bold_text(apply_color(_color_code, _debug_text_mainloop_top))
-			print(_colored_debug_text)
+			if self.debug_mode:
+				_color_code ^= _xor_val
+				_debug_text_mainloop_top = "---------- TOP OF 'parse' MAINLOOP ----------\n"
+				_colored_debug_text = bold_text(apply_color(_color_code, _debug_text_mainloop_top))
+				print(_colored_debug_text)
 
 			_current_action = self.parse_table.action(_current_state, _current_symbol, default=(ParserActionType.ERROR, None))
 			# _test_action_1 = self.parse_table.action(1, "$")
@@ -447,37 +453,35 @@ class CoreParser2:
 			# 	print(f"^^^^TEST ACTION ITEM^^^^")
 			# 	print(f"ITEM:\n\n{_test_action_item_1}\n\n\n")
 
-			_debug_text = f"CURRRENT STATE: {_current_state}\n, CURRENT SYMBOL: {_current_symbol}\n, CURRENT ACTION: {_current_action}\n"
-			print(bold_text(apply_color(_color_code, _debug_text)))
+			if self.debug_mode:
+				_debug_text = f"CURRRENT STATE: {_current_state}\n, CURRENT SYMBOL: {_current_symbol}\n, CURRENT ACTION: {_current_action}\n"
+				print(bold_text(apply_color(_color_code, _debug_text)))
 
 			_action = _current_action[0]
 
-			print()
-			print(f"CURRENT STATE: {parse_context.state()}")
-			print(f"CURRENT STATE STACK: {parse_context.stack}")
-			print()
-			print(f"CURRENT SYMBOL: {parse_context.current_symbol()}")
-			print(f"CURRENT SYMBOL STACK: {parse_context.symbol_stack}")
-			print()
-			print()
+			if self.debug_mode:
+				print()
+				print(f"CURRENT STATE: {parse_context.state()}")
+				print(f"CURRENT STATE STACK: {parse_context.stack}")
+				print()
+				print(f"CURRENT SYMBOL: {parse_context.current_symbol()}")
+				print(f"CURRENT SYMBOL STACK: {parse_context.symbol_stack}")
+				print()
+				print()
 
 			if _action == ParserActionType.SHIFT:
 				parse_context.append_state(_current_action[1])
 				parse_context.append_symbol(_current_symbol)
 				parse_context.advance()
 			elif _action == ParserActionType.REDUCE:
-				print(f"CURRENT ACTION WITHIN 'ParserActionType.REDUCE' BLOCK:")
-				print(_current_action)
 				_reduce_item = _current_action[1]
 				for _ in range(_reduce_item.rule_size):
 					_popped_state = parse_context.pop_state()
 					_popped_symbol = parse_context.pop_symbol()
 				_goto_state = self.parse_table.goto(parse_context.state(), _reduce_item.rule_head)
-				print(f"GOTO STATE ---> {_goto_state}")
 				_next_state = _goto_state[0]
 				parse_context.append_state(_next_state)
 				parse_context.append_symbol(_reduce_item.rule_head)
-				print(f"ON GOTO IN REDUCE ({parse_context.state()}, {_reduce_item.rule_head}): {_goto_state}")
 			elif _action == ParserActionType.ERROR:
 				parse_context.set_result(False)
 			elif _action == ParserActionType.ACCEPT:
@@ -487,9 +491,10 @@ class CoreParser2:
 			_current_state = parse_context.state()
 
 
-			_debug_text_mainloop_bottom = "---------- BOTTOM OF 'parse' MAINLOOP ----------\n"
-			_colored_debug_text = bold_text(apply_color(_color_code, _debug_text_mainloop_bottom))
-			print(_colored_debug_text)
+			if self.debug_mode:
+				_debug_text_mainloop_bottom = "---------- BOTTOM OF 'parse' MAINLOOP ----------\n"
+				_colored_debug_text = bold_text(apply_color(_color_code, _debug_text_mainloop_bottom))
+				print(_colored_debug_text)
 
 
 		return parse_context
@@ -749,10 +754,7 @@ class ParseContext:
 		self.advance()
 		return _retval
 
-
-# NOTE: remove draft 'TempTableBuilder' implementations once finished
-"""
-class TempTableBuilder:
+class AutomaticGrammar4TableBuilder:
 
 	def __init__(self, grammar):
 		self._grammar = grammar
@@ -790,169 +792,7 @@ class TempTableBuilder:
 		return None
 
 
-class TempTableBuilder:
-	def __init__(self, grammar, start_symbol="$", end_symbol="$"):
-		self._grammar = grammar
-		self._start_symbol = start_symbol
-		self._end_symbol = end_symbol
-
-	@property
-	def start_symbol(self):
-		return self._start_symbol
-
-	@property
-	def end_symbol(self):
-		return self._end_symbol
-
-	@property
-	def item_states(self):
-		return self._grammar.generate_states()
-
-	def build_table(self, table):
-		_rules = self._grammar.rules()
-		item_states = self.item_states
-		_init_rule = _rules[0]
-		_init_rule_head = _init_rule.rule_head
-		_terminals = self._grammar.terminals()
-		_non_terminals = self._grammar.non_terminals()
-
-		for state, items in item_states.items():
-			for item in items:
-				next_symbol = item.next_symbol()
-				if item.can_reduce:  # Rule is ready for reduction
-					if item.rule_head == _init_rule_head:
-						# Accept action for the start rule
-						table.add_action(state, self.end_symbol, (ParserActionType.ACCEPT,))
-					else:
-						# Add reduce actions for terminals
-						for terminal in _terminals:
-							table.add_action(state, terminal, (ParserActionType.REDUCE, item))
-
-				elif next_symbol in _terminals:
-					# Shift action
-					next_state = self.find_next_state(item)
-					if next_state is not None:
-						table.add_action(state, next_symbol, (ParserActionType.SHIFT, next_state))
-						
-				elif next_symbol in _non_terminals:
-					# Goto action for non-terminals
-					next_state = self.find_next_state(item)
-					if next_state is not None:
-						table.add_goto(state, next_symbol, next_state)
-				else:
-					table.add_action(state, next_symbol, (ParserActionType.ERROR, None))
-
-	def find_next_state(self, item):
-		_item_copy = item.copy()
-		_item_copy.advance()
-		if _item_copy.can_reduce:
-			return None
-		else:
-			for state, items in self.item_states.items():
-				for _item in items:
-					if _item_copy == _item:
-						return state
-
-			# NOTE: if made it here, then an error has occurred as it should either have
-			# 		found the next state or returned 'None', signifying the rule can no
-			# 		longer advance, and is thus, reduceable (i.e. 'can_reduce')
-			_error_details = f"an error has occurred while attempting to find the next item associated with rule ID: {_item_copy.rule_id}; please ensure 'item' associated with grammar rule exists and is part of grammar, then try again..."
-			raise RuntimeError(_error_details)
-
-
-class TempTableBuilder2:
-	def __init__(self, grammar, start_symbol="$", end_symbol="$"):
-		self._grammar = grammar
-		self._start_symbol = start_symbol
-		self._end_symbol = end_symbol
-
-	@property
-	def start_symbol(self):
-		return self._start_symbol
-
-	@property
-	def end_symbol(self):
-		return self._end_symbol
-
-	@property
-	def item_states(self):
-		return self._grammar.generate_states()
-
-	def build_table(self, table):
-		_rules = self._grammar.rules()
-		item_states = self.item_states
-		_init_rule = _rules[0]
-		_init_rule_head = _init_rule.rule_head
-		_terminals = self._grammar.terminals()
-		_non_terminals = self._grammar.non_terminals()
-
-		# for state, items in item_states.items():
-
-		# 	for _item in items:
-		# 		if _item.can_reduce:
-		# 			if _item.rule_head == _init_rule_head:
-		# 				table.add_action(state, _init_rule_head, (ParserActionType.ACCEPT))
-		# 			else:
-		# 				for
-		# 				table.add_action(state, _item.rule_head)
-
-		for state, items in item_states.items():
-			# print(f"STATE ---> {state}")
-			for item in items:
-				next_symbol = item.next_symbol()
-				print(f"NEXT SYMBOL ---> {next_symbol}")
-				if item.can_reduce:  # Rule is ready for reduction
-					if item.rule_head == _init_rule_head:
-						# Accept action for the start rule
-						table.add_action(state, self.end_symbol, (ParserActionType.ACCEPT,))
-					else:
-						# Add reduce actions for terminals
-						for terminal in _terminals:
-							table.add_action(state, terminal, (ParserActionType.REDUCE, item))
-
-				elif next_symbol in _terminals:
-					# Shift action
-					next_state = self.find_next_state(item)
-					if next_state is not None:
-						table.add_action(state, next_symbol, (ParserActionType.SHIFT, next_state))
-						
-				elif next_symbol in _non_terminals:
-					# Goto action for non-terminals
-					next_state = self.find_next_state(item)
-					if next_state is not None:
-						table.add_goto(state, next_symbol, next_state)
-				else:
-					table.add_action(state, next_symbol, (ParserActionType.ERROR, None))
-
-	def find_next_state(self, item):
-		# print(f"FINDING NEXT STATE:")
-		_item_copy = item.copy()
-		if not _item_copy.can_reduce:
-			_item_copy.advance()
-			for state, items in self.item_states.items():
-				# print(f"STATE: {state}")
-				for _item in items:
-					# if _item.rule_head == "$":
-						# print(f"TOP-LEVEL-RULE-HEAD")
-						# print(_item)
-
-					if _item_copy == _item and _item.can_reduce:
-						# print(f"END-FINDING-NEXT-STATE:")
-						return None
-					if _item_copy.status() == _item.status():
-						# print(f"END-FINDING-NEXT-STATE:")
-						return state
-		else:
-			return None
-			# # NOTE: if made it here, then an error has occurred as it should either have
-			# # 		found the next state or returned 'None', signifying the rule can no
-			# # 		longer advance, and is thus, reduceable (i.e. 'can_reduce')
-			# _error_details = f"an error has occurred while attempting to find the next item associated with rule ID: {_item_copy.rule_id}; please ensure 'item' associated with grammar rule exists and is part of grammar, then try again..."
-			# raise RuntimeError(_error_details)
-"""
-
-
-class TempTableBuilder:
+class ManualGrammar4TableBuilder:
 
 	__slots__ = ("_grammar", "_item_states", "_start_symbol", "_end_symbol")
 
@@ -980,16 +820,13 @@ class TempTableBuilder:
 			self._item_states = self.grammar.generate_states()
 		return self._item_states
 
-	def select(self, selector):
-		return self.grammar.select(selector)
-
 	def build_table(self, table):
-		INIT_RULE = self.select(RuleIDSelector("INIT_RULE"))[0]
-		E_times_B = self.select(RuleIDSelector("E_rule_1"))[0]
-		E_plus_B = self.select(RuleIDSelector("E_rule_2"))[0]
-		E_is_B = self.select(RuleIDSelector("E_rule_3"))[0]
-		B_is_0 = self.select(RuleIDSelector("B_rule_1"))[0]
-		B_is_1 = self.select(RuleIDSelector("B_rule_2"))[0]
+		INIT_RULE = self.grammar.select(RuleIDSelector("INIT_RULE"))[0]
+		E_times_B = self.grammar.select(RuleIDSelector("E_rule_1"))[0]
+		E_plus_B = self.grammar.select(RuleIDSelector("E_rule_2"))[0]
+		E_is_B = self.grammar.select(RuleIDSelector("E_rule_3"))[0]
+		B_is_0 = self.grammar.select(RuleIDSelector("B_rule_1"))[0]
+		B_is_1 = self.grammar.select(RuleIDSelector("B_rule_2"))[0]
 
 		# STATE 0 PARSE TABLE TRANSITION DECLARATIONS:
 		E_times_B_copy_1 = E_times_B.copy()
@@ -1085,6 +922,10 @@ class TempTableBuilder:
 		table.add_goto(8, "B", None)
 
 
+class ManualGrammar6TableBuilder(ManualGrammar4TableBuilder):
+	pass
+
+
 class TestGrammar4ParserEnv(ParserEnvironment):
 
 	def __init__(self, parser=None, grammar=None, tokenizer=None, parse_table=None, env_id=None):
@@ -1141,7 +982,8 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 	def setup(self):
 		if not self._initialized:
 			self._parser_context.setup()
-			self._init_grammar_(self.grammar)
+			self._init_grammar_4(self.grammar)
+			# self._init_grammar_6(self.grammar)
 			self._init_test_data_(self, TEST_INPUT_1)
 			# self._init_mainloop_(self._parser_context)
 			self._init_test_task_(self._parser_context)
@@ -1189,7 +1031,11 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 		return self._parser_context.run(self)
 
 	@staticmethod
-	def _init_grammar_(grammar):
+	def _init_grammar_6(grammar):
+		init_grammar_6(grammar)
+
+	@staticmethod
+	def _init_grammar_4(grammar):
 		init_grammar_4(grammar)
 
 	@staticmethod
@@ -1200,7 +1046,6 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 
 	@staticmethod
 	def _init_mainloop_(parser_context):
-		# _parse_request
 		parser_context.submit(self.parser.mainloop)
 
 	@staticmethod
@@ -1210,24 +1055,66 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 		# parser_context.submit(countdown, length=10, rate=1, step=1, action_id=_TEST_TASK_ID)
 		parser_context.submit(countdown, length=10, rate=1, step=1, task_id=_TEST_TASK_ID)
 
-	# TODO: remove this once done testing with it
-	def __build_table__(self):
-		print(f"BUILDING PARSE TABLE:")
-		_tbl_builder = TempTableBuilder(self.grammar)
+	def __build_table_4__(self):
+		_tbl_builder = ManualGrammar4TableBuilder(self.grammar)
+		self.parse_table.build(_tbl_builder)
+
+	def __build_table_6__(self):
+		_tbl_builder = ManualGrammar6TableBuilder(self.grammar)
 		self.parse_table.build(_tbl_builder)
 
 	def parse(self, parse_context):
-		self.__build_table__()
+		self.__build_table_4__()
+		# self.__build_table_6__()
 		return self.parser.parse(parse_context)
 
 
+def read_source(source_file):
+    _filepath = source_file.get()
+    if not isinstance(_filepath, Path):
+        _filepath = Path(_filepath)
+    _file_data = ""
+    with open(_filepath, "r") as in_file:
+        _file_data = in_file.read()
+
+    if not bool(_file_data):
+        # TODO: create and raise custom error here
+        _error_details = f"Error Reading Source File Contents -- unable to read data contained within file @: {filepath}"
+        raise RuntimeError
+    return [i for i in _file_data.split("\n") if i]
+
+
+def parse_and_display(evn, test_data, count=-1):
+    print(TEST_PARSING_TEXT)
+    print()
+    _test_data_queue = deque(test_data)
+    _counter = 0
+    while _test_data_queue and (_counter < count if (isinstance(count, int) and count > 0) else True):
+        _next_test_data_piece = _test_data_queue.popleft()
+        _text = underline_text(bold_text(apply_color(11, f"NEXT TEST DATA PIECE"))) + bold_text(" ---> ") + underline_text(bold_text(apply_color(11, f"{_next_test_data_piece}"))) + "\n"
+        print(_text)
+        _parse_context = ParseContext(input=_next_test_data_piece)
+        _parse_result = evn.parse(_parse_context).result()
+        display_result(_next_test_data_piece, _parse_result)
+        for _ in range(2):
+            print()
+        _counter += 1
+    print()
+
+
+def user_runtime(env):
+	_input_start_symbol = ">>: "
+	_exit_runtime_vals = {"exit", "quit", "stop"}
+	_user_input = input(_input_start_symbol)
+	while _user_input.lower() not in _exit_runtime_vals:
+		_parse_context = ParseContext(input=_user_input)
+		_parse_result = env.parse(_parse_context).result()
+		display_result(_user_input, _parse_result)
+		print()
+		_user_input = input(_input_start_symbol)
+		yield _user_input, _parse_result
+	yield _user_input, _parse_result
+
+
 if __name__ == "__main__":
-
-	init_grammar_4(GRAMMAR)
-	_tbl_builder = TempTableBuilder(GRAMMAR, selector=RuleIDSelector)
-	
-
-	_g_states = GRAMMAR.generate_states()
-	_val = _tbl_builder.select("E_rule_2")
-	print(f"VAL(?):")
-	print((_val))
+	pass

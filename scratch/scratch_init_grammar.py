@@ -52,6 +52,8 @@ def init_grammar_4(grammar):
     grammar.create_rule("E", ["E", "*", "B"], rule_id="E_rule_1")
     grammar.create_rule("E", ["E", "+", "B"], rule_id="E_rule_2")
     grammar.create_rule("E", ["B"], rule_id="E_rule_3")
+    # grammar.create_rule("E", ["E", "/", "B"], rule_id="E_rule_4")
+    # grammar.create_rule("T", ["(", "E", ")"], rule_id="T_rule_1")
     grammar.create_rule("B", ["0"], rule_id="B_rule_1")
     grammar.create_rule("B", ["1"], rule_id="B_rule_2")
 
