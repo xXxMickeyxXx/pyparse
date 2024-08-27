@@ -172,7 +172,7 @@ def parse_main():
 		_env = env if env is not None else _test_grammar_4_env
 		_test_input_lst = []
 
-		for i in ['0 + 1', '1 + 0', '00 + 11', '11 + 00', '1 + 1', '0 + 0', '0 * 1', '1 * 0', '00 * 11', '11 * 00', '1 * 1', '0 * 0', '']:
+		for i in ['0 + 1', '1 + 0', '00 + 11', '11 + 00', '1 + 1', '0 + 0', '0 * 1', '1 * 0', '00 * 11', '11 * 00', '1 * 1', '0 * 0', '6 * 51']:
 			_tmp_lst = []
 			for e in i:
 				if e in {" ", "  ", "   "}:
@@ -180,12 +180,13 @@ def parse_main():
 				_tmp_lst.append(e)
 			_test_input_lst.append("".join(_tmp_lst))
 
-		parse_and_display(_env, _test_input_lst, count=count)
+		_should_be_valid_results = [True, True, False, False, True, True, True, True, False, False, True, True, False]
+		parse_and_display(_env, _test_input_lst, _should_be_valid_results, count=count)
 
 
 	# Invoke one of several runtimes for scratch sub-package testing
 	# user_input_runner()
-	single_parse_runner(string="1*0")
+	# single_parse_runner(string="1*0")
 	parse_and_display_runner(count=-1)
 
 

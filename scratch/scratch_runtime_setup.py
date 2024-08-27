@@ -754,6 +754,7 @@ class ParseContext:
 		self.advance()
 		return _retval
 
+
 class AutomaticGrammar4TableBuilder:
 
 	def __init__(self, grammar):
@@ -1069,37 +1070,30 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 		return self.parser.parse(parse_context)
 
 
-def read_source(source_file):
-    _filepath = source_file.get()
-    if not isinstance(_filepath, Path):
-        _filepath = Path(_filepath)
-    _file_data = ""
-    with open(_filepath, "r") as in_file:
-        _file_data = in_file.read()
-
-    if not bool(_file_data):
-        # TODO: create and raise custom error here
-        _error_details = f"Error Reading Source File Contents -- unable to read data contained within file @: {filepath}"
-        raise RuntimeError
-    return [i for i in _file_data.split("\n") if i]
-
-
-def parse_and_display(evn, test_data, count=-1):
-    print(TEST_PARSING_TEXT)
-    print()
-    _test_data_queue = deque(test_data)
-    _counter = 0
-    while _test_data_queue and (_counter < count if (isinstance(count, int) and count > 0) else True):
-        _next_test_data_piece = _test_data_queue.popleft()
-        _text = underline_text(bold_text(apply_color(11, f"NEXT TEST DATA PIECE"))) + bold_text(" ---> ") + underline_text(bold_text(apply_color(11, f"{_next_test_data_piece}"))) + "\n"
-        print(_text)
-        _parse_context = ParseContext(input=_next_test_data_piece)
-        _parse_result = evn.parse(_parse_context).result()
-        display_result(_next_test_data_piece, _parse_result)
-        for _ in range(2):
-            print()
-        _counter += 1
-    print()
+def parse_and_display(evn, test_data, actual_results, count=-1):
+	_test_data_len, _actual_result_len = len(test_data), len(actual_results)
+	assert _test_data_len == _actual_result_len, f"Actual results must contain the same amount of data as the data used for testing, as the algorithm depends on index mapping; {_test_data_len} != {_actual_result_len}..."
+	print(TEST_PARSING_TEXT)
+	print()
+	_test_data_queue = deque(test_data)
+	_counter = 0
+	while _test_data_queue and (_counter < count if (isinstance(count, int) and count > 0) else True):
+		_next_test_data_piece = _test_data_queue.popleft()
+		# _text = underline_text(bold_text(apply_color(11, f"NEXT TEST DATA PIECE"))) + bold_text(" ---> ") + underline_text(bold_text(apply_color(11, f"{_next_test_data_piece}"))) + "\n"
+		# _text = bold_text(apply_color(11, f"{_next_test_data_piece}")) + "\n"
+		# print(_text)
+		# print()
+		_parse_context = ParseContext(input=_next_test_data_piece)
+		_parse_result = evn.parse(_parse_context).result()
+		_compare_results = _parse_result == actual_results[_counter]
+		_passing_message = apply_color(10, f"TEST-CASE PASSED") if _compare_results else apply_color(9, f"TEST-CASE FAILED")
+		display_result(_next_test_data_piece, _parse_result, _passing_message)
+		print()
+		print()
+		for _ in range(2):
+			print()
+		_counter += 1
+	print()
 
 
 def user_runtime(env):
