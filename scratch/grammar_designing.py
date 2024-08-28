@@ -72,6 +72,87 @@ class Grammar:
     def __contains__(self, item):
         return isinstance(item, GrammarRule) and item in self._rules
 
+    # # NOTE: current working/updated implementation (as of 2024-07-24)
+    # def generate_states(self):
+    #     if self._item_states_cache is None:
+    #         _symbols = self.symbols()
+    #         # _item_set_pointer = 0
+    #         _closed_init_set = self.closure(self.init_item)
+    #         _item_sets = [_closed_init_set]
+    #         _item_set_queue = deque(_item_sets)
+    #         _item_set_added = True
+    #         while _item_set_queue:
+    #         # while _item_set_added:
+    #         # while _item_set_pointer < len(_item_sets):
+    #             # _item_set_added = False
+
+    #             # _next_item_set = _item_sets[_item_set_pointer]
+    #             # _item_set_pointer += 1
+    #             # if not _item_set_queue:
+    #             #     break
+
+    #             _next_item_set = _item_set_queue.popleft()
+
+    #             # _possible_item_trans = set()
+    #             # for item in _next_item_set:
+    #             #     _item = item.copy(deepcopy=True)
+    #             #     _next_symbol = _item.next_symbol(default=None)
+    #             #     _possible_item_trans.add(_next_symbol)
+    #             #     _item.advance()
+
+    #             # for i in _possible_item_trans:
+    #             #     print(i)
+    #             # print()
+
+    #             _possible_trans = {}
+    #             for item in _next_item_set:
+    #                 _item = item.copy(deepcopy=True)
+    #                 _next_symbol = _item.next_symbol(default=None)
+    #                 if _next_symbol is None:
+    #                     continue
+    #                 if _next_symbol not in _possible_trans:
+    #                     _possible_trans[_next_symbol] = []
+    #                 _item.advance()
+    #                 _possible_trans[_next_symbol].append(_item)
+
+
+    #             # for i in _possible_trans.values():
+    #             #     if i not in _item_sets:
+    #             #         _item_sets.append(i)
+    #             #         _item_set_added = True
+
+    #             # print(f"POSSIBLE SYMBOL TRANSITIONS:")
+    #             # for i in _possible_trans:
+    #             #     print(i)
+    #             # print()
+    #             for _item_set_ in _possible_trans.values():
+    #                 _temp_lst = []
+    #                 for _rule in _item_set_:
+    #                     _temp_lst.append(_rule)
+    #                     if _rule.next_symbol(default=None) in self.non_terminals():
+    #                         for _closed_item in self.closure(_rule.copy(deepcopy=True)):
+    #                             if _closed_item not in _temp_lst:
+    #                                 _temp_lst.append(_closed_item)
+
+    #                 if _temp_lst not in _item_sets:
+    #                     _item_set_queue.append(_temp_lst)
+
+    #             if _next_item_set not in _item_sets:
+    #                 # for i in range(len(_next_item_set)):
+    #                 #     _next_item = _next_item_set[i]
+    #                 #     if _next_item.next_symbol() in self.non_terminals():
+    #                 #         for _closed_i in self.closure(_next_item):
+    #                 #             _next_item_set.append(_closed_i)
+    #                 _item_sets.append(_next_item_set)
+
+
+
+    #         _retval = {idx: i for idx, i in enumerate(_item_sets)}
+    #         self._item_states_cache = _retval
+    #     else:
+    #         _retval = self._item_states_cache
+    #     return _retval
+
     # NOTE: current working/updated implementation (as of 2024-07-24)
     def generate_states(self):
         if self._item_states_cache is None:
@@ -80,78 +161,32 @@ class Grammar:
             _closed_init_set = self.closure(self.init_item)
             _item_sets = [_closed_init_set]
             _item_set_queue = deque(_item_sets)
-            _item_set_added = True
             while _item_set_queue:
-            # while _item_set_added:
-            # while _item_set_pointer < len(_item_sets):
-                # _item_set_added = False
-
-                # _next_item_set = _item_sets[_item_set_pointer]
-                # _item_set_pointer += 1
-                # if not _item_set_queue:
-                #     break
 
                 _next_item_set = _item_set_queue.popleft()
 
-                # _possible_item_trans = set()
-                # for item in _next_item_set:
-                #     _item = item.copy(deepcopy=True)
-                #     _next_symbol = _item.next_symbol(default=None)
-                #     _possible_item_trans.add(_next_symbol)
-                #     _item.advance()
-
-                # for i in _possible_item_trans:
-                #     print(i)
-                # print()
-
-                _possible_trans = {}
-                for item in _next_item_set:
-                    _item = item.copy(deepcopy=True)
-                    _next_symbol = _item.next_symbol(default=None)
-                    if _next_symbol is None:
-                        continue
-                    if _next_symbol not in _possible_trans:
-                        _possible_trans[_next_symbol] = []
-                    _item.advance()
-                    _possible_trans[_next_symbol].append(_item)
-
-
-                # for i in _possible_trans.values():
-                #     if i not in _item_sets:
-                #         _item_sets.append(i)
-                #         _item_set_added = True
-
-                # print(f"POSSIBLE SYMBOL TRANSITIONS:")
-                # for i in _possible_trans:
-                #     print(i)
-                # print()
-                for _item_set_ in _possible_trans.values():
-                    _temp_lst = []
-                    for _rule in _item_set_:
-                        _temp_lst.append(_rule)
-                        if _rule.next_symbol(default=None) in self.non_terminals():
-                            for _closed_item in self.closure(_rule.copy(deepcopy=True)):
-                                if _closed_item not in _temp_lst:
-                                    _temp_lst.append(_closed_item)
-
-                    if _temp_lst not in _item_sets:
-                        _item_set_queue.append(_temp_lst)
-
-                if _next_item_set not in _item_sets:
-                    # for i in range(len(_next_item_set)):
-                    #     _next_item = _next_item_set[i]
-                    #     if _next_item.next_symbol() in self.non_terminals():
-                    #         for _closed_i in self.closure(_next_item):
-                    #             _next_item_set.append(_closed_i)
-                    _item_sets.append(_next_item_set)
-
-
+                for sym in self.symbols():
+                    _next_state = self.find_goto(_next_item_set, sym)
+                    if _next_state and _next_state not in _item_sets:
+                        _item_sets.append(_next_state)
+                        _item_set_queue.append(_next_state)
 
             _retval = {idx: i for idx, i in enumerate(_item_sets)}
             self._item_states_cache = _retval
         else:
             _retval = self._item_states_cache
         return _retval
+
+    def find_goto(self, item_set, symbol):
+        _new_items = []
+        for item in item_set:
+            if not item.can_reduce and item.next_symbol() ==symbol:
+                _item_copy = item.copy()
+                _item_copy.advance()
+                for _item_ in self.closure(_item_copy):
+                    if _item_ not in _new_items:
+                        _new_items.append(_item_)
+        return _new_items
 
     def closure(self, rule):
         _non_terminals = self.non_terminals()
@@ -301,6 +336,8 @@ class Grammar:
 
 
 if __name__ == "__main__":
+    from .scratch_init_grammar import init_grammar_4
+
     _rule_lst = [
         GrammarRule("$", ("E",), rule_id="INIT_RULE"),
         GrammarRule("E", ("E", "*", "B"), rule_id="E_rule_1"),
@@ -310,7 +347,8 @@ if __name__ == "__main__":
         GrammarRule("B", ("1",), rule_id="B_rule_2")
     ]
 
-    _test_grammar = Grammar.from_rules(_rule_lst, grammar_id="[ • -- TEST_GRAMMR -- • ]")
+    _test_grammar = Grammar(grammar_id="[ • -- TEST_GRAMMR -- • ]")
+    init_grammar_4(_test_grammar)
 
     # _test_grammar = Grammar(grammar_id="[ • -- TEST_GRAMMR -- • ]")
     
