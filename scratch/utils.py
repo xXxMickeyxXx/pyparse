@@ -51,13 +51,13 @@ def display_ANSI_colors():
         print(f"{i} ---> {apply_color(i, 'COLOR')}")
 
 
-def display_result(input, parser_result, passing_msg):
+def display_result(input, parser_result, passing_msg=None):
     if parser_result:
         _color = 10
         _text = underline_text(bold_text(apply_color(_color, f"INPUT IS VALID")))
         _text += f"\n    |"
         _text += f"\n    |"
-        _text += f"\n    • ----> {bold_text(apply_color(11, input))}\n\n{bold_text(passing_msg)}\n"
+        _text += f"\n    • ----> {bold_text(apply_color(11, input))}\n\n{bold_text(passing_msg)}\n" if isinstance(passing_msg, str) else f"\n    • ----> {bold_text(apply_color(11, input))}\n"
         _border_text = f"-" * int(len(_text)/2)
         _result = bold_text(apply_color(_color, _text))
     else:
@@ -65,7 +65,7 @@ def display_result(input, parser_result, passing_msg):
         _text = underline_text(bold_text(apply_color(_color, f"INPUT IS INVALID")))
         _text += f"\n    |"
         _text += f"\n    |"
-        _text += f"\n    • ----> {bold_text(apply_color(11, input))}\n\n{bold_text(passing_msg)}\n"
+        _text += f"\n    • ----> {bold_text(apply_color(11, input))}\n\n{bold_text(passing_msg)}\n" if isinstance(passing_msg, str) else f"\n    • ----> {bold_text(apply_color(11, input))}\n"
         _border_text = f"-" * int(len(_text)/2)
         _result = _text
     print(apply_color(10, _border_text))

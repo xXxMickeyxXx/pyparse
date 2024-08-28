@@ -370,60 +370,7 @@ class CoreParser2:
 		return PySynchronyEvent(event_id, **data)
 
 	# # TODO: interface should include this as an 'abstractmethod' 
-	# def parse(self, parse_context):
-	# 	# NOTE: passing 'None' argument to the 'event_id' until a consistent one is specified for this implementation/system
-
-	# 	_parse_context = parse_context
-	# 	parse_context.append_state(self.init_state)
-
-	# 	_action_search = None
-	# 	_previous_action = None
-	# 	_action = None
-	# 	_previous_symbol = None
-	# 	_current_symbol = parse_context.current_symbol()
-	# 	_current_state = parse_context.state
-	# 	while not parse_context.done_parsing:
-	# 		_current_symbol = parse_context.current_symbol()
-	# 		_current_state = parse_context.state            
-
-	# 		_action_search = self.parse_table.action(_current_state, _current_symbol, default=(ParserActionType.ERROR, None, None))
-	# 		_action = _action_search[0]
-	# 		print()
-	# 		print(f"STATE STACK: {parse_context.stack}")
-	# 		print(f"SYMBOL STACK: {parse_context.symbol_stack}")
-	# 		print(f"CURRENT STATE: {_current_state}")
-	# 		print(f"CURRENT SYMBOL: {_current_symbol}")
-	# 		print(f"PREVIOUS SYMBOL: {_previous_symbol}")
-	# 		print(f"ACTION SEARCH: {_action_search}")
-	# 		print(f"ACTION: {_action}")
-	# 		if _action == ParserActionType.SHIFT:
-	# 			_next_state_ = _action_search[1]
-	# 			_item = _action_search[2]
-	# 			parse_context.append_state(_next_state_)
-	# 			_previous_symbol = _current_symbol
-	# 			parse_context.append_symbol(_current_symbol)
-	# 			parse_context.advance()
-	# 			print(f"STATE AFTER SHIFT: {parse_context.state}")
-	# 		elif _action == ParserActionType.REDUCE:
-	# 			_item = _action_search[1]
-	# 			for _ in range(_item.rule_size):
-	# 				_popped_state = parse_context.pop_state()
-	# 				_popped_symbol = parse_context.pop_symbol()
-	# 			_goto_state = self.parse_table.goto(parse_context.state, _item.rule_head)
-	# 			_next_state = _goto_state[0]
-	# 			parse_context.append_state(_next_state)
-	# 			parse_context.append_symbol(_item.rule_head)
-	# 			print(f"ON GOTO IN REDUCE ({parse_context.state}, {_item.rule_head}): {_goto_state}")
-	# 		elif _action == ParserActionType.ERROR:
-	# 			parse_context.set_result(False)
-	# 		elif _action == ParserActionType.ACCEPT:
-	# 			parse_context.set_result(True)
-	# 	return _parse_context
-
-	# # TODO: interface should include this as an 'abstractmethod' 
 	def parse(self, parse_context):
-		# NOTE: passing 'None' argument to the 'event_id' until a consistent one is specified for this implementation/system
-
 		self.init_parse_context(parse_context)
 
 		# NOTE: remove below (up unti' series of consecutive '#'s) code as it's for coloring terminal debug output
@@ -469,19 +416,30 @@ class CoreParser2:
 				print()
 				print()
 
+			_parse_stack = parse_context.stack
+			_parse_sym_stack = parse_context.symbol_stack
+
 			if _action == ParserActionType.SHIFT:
 				parse_context.append_state(_current_action[1])
 				parse_context.append_symbol(_current_symbol)
 				parse_context.advance()
 			elif _action == ParserActionType.REDUCE:
 				_reduce_item = _current_action[1]
+				if self.debug_mode:
+					print(f"IN REDUCE ACTION:")
 				for _ in range(_reduce_item.rule_size):
 					_popped_state = parse_context.pop_state()
 					_popped_symbol = parse_context.pop_symbol()
+					if self.debug_mode:
+						print(f"POPPED STATE: {_popped_state}")
+						print(f"POPPED SYMBOL: {_popped_symbol}")
 				_goto_state = self.parse_table.goto(parse_context.state(), _reduce_item.rule_head)
 				_next_state = _goto_state[0]
 				parse_context.append_state(_next_state)
 				parse_context.append_symbol(_reduce_item.rule_head)
+				if self.debug_mode:
+					print(f"UPDATED PARSE CONTEXT STATE TO ---> {_next_state}")
+					print(f"UPDATED SYMBOL STACK WITH SYMBOL ---> {_reduce_item.rule_head}")
 			elif _action == ParserActionType.ERROR:
 				parse_context.set_result(False)
 			elif _action == ParserActionType.ACCEPT:
@@ -636,18 +594,18 @@ class ParserContext(PySynchronyScheduler):
 
 class ParseContext:
 
-	def __init__(self, input=None, start_symbol="$", end_symbol="$"):
-		self._input = input
-		self._input_len = len(input)
-		self._runtime_input = None
+	def __init__(self, input=None, end_symbol="$"):
+		self._input = None
+		self._input_len = 0
 		self._end_symbol = end_symbol
-		self._start_symbol = start_symbol
 		self._result = None
 		self._result_set = False
 		self._pointer = 0
 		self._state = None
 		self._stack = None
 		self._symbol_stack = None
+		if input is not None:
+			self.set_input(input)
 
 	@property
 	def input(self):
@@ -681,20 +639,15 @@ class ParseContext:
 		return self._result_set and self._result is not None
 
 	@property
-	def runtime_input(self):
-		if self._runtime_input is None:
-			self.reset()
-			self._runtime_input = self._start_symbol + self._input + self.end_symbol
-			self._runtime_input_len = len(self._runtime_input)
-		return self._runtime_input
+	def end_symbol(self):
+		return self._end_symbol
 
 	def state(self):
-		return self.stack[-1] if self.stack else None
+		return self._state
 
 	def reset(self):
 		self._input = ""
-		self._input_len = len(self._input)
-		self._runtime_input = None
+		self._input_len = 0
 		self._result = None
 		self._result_set = False
 		self._pointer = 0
@@ -734,11 +687,12 @@ class ParseContext:
 	def set_input(self, input):
 		if not bool(self._input):
 			self._input = input
+			self._input_len = len(self._input)
 
 	def current_symbol(self):
 		if self._pointer < self._input_len:
 			return self.input[self._pointer]
-		return self._end_symbol
+		return self.end_symbol
 
 	def advance(self):
 		if not self.can_advance:
@@ -795,25 +749,15 @@ class AutomaticGrammar4TableBuilder:
 
 class ManualGrammar4TableBuilder:
 
-	__slots__ = ("_grammar", "_item_states", "_start_symbol", "_end_symbol")
+	__slots__ = ("_grammar", "_item_states")
 
-	def __init__(self, grammar, start_symbol="$", end_symbol="$"):
+	def __init__(self, grammar):
 		self._grammar = grammar
 		self._item_states = grammar.generate_states() if grammar is not None else None
-		self._start_symbol = start_symbol
-		self._end_symbol = end_symbol
 
 	@property
 	def grammar(self):
 		return self._grammar
-
-	@property
-	def start_symbol(self):
-		return self._start_symbol
-
-	@property
-	def end_symbol(self):
-		return self._end_symbol
 
 	@property
 	def item_states(self):
@@ -835,9 +779,11 @@ class ManualGrammar4TableBuilder:
 		E_is_B_copy_1 = E_is_B.copy()
 		table.add_action(0, "0", (ParserActionType.SHIFT, 3))
 		table.add_action(0, "1", (ParserActionType.SHIFT, 4))
+		table.add_action(0, "E", (ParserActionType.SHIFT, 1))
+		table.add_action(0, "B", (ParserActionType.SHIFT, 2))
 		table.add_action(0, "*", (ParserActionType.ERROR, None))
 		table.add_action(0, "+", (ParserActionType.ERROR, None))
-		table.add_action(0, "$", (ParserActionType.ERROR, None))		
+		table.add_action(0, "$", (ParserActionType.ERROR, None))	
 		table.add_goto(0, "E", (1, E_times_B_copy_1.advance_by(1)))
 		table.add_goto(0, "E", (1, E_plus_B_copy_1.advance_by(1)))
 		table.add_goto(0, "B", (2, E_is_B_copy_1.advance_by(1)))
@@ -846,6 +792,8 @@ class ManualGrammar4TableBuilder:
 		INIT_RULE_copy = INIT_RULE.copy()
 		table.add_action(1, "*", (ParserActionType.SHIFT, 5))
 		table.add_action(1, "+", (ParserActionType.SHIFT, 6))
+		table.add_action(1, "E", (ParserActionType.ERROR, None))
+		table.add_action(1, "B", (ParserActionType.ERROR, None))
 		table.add_action(1, "$", (ParserActionType.ACCEPT, INIT_RULE_copy.advance_by(1)))
 		table.add_action(1, "0", (ParserActionType.ERROR, None))
 		table.add_action(1, "1", (ParserActionType.ERROR, None))

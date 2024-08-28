@@ -26,11 +26,12 @@ def parse_main():
 	# Initialize runtime for shell and logging
 	_logging_setup_callbacks = initialize_shell()
 
+	DEBUG_MODE = cmd_argument("debug_mode", parser=DEFAULT_CMD_LINE_PARSER)
 	ENCODING = "UTF-8"
-	USE_LOGGING = cmd_argument("log", parser=DEFAULT_CMD_LINE_PARSER)
+	USE_LOGGING = cmd_argument("log", parser=DEFAULT_CMD_LINE_PARSER) or DEBUG_MODE
 	LOGGING_DIR = cmd_argument("logging_dir", parser=DEFAULT_CMD_LINE_PARSER)
 	LOG_FILENAME = cmd_argument("log_filename", parser=DEFAULT_CMD_LINE_PARSER)
-	LOGGING_LEVEL = cmd_argument("logging_level", parser=DEFAULT_CMD_LINE_PARSER)
+	LOGGING_LEVEL = "DEBUG" if DEBUG_MODE else cmd_argument("logging_level", parser=DEFAULT_CMD_LINE_PARSER)
 
 	init_logging(
 		use_logging=USE_LOGGING,
@@ -79,7 +80,9 @@ def parse_main():
 
 	# Instantiate parser back-end (actual parsing implementation)
 	PARSER_ID = "[ • -- TEST SHIFT/REDUCE PARSER (LR(0)) -- • ]"
-	_parser_impl = CoreParser2(init_state=0, grammar=GRAMMAR, parse_table=_parse_table, parser_id=PARSER_ID)
+	if DEBUG_MODE:
+		print(f"PARSER IN DEBUG MODE")
+	_parser_impl = CoreParser2(init_state=0, grammar=GRAMMAR, parse_table=_parse_table, parser_id=PARSER_ID, debug_mode=DEBUG_MODE)
 
 
 	_runtime_logger.submit_log(
@@ -150,7 +153,8 @@ def parse_main():
 
 	def single_parse_runner(string="0+1*1*0*0+1+1+1+1+1+1+1+1+1+1+1", env=None):
 		_env = env if env is not None else _test_grammar_4_env
-		_parse_context = ParseContext(input=string)
+		_parse_context = ParseContext()
+		_parse_context.set_input(string)
 		_package_parse_result = _test_grammar_4_env.parse(_parse_context).result()
 		display_result(string, _package_parse_result)
 

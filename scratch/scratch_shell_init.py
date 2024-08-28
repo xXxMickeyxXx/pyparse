@@ -82,12 +82,29 @@ def _set_use_logging(callback_list):
     callback_list.append(_logging_callback)
 
 
+def _set_use_debugger(callback_list):
+    DEFAULT_PARSER.register_argument(
+        "-debug_mode",
+        action="store_true",
+        default=False,
+        help="When this flag is included, debug statements and actions will run application-wide, i.e. if this flag is **NOT** included, then that means application will **NOT** perform associated application-wide debug statements and actions"
+    )
+    _logging_callback = lambda: _shell_init_logger.submit_log(
+        message=f"Flag which, when included, will enable application-wide debugging",
+        default=False,
+        help=f"Include this flag to enable application-wide debugging",
+        logger_id=f"{_shell_init_logger.logger_id}"
+    )
+    callback_list.append(_logging_callback)
+
+
 def initialize_shell():
     _callback_list = []
     _set_use_logging(_callback_list)
     _set_logging_dir(_callback_list)
     _set_logging_filename(_callback_list)
     _set_logging_level(_callback_list)
+    _set_use_debugger(_callback_list)
     return _callback_list
 
 

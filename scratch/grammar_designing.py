@@ -342,26 +342,26 @@ if __name__ == "__main__":
     # # B_rule_2.bind_action(0, "1", (ParserActionType.SHIFT, 2))
 
 
-    # _states = _test_grammar.generate_states()
+    _states = _test_grammar.generate_states()
 
 
-    # _state_color_id = 170
-    # _color_id = 208
-    # print(f"ITEM STATES:\n")
-    # for idx, i in enumerate(_states.values()):
-    #     _state_color_id ^= 8
-    #     print(apply_color(_state_color_id, f"\tSTATE: {idx}"))
-    #     for _item in i:
-    #         _color_id ^= 12
-    #         print(apply_color(_color_id, f"\t\t\t{repr(_item)}\n"))
-    #         print(apply_color(_color_id, f"\t\t\t\tSTATUS: {_item.status()}"))
-    #         print()
-    #         print()
-    #     print()
-    # print()
-    # print()
-    # print(apply_color(10, f"There are {len(_states)} unique item sets/states!"))
-    # print()
+    _state_color_id = 170
+    _color_id = 208
+    print(f"ITEM STATES:\n")
+    for idx, i in enumerate(_states.values()):
+        _state_color_id ^= 8
+        print(apply_color(_state_color_id, f"\tSTATE: {idx}"))
+        for _item in i:
+            _color_id ^= 12
+            print(apply_color(_color_id, f"\t\t\t{repr(_item)}\n"))
+            print(apply_color(_color_id, f"\t\t\t\tSTATUS: {_item.status()}"))
+            print()
+            print()
+        print()
+    print()
+    print()
+    print(apply_color(10, f"There are {len(_states)} unique item sets/states!"))
+    print()
 
     # init_rule = _test_grammar.filter(RuleByID("INIT_RULE"))
     # init_rule = init_rule[0] if init_rule else None
@@ -407,24 +407,24 @@ if __name__ == "__main__":
     #     print(i)
     # print()
 
-    _sel_1 = _test_grammar.select(RuleIDSelector("E_rule_1"))
-    _sel_2 = _test_grammar.select(RuleIDSelector("E_rule_2"))
-    _sel_3 = _test_grammar.select(RuleIDSelector("E_rule_3"))
-    _sel_4 = _test_grammar.select(RuleIDSelector("B_rule_1"))
-    _sel_5 = _test_grammar.select(RuleIDSelector("B_rule_2"))
-    _sel_6 = _test_grammar.select(RuleIDSelector("INIT_RULE"))
+    # _sel_1 = _test_grammar.select(RuleIDSelector("E_rule_1"))
+    # _sel_2 = _test_grammar.select(RuleIDSelector("E_rule_2"))
+    # _sel_3 = _test_grammar.select(RuleIDSelector("E_rule_3"))
+    # _sel_4 = _test_grammar.select(RuleIDSelector("B_rule_1"))
+    # _sel_5 = _test_grammar.select(RuleIDSelector("B_rule_2"))
+    # _sel_6 = _test_grammar.select(RuleIDSelector("INIT_RULE"))
 
-    _test_list = [_sel_1, _sel_2, _sel_3, _sel_4, _sel_5, _sel_6]
+    # _test_list = [_sel_1, _sel_2, _sel_3, _sel_4, _sel_5, _sel_6]
 
-    print(f"SEARCHING THROUGH GRAMMAR RULE/ITEM SELECTIONS")
-    print()
-    for i in _test_list:
-        print(f"SELECTION:")
-        _item = None
-        if i:
-            _item = i[0]
-            print(f"RULE/ITEM ID: {_item.rule_id}")
-        print()
+    # print(f"SEARCHING THROUGH GRAMMAR RULE/ITEM SELECTIONS")
+    # print()
+    # for i in _test_list:
+    #     print(f"SELECTION:")
+    #     _item = None
+    #     if i:
+    #         _item = i[0]
+    #         print(f"RULE/ITEM ID: {_item.rule_id}")
+    #     print()
             
 
     # def find_item(filter, grammar):
