@@ -9,17 +9,29 @@ class Handler(ABC):
         self._handler_id = handler_id
         self._input = None
         self._input_set = False
+        self._chain = None
 
     @property
     def handler_id(self):
         return self._handler_id
 
+    @property
+    def chain(self):
+        if self._chain is None:
+            _error_details = f"unable to access 'chain' property as one has not yet been set for this insnace of '{self.__class__.__name__}' (ID: {self.handler_id})..."
+            raise AttributeError(_error_details)
+        return self._chain
+
+    @property
     def input(self):
         if not self._input_set:
             # TODO: create and raise custom error here
             _error_details = f"unable to access 'input' as it does not yet exists within instance of '{self.__class__.__name__}'; via the 'set_input' method, please set input before making another attempt to retrieve field (NOTE: 'inpu't field and it's lifecycle are automatically managed when passing as an argument to instance's 'handle' method)"
             raise AttributeError(_error_details)
         return self._input
+
+    def set_chain(self, chain):
+        self._chain = chain
 
     def set_input(self, input):
         self._input = input
@@ -30,7 +42,7 @@ class Handler(ABC):
         self._input_set = False
 
     @abstractmethod
-    def handle(self, chain):
+    def handle(self, input):
         raise NotImplementedError
 
 
@@ -77,8 +89,8 @@ class Chain:
         self._continue = True
         for _handler_id, handler in self._handlers.items():
             print(f"HANDLER ID: {handler.handler_id} IN chain's 'handle' method")
-            handler.set_input(input)
-            _retval[_handler_id] = handler.handle(self)
+            handler.set_chain(self)
+            _retval[_handler_id] = handler.handle(input)
             handler.reset()
             if not self._continue:
                 break

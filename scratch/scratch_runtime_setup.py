@@ -3,6 +3,7 @@ import inspect
 from collections import deque, defaultdict
 from pathlib import Path
 import time
+from enum import IntEnum, StrEnum, auto
 
 from pylog import PyLogger, LogType
 from pysynchrony import (
@@ -17,7 +18,7 @@ from pysynchrony import (
 	PySynchronyPortError
 )
 
-from pyparse import Parser, Tokenizer
+from pyparse import Parser, Tokenizer, LexHandler
 from .scratch_parse_table import ParseTable
 from .scratch_parse_env import ParserEnvironment
 from .scratch_init_grammar import (
@@ -38,6 +39,7 @@ from .scratch_grammar_rules_filter import (
 	RuleHeadSelector,
 	RuleBodySelector
 )
+from .scratch_handlers import Chain, Handler
 from .scratch_parser_action import countdown, sleeper, close_at_finish
 from .source_descriptor import SourceFile
 from .scratch_package_paths import (
@@ -87,6 +89,76 @@ TEST_PARSING_TEXT = apply_color(200, """
 #                                                                                                                        #
 ##########################################################################################################################
 """)
+
+
+class TestGrammar4TokenType(StrEnum):
+
+	NUMBER = "NUMBER"
+	PLUS_OPERATOR = "PLUS_OPERATOR"
+	MULT_OPERATOR = "MULT_OPERATOR"
+	WS = "WS"
+	LEFT_PAREN = "LEFT_PAREN"
+	RIGHT_PAREN = "RIGHT_PAREN"
+
+
+
+class TestGrammar4TokenizeHandler(LexHandler):
+
+	def __init__(self, tokenizer=None):
+		super().__init__(tokenizer=tokenizer)
+		self._symbol_mapping = {
+			v: k for k, v in enumerate(["0", "1", "2",
+										"3", "4", "5",
+										"6", "7", "8",
+										"9", "+", "*",
+										"(", ")", " "])
+		}
+		self._token_type_idx_mapper = [
+			TestGrammar4TokenType.NUMBER,
+			TestGrammar4TokenType.NUMBER,
+			TestGrammar4TokenType.NUMBER,
+			TestGrammar4TokenType.NUMBER,
+			TestGrammar4TokenType.NUMBER,
+			TestGrammar4TokenType.NUMBER,
+			TestGrammar4TokenType.NUMBER,
+			TestGrammar4TokenType.NUMBER,
+			TestGrammar4TokenType.NUMBER,
+			TestGrammar4TokenType.NUMBER,
+			TestGrammar4TokenType.PLUS_OPERATOR,
+			TestGrammar4TokenType.MULT_OPERATOR,
+			TestGrammar4TokenType.LEFT_PAREN,
+			TestGrammar4TokenType.RIGHT_PAREN,
+			TestGrammar4TokenType.WS
+		]
+
+	def handle(self):
+		while self.tokenizer.can_consume:
+			_current_char = self.tokenizer.current_char
+			_token = None
+
+			if _current_char == " ":
+				self.tokenizer.advance()
+				continue
+
+			_token_idx = self._symbol_mapping.get(_current_char, None)
+			if _token_idx is None:
+				_error_details = f"symbol: '{_current_char}' does not exists within this handler's symbol mapping ('_symbol_mapping') property; please verify symbol mapping and try again..."
+				raise RuntimeError(_error_details)
+			_token_type = self._token_type_idx_mapper[_token_idx]
+			if _token_type == TestGrammar4TokenType.NUMBER:
+				_token_val = self.tokenizer.cond_consume(lambda curr_char, lexeme, tkzr: not curr_char.isdigit())
+			else:
+				_token_val = _current_char
+
+			_token = (_token_type, _token_val)
+
+			if _token is not None:
+				self.tokenizer.add_token(_token)
+			self.tokenizer.advance()
+
+
+class TestGrammar4Tokenizer(Tokenizer):
+	pass
 
 
 class TestGrammar6Tokenizer(Tokenizer):
@@ -932,7 +1004,6 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 		if not self._initialized:
 			self._parser_context.setup()
 			self._init_grammar_4(self.grammar)
-			# self._init_grammar_6(self.grammar)
 			self._init_test_data_(self, TEST_INPUT_1)
 			# self._init_mainloop_(self._parser_context)
 			self._init_test_task_(self._parser_context)
@@ -1027,19 +1098,12 @@ def parse_and_display(evn, test_data, actual_results, count=-1):
 	_counter = 0
 	while _test_data_queue and (_counter < count if (isinstance(count, int) and count > 0) else True):
 		_next_test_data_piece = _test_data_queue.popleft()
-		# _text = underline_text(bold_text(apply_color(11, f"NEXT TEST DATA PIECE"))) + bold_text(" ---> ") + underline_text(bold_text(apply_color(11, f"{_next_test_data_piece}"))) + "\n"
-		# _text = bold_text(apply_color(11, f"{_next_test_data_piece}")) + "\n"
-		# print(_text)
-		# print()
 		_parse_context = ParseContext(input=_next_test_data_piece)
 		_parse_result = evn.parse(_parse_context).result()
 		_compare_results = _parse_result == actual_results[_counter]
 		_passing_message = apply_color(10, f"TEST-CASE PASSED") if _compare_results else apply_color(9, f"TEST-CASE FAILED")
 		display_result(_next_test_data_piece, _parse_result, _passing_message)
 		print()
-		print()
-		for _ in range(2):
-			print()
 		_counter += 1
 	print()
 

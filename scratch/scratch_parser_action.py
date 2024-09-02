@@ -23,9 +23,9 @@ def countdown(length=5, rate=1, step=1):
 	for i in range(1, length+1)[::-1]:
 		_time_unit = "SECOND...." if i == 1 else "SECONDS..."
 		print(f"{i} {_time_unit}")
-		yield Sleep(rate)
+		yield pysynchrony.Sleep(rate)
 	print(f"EXITING PROGRAM...")
-	_new_task = yield CreateTask(lambda name: print(f"HELLO {name}!!!"), "MICKEY MOUSE")
+	_new_task = yield pysynchrony.CreateTask(lambda name: print(f"HELLO {name}!!!"), "MICKEY MOUSE")
 	yield pysynchrony.AwaitTask(_new_task)
 	yield pysynchrony.EmitEvent(PyParseEventID.ON_QUIT)
 	return 10

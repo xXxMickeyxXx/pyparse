@@ -29,6 +29,7 @@ class BFSNodeTreeTraveler(NodeTraveler):
 			if _next_node.is_leaf:
 				continue
 			_queue.extend(_next_node.branches())
+		return
 
 
 class DFSNodeTreeTraveler(NodeTraveler):
@@ -47,11 +48,10 @@ class DFSNodeTreeTraveler(NodeTraveler):
 
 class Node(ABC):
 
-	def __init__(self, node_id, is_leaf=False):
+	def __init__(self, node_id):
 		self._node_id = node_id
 		self._root_node = None
 		self._branches = []
-		self._is_leaf = is_leaf
 
 	@property
 	def node_id(self):
@@ -59,12 +59,14 @@ class Node(ABC):
 
 	@property
 	def is_leaf(self):
-		return self._is_leaf
+		return True if not self._branches and self.root is not None else False
 
 	@property
 	def is_root(self):
-		if self.is_leaf:
-			return False
+		return True if self.root is None else False
+
+	@property
+	def has_root(self):
 		return True if (self._root_node is None or not bool(self._root_node)) else False
 
 	@property
@@ -82,7 +84,7 @@ class Node(ABC):
 		return self.__repr__()
 
 	def __repr__(self):
-		return f"{self.__class__.__name__}(node_id={self.node_id}, is_leaf={self.is_leaf})"
+		return f"{self.__class__.__name__}(node_id={self.node_id})"
 
 	def branches(self):
 		if self._branches:
@@ -97,9 +99,6 @@ class Node(ABC):
 		self._root_node = root_node
 
 	def add(self, node):
-		if self.is_leaf:
-			_error_details = f"unable to perform any branch related operations as node ID: {self.node_id} has been designated as a leaf node..."
-			raise TypeError(_error_details)
 		if node.root is not None:
 			# TODO: create and raise custom error here
 			_error_details = f"unable to add node to branch as node already belongs to a different root (node ID: {node.root.node_id})..."
@@ -175,8 +174,8 @@ if __name__ == "__main__":
 
 	class DataNode(Node):
 
-		def __init__(self, data=None, node_id=generate_id(), is_leaf=False):
-			super().__init__(node_id, is_leaf=is_leaf)
+		def __init__(self, data=None, node_id=generate_id()):
+			super().__init__(node_id)
 			self._data = data
 			self._data_set = self._data is not None or bool(self._data)
 
@@ -211,12 +210,12 @@ if __name__ == "__main__":
 	_non_leaf_node_2 = DataNode(data="Theo", node_id=f"[{'non_leaf_node_2'.upper()}]")
 	_non_leaf_node_3 = DataNode(data="Penny", node_id=f"[{'non_leaf_node_3'.upper()}]")
 
-	_leaf_node_1 = DataNode(data="Mickey", node_id=f"[{'leaf_node_1'.upper()}]", is_leaf=True)
-	_leaf_node_2 = DataNode(data="Sarah", node_id=f"[{'leaf_node_2'.upper()}]", is_leaf=True)
-	_leaf_node_3 = DataNode(data="Katie", node_id=f"[{'leaf_node_3'.upper()}]", is_leaf=True)
-	_leaf_node_4 = DataNode(data="Sam", node_id=f"[{'leaf_node_4'.upper()}]", is_leaf=True)
-	_leaf_node_5 = DataNode(data="Dad", node_id=f"[{'leaf_node_5'.upper()}]", is_leaf=True)
-	_leaf_node_6 = DataNode(data="Mom", node_id=f"[{'leaf_node_6'.upper()}]", is_leaf=True)
+	_leaf_node_1 = DataNode(data="Mickey", node_id=f"[{'leaf_node_1'.upper()}]")
+	_leaf_node_2 = DataNode(data="Sarah", node_id=f"[{'leaf_node_2'.upper()}]")
+	_leaf_node_3 = DataNode(data="Katie", node_id=f"[{'leaf_node_3'.upper()}]")
+	_leaf_node_4 = DataNode(data="Sam", node_id=f"[{'leaf_node_4'.upper()}]")
+	_leaf_node_5 = DataNode(data="Dad", node_id=f"[{'leaf_node_5'.upper()}]")
+	_leaf_node_6 = DataNode(data="Mom", node_id=f"[{'leaf_node_6'.upper()}]")
 	
 	_non_leaf_node_7 = DataNode(data="non_leaf_node_7", node_id=f"[{'non_leaf_node_7'.upper()}]")
 

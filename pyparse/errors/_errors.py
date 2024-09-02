@@ -15,6 +15,11 @@ class PyParseError(RootError):
 
 
 @use_docstring
+class ScannerError(PyParseError):
+	"""Token Error"""
+
+
+@use_docstring
 class TokenError(PyParseError):
 	"""Token Error"""
 

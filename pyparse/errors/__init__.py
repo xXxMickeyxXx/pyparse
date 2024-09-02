@@ -1,5 +1,6 @@
 from ._errors import (
     PyParseError,
+    ScannerError,
     TokenError,
     TimeOutError,
     TransitionError,

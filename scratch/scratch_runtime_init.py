@@ -9,7 +9,16 @@ from .scratch_package_paths import (
     LOGGING_ROOT
 )
 from .scratch_parse_table import ParseTable
-from .scratch_runtime_setup import GRAMMAR, CoreParser2, TestGrammar4ParserEnv, ParseContext, parse_and_display, user_runtime
+from .scratch_runtime_setup import (
+	GRAMMAR,
+	CoreParser2,
+	TestGrammar4ParserEnv,
+	ParseContext,
+	TestGrammar4Tokenizer,
+	TestGrammar4TokenizeHandler,
+	parse_and_display,
+	user_runtime
+)
 from .scratch_shell_init import initialize_shell
 from .scratch_logging_init import init_logging
 # from .source_descriptor import SourceFile, 
@@ -18,6 +27,39 @@ from .utils import display_result
 
 
 _runtime_logger = PyLogger.get(PyParseLoggerID.RUNTIME)
+
+
+def runner(env):
+	_PARSER_ENVIRONMENT_ID = env.env_id
+	_result_logger_msg_mapping = {
+		0: f"'pyparse' has completed it's expected runtime without issue...exiting program...",
+		1: f"'pyparse' has completed it's runtime with un-expected errors; please review and try again...exiting program..."
+	}
+
+	try:
+		env.setup()
+	except RuntimeError:
+		pass
+
+	_runtime_logger.submit_log(
+		message=f"'pyparse' environment has completed it's setup...initializing test input and parse context...",
+		env_id=f"ENVIRONMENT ID: {_PARSER_ENVIRONMENT_ID}"
+	)
+
+
+	_runtime_logger.submit_log(
+		message=f"Test input and parse context for the 'pyparse' package runtime has been initialized...entering parser's mainloop...",
+		env_id=f"ENVIRONMENT ID: {_PARSER_ENVIRONMENT_ID}"
+	)
+	_retval = env.run()
+
+	_runtime_logger.submit_log(
+		message=_result_logger_msg_mapping[_retval ^ 0],
+		env_id=f"ENVIRONMENT ID: {_PARSER_ENVIRONMENT_ID}",
+		function="runner",
+		file=str(__file__),
+		module=f"scratch_runtime_init"
+	)
 
 
 @profile_callable(sort_by=SortBy.TIME)
@@ -54,8 +96,8 @@ def parse_main():
 	)
 	# TODO: impolement tokenizer for 'init_grammar_4'
 	# Generate tokens to feed the parser
-	TOKENIZER_ID = None
-	_tokenizer = None
+	TOKENIZER_ID = 'SCRATCH_TEST_TOKENIZER'
+	_tokenizer = TestGrammar4Tokenizer(input="")
 
 
 	_runtime_logger.submit_log(
@@ -100,6 +142,7 @@ def parse_main():
 	_test_grammar_4_env.set_parser(_parser_impl)
 
 
+	_test_grammar_4_env.setup()
 	_runtime_logger.submit_log(
 		message=f"'pyparse' environment has been initialized and has set it's 'grammar', 'tokenizer', 'table', and 'parser' fields; continuing setup...",
 		env_id=f"ENVIRONMENT ID: {PARSER_ENVIRONMENT_ID}",
@@ -107,22 +150,6 @@ def parse_main():
 		tokenizer_id=TOKENIZER_ID,
 		table_id=PARSE_TABLE_ID,
 		parser_id=PARSER_ID
-	)
-
-
-	# Setup environment (as defined within the 'setup' method of the environment implementation)
-	_test_grammar_4_env.setup()
-
-
-	_runtime_logger.submit_log(
-		message=f"'pyparse' environment has completed it's setup...Initializing test input and parse context...",
-		env_id=f"ENVIRONMENT ID: {PARSER_ENVIRONMENT_ID}"
-	)
-
-
-	_runtime_logger.submit_log(
-		message=f"Test input and parse context for the 'pyparse' package runtime has been initialized; entering parser's mainloop...",
-		env_id=f"ENVIRONMENT ID: {PARSER_ENVIRONMENT_ID}"
 	)
 
 
@@ -191,7 +218,11 @@ def parse_main():
 	# Invoke one of several runtimes for scratch sub-package testing
 	# user_input_runner()
 	# single_parse_runner(string="1*0")
-	parse_and_display_runner(count=-1)
+	# parse_and_display_runner(count=-1)
+
+
+	# Invoke main 'runner' function
+	runner(_test_grammar_4_env)
 
 
 if __name__ == "__main__":
