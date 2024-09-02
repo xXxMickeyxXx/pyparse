@@ -1,56 +1,7 @@
 from pyevent import PyChannel
 
+from .scratch_evaluator import Evaluator
 from .scratch_utils import generate_id
-
-
-class Evaluator:
-
-	def __init__(self, evaluator_id=None):
-		self._evaluator_id = evaluator_id or generate_id()
-		self._handlers = {}
-		self._channel = None
-		self._environment = {}
-
-	@property
-	def evaluator_id(self):
-		return self._evaluator_id
-
-	@property
-	def channel(self):
-		if self._channel is None:
-			self._channel = PyChannel(channel_id=self.evaluator_id)
-		return self._channel
-
-	@property
-	def environment(self):
-		return self._environment
-
-	def emit(self, node):
-		def _retvals(**node_ids):
-			_node_id = node.node_id
-			_result_eval = self.channel.emit(_node_id, self)
-			return _result_eval if len(_node_id) <= 0 else {kk: vv for kk, vv in _result_eval.items() if k in node_ids}
-		return _retvals
-
-	def register(self, signal_id, receiver=None, receiver_id=None, overwrite=False):
-		_signal = self.channel.signal(signal_id=signal_id)
-		return _signal.register(receiver, receiver_id=receiver_id, overwrite=overwrite)
-
-	def remove(self, receiver_id):
-		return self.channel.remove(receiver_id)
-
-	def update(self, key, value, overwrite=False):
-		if key not in self._environment or overwrite:
-			self._environment[key] = value
-
-	def eval(self, node, **node_ids):
-		node.set_evaluator(self)
-		_filtered_retvals = self.emit(node)(**node_ids)
-		if _handler:
-			return _handler(node)
-
-	def walk(self, node):
-		return node.eval(self)
 
 
 class Node:
@@ -59,7 +10,6 @@ class Node:
 		self._node_id = node_id
 		self._root = None
 		self._evaluator = None
-		self._next = {}
 		self._branches = []
 
 	@property
@@ -146,9 +96,23 @@ class Number(Expression):
 
 class Variable(Expression):
 
-	def __init__(self, name):
+	def __init__(self, name, value=None):
 		super().__init__()
 		self.name = name
+		self._value = value
+		self._value_set = False
+
+	@property
+	def value(self):
+		return self._value
+
+	def set_value(self, value):
+		self._value = value
+		self._value_set = True
+
+	def reset(self):
+		self._value = None
+		self._value_set = False
 
 
 class Assignment(Statement):
@@ -187,19 +151,19 @@ def handle_binary_operation(node):
 	else:
 		raise ValueError(f"Unsupported operator: {node.op}")
 
-	_variable = node.evaluator.environment["x"]
-	node.variable = _variable
-
+	print(f"NODE:")
+	print(node.left)
+	print(node.right)
+	print(f"NODE ENV:")
+	_curr = node.evaluator
+	_variable = Variable(Number(_retval))
+	node.evaluator.environment["x"] = _variable
 	return _retval
 
 
 def handle_variable(node):
-	if node.name in node.evaluator.environment:
-		return node.evaluator.environment[node.name]
-	else:
-		node.evaluator.update_env(node.name, None, overwrite=True)
-		node.evaluator.walk()
-
+	_val = node.name
+	return _val
 
 def handle_assignment(node):
 	value = node.evaluator.walk(node.expression)  # Evaluate the expression to be assigned
@@ -214,11 +178,10 @@ def handle_print_statement(node):
 
 
 def handle_root(node):
-	print(f"ROOT!")
 	_evaluator = node.evaluator
 	for _node in node.branches():
-		print(f"NODE: {_node}")
 		_evaluator.eval(_node)
+	return _evaluator.environment["x"]
 
 
 def test_emitter_callback(node):
@@ -227,24 +190,29 @@ def test_emitter_callback(node):
 	print(node)
 	print(f"HEY FROM TEST EMITTER CALLBACK ON NODE:")
 	print(f"\t• {node.node_id}")
-	print(f"\t• {node.__class__.__name__}")
 	print()
 	print()
 
 
 _variable = Variable("x")
+_variable_2 = Variable("_test_1")
 _expr_1 = Number(4)
 _expr_2 = Number(102)
 _add_exp = BinOp(_expr_1, "+", _expr_2, variable=_variable)
+_mult_exp_2 = BinOp(_add_exp, "*", Number(3), variable=_variable_2)
 
 _expr_3 = Number(8)
-_mult_exp = BinOp(_add_exp, "-", _expr_3)
+_mult_exp = BinOp(_add_exp, "*", _expr_3)
+_add_exp_2 = BinOp(_mult_exp, "+", Number(7), variable=_variable_2)
 
 _print_stmt = PrintStatement(_variable)
+_print_stmt_2 = PrintStatement(_variable_2)
 
 
 _root = Root()
 _root.add(_mult_exp)
+# _root.add(_print_stmt)
+# _root.add(_print_stmt_2)
 
 
 TEST_NODE = _root
@@ -252,18 +220,18 @@ TEST_NODE_ID = _root.node_id
 TEST_RECEIVER_ID = "[TEST_RECEIVER_ID]"
 test_evaluator = Evaluator(evaluator_id="TEST_EVALUATOR")
 test_evaluator.register(TEST_NODE_ID, test_emitter_callback, receiver_id=TEST_RECEIVER_ID)
-# test_evaluator.add_handler("Root", handle_root)
-# test_evaluator.add_handler("Number", handle_number)
-# test_evaluator.add_handler("BinOp", handle_binary_operation)
-# test_evaluator.add_handler("Variable", handle_variable)
-# test_evaluator.add_handler("Assignment", handle_assignment)
-# test_evaluator.add_handler("PrintStatement", handle_print_statement)
+test_evaluator.register("Root", handle_root)
+test_evaluator.register("Number", handle_number)
+test_evaluator.register("BinOp", handle_binary_operation)
+test_evaluator.register("Variable", handle_variable)
+test_evaluator.register("Assignment", handle_assignment)
+test_evaluator.register("PrintStatement", handle_print_statement)
 
 
 def main():
 	print()
-	_emitter = test_evaluator.eval(TEST_NODE)
-	print(_emitter())
+	retval = test_evaluator.eval(TEST_NODE)
+	print(retval)
 	print()
 
 

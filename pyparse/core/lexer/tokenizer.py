@@ -362,7 +362,10 @@ if __name__ == "__main__":
 
 		NUMBER = "NUMBER"
 		PLUS_OPERATOR = "PLUS_OPERATOR"
+		SUB_OPERATOR = "SUB_OPERATOR"
 		MULT_OPERATOR = "MULT_OPERATOR"
+		DIV_OPERATOR = "DIV_OPERATOR"
+		FLOOR_DIV_OPERATOR = "FLOOR_DIV_OPERATOR"
 		WS = "WS"
 		LEFT_PAREN = "LEFT_PAREN"
 		RIGHT_PAREN = "RIGHT_PAREN"
@@ -392,7 +395,7 @@ if __name__ == "__main__":
 
 		def __init__(self, tokenizer=None):
 			super().__init__(tokenizer=tokenizer)
-			self._symbol_mapping = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "*", "(", ")", " "]
+			self._symbol_mapping = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "*", "-", "/", "//", "(", ")", " "]
 			self._token_type_idx_mapper = [
 				TestGrammar4TokenType.NUMBER,
 				TestGrammar4TokenType.NUMBER,
@@ -406,6 +409,9 @@ if __name__ == "__main__":
 				TestGrammar4TokenType.NUMBER,
 				TestGrammar4TokenType.PLUS_OPERATOR,
 				TestGrammar4TokenType.MULT_OPERATOR,
+				TestGrammar4TokenType.SUB_OPERATOR,
+				TestGrammar4TokenType.DIV_OPERATOR,
+				TestGrammar4TokenType.FLOOR_DIV_OPERATOR,
 				TestGrammar4TokenType.LEFT_PAREN,
 				TestGrammar4TokenType.RIGHT_PAREN,
 				TestGrammar4TokenType.WS
@@ -422,16 +428,30 @@ if __name__ == "__main__":
 			while self.tokenizer.can_consume:
 				_current_char = self.tokenizer.current_char
 				_token_type, _token_val = (None, None)
+				_token_idx = _symbol_mapping_index_a(_current_char)
 
-				if _current_char == " ":
-					self.tokenizer.advance()
-					continue
+				# if _current_char == " ":
+				# 	self.tokenizer.advance()
+				# 	continue
+
+				if _current_char == "/":
+					_next_char = self.tokenizer.peek()
+					if _next_char == "/":
+						_token_idx += 1
+						print(f"TOKEN INDEX @ FLOOR_DIV_OPERATOR")
+						print(f"\t• {_token_idx}")
+						print(f"\t• {self._token_type_idx_mapper[_token_idx]}")
+						_token_type = self._token_type_idx_mapper[_token_idx]
+						_token_val = "//"
+						_add_token_alias(_token_type, _token_val, token_id=None)
+						for _ in range(2):
+							self.tokenizer.advance()
+						continue
 
 				if _current_char not in self._symbol_mapping:
 					_error_details = f"symbol: '{_current_char}' does not exists within this handler's symbol mapping ('_symbol_mapping') property; please verify symbol mapping and try again..."
 					raise RuntimeError(_error_details)
 
-				_token_idx = _symbol_mapping_index_a(_current_char)
 				_token_type = self._token_type_idx_mapper[_token_idx]
 				_token_val = _current_char
 				_tokenizer_advance_a()
@@ -444,7 +464,7 @@ if __name__ == "__main__":
 		_how_are_you_tokenizer = Tokenizer(input="How are you?")
 		_how_are_you_tokenizer_handler = HowAreYouTokenizeHandler(tokenizer=_how_are_you_tokenizer)
 
-		_test_grammar_4_tokenizer = Tokenizer(input="1 + 1")
+		_test_grammar_4_tokenizer = Tokenizer(input="1  1")
 		_test_grammar_4_tokenizer_handler = TestGrammar4TokenizeHandler(tokenizer=_test_grammar_4_tokenizer)
 
 		print()
