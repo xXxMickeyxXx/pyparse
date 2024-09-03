@@ -6,11 +6,11 @@ from .scratch_utils import generate_id
 
 class Node:
 
-	def __init__(self, node_id):
-		self._node_id = node_id
+	def __init__(self, node_id=None):
+		self._node_id = node_id or generate_id()
 		self._root = None
 		self._evaluator = None
-		self._branches = []
+		self._branches = {}
 
 	@property
 	def node_id(self):
@@ -31,25 +31,25 @@ class Node:
 		return self._branches
 
 	def add(self, node):
-		self._branches.append(node)
+		self._branches.update({node.node_id: node})
 		node.set_root(self)
 
 	def remove(self, node_id):
-		_retval = None
-		for i in range(len(self._branches)):
-			_curr_node = self._branches[i]
-			if _curr_node.node_id == node_id:
-				_retval = self._branches.pop(i)
-				break
-		return _retval
+		return self._branches.pop(node_id)
+
+	def node(self, node_id):
+		if self.node_id == node_id:
+			return self
+		for _node_id, _node in self.branches().items():
+			_result = _node.node(node_id)
+			if _result is not None:
+				return _result
+		return None
 
 	def set_evaluator(self, evaluator):
 		self._evaluator = evaluator
 
 	def set_root(self, node):
-		if self._root is not None:
-			_error_details = f"unable to assign 'root' as one has already been set for this node...please reset root (via 'root_reset') and try again..."
-			raise RuntimeError(_error_details)	
 		self._root = node
 
 	def root_reset(self):
@@ -61,8 +61,8 @@ class Node:
 
 class NodeByClassName(Node):
 
-	def __init__(self):
-		super().__init__(self.__class__.__name__)
+	def __init__(self, node_id=None):
+		super().__init__(node_id=node_id or self.__class__.__name__)
 
 
 class Root(NodeByClassName):
@@ -79,12 +79,11 @@ class Statement(NodeByClassName):
 
 class BinOp(Expression):
 
-	def __init__(self, left, op, right, variable=None):
+	def __init__(self, left, op, right):
 		super().__init__()
-		self.left = left
+		self.add(left)
 		self.op = op
-		self.right = right
-		self.variable = variable
+		self.add(right)
 
 
 class Number(Expression):
@@ -96,142 +95,138 @@ class Number(Expression):
 
 class Variable(Expression):
 
-	def __init__(self, name, value=None):
+	def __init__(self, identifier: str):
 		super().__init__()
-		self.name = name
-		self._value = value
-		self._value_set = False
+		self._identifier = identifier
 
 	@property
-	def value(self):
-		return self._value
-
-	def set_value(self, value):
-		self._value = value
-		self._value_set = True
-
-	def reset(self):
-		self._value = None
-		self._value_set = False
+	def identifier(self):
+		return self._identifier
 
 
 class Assignment(Statement):
 
-	def __init__(self, variable, expression):
+	def __init__(self, variable: Variable = None, expression: Expression = None):
 		super().__init__()
-		self.variable = variable
-		self.expression = expression
+		if variable is not None:
+			self.add(variable)
+		if expression is not None:
+			self.add(expression)
+
+	# def eval(self, evaluator):
+	# 	_Variable_node = self.node("Variable")
+	# 	_Variable_node_id = _Variable_node.identifier
+	# 	evaluator.environment.update({_Variable_node_id: _Variable_node})
+	# 	return evaluator.eval(self)
 
 
 class PrintStatement(Statement):
 
-	def __init__(self, expression):
+	def __init__(self, expression=None):
 		super().__init__()
-		self.expression = expression
+		if expression:
+			self.add(expression)
 
 
-def handle_number(node):
-	return node.number  # Simply return the numeric value
+class TestEvaluator(Evaluator):
+
+	def __init__(self, evaluator_id=None):
+		super().__init__(evaluator_id=evaluator_id)
+		self.init()
+
+	def init(self):
+		self.register("Root", self.handle_root)
+		self.register("Number", self.handle_number)
+		self.register("BinOp", self.handle_binary_operation)
+		self.register("Variable", self.handle_variable)
+		self.register("Assignment", self.handle_assignment)
+		self.register("PrintStatement", self.handle_print_statement)
+
+	def handle_number(self, node):
+		return node.number  # Simply return the numeric value
+
+	def handle_binary_operation(self, node):
+		for k, v in node.branches().items():
+			print(f"{k}: {v}")
+			print()
+		left_value = node.node("Number").number
+		right_value = node.node("Number").number
+		print(f"CALCULATING ---> {left_value} {node.op} {right_value}")
+		_retval = None
+		if node.op == "/":
+			if right_value == 0:
+				raise ZeroDivisionError("Division by zero error!")
+			_retval = left_value / right
+		elif node.op == '+':
+			_retval = left_value + right_value
+		elif node.op == '-':
+			_retval = left_value - right_value
+		elif node.op == '*':
+			_retval = left_value * right_value
+		else:
+			raise ValueError(f"Unsupported operator: {node.op}")
+		return _retval
+
+	def handle_variable(self, node):
+		_val = node.identifier
+		return _val
+
+	def handle_assignment(self, node):
+		value = self.walk(node.node("Variable"))
+		_expr = self.walk(node.node("BinOp"))
+		print(f"handle_assignment@: 'Variable' ---> {value}")
+		print(f"handle_assignment@: 'BinOp' ---> {_expr}")
+		self.capture(value, _expr, overwrite=False)
+		return value
+
+	def handle_print_statement(self, node):
+		value = self.eval(node.node("Number"))
+		print(f"'handle_print_statement'@: 'BinOp' ---> {value}")
+		return value
+
+	def handle_root(self, node):
+		for _node_id, _node in node.branches().items():
+			self.eval(_node)
+		return self.environment["x"]
 
 
-def handle_binary_operation(node):
-	left_value = node.evaluator.walk(node.left)  # Evaluate the left operand
-	right_value = node.evaluator.walk(node.right)  # Evaluate the right operand
-	_retval = None
-	if node.op == "/":
-		if right_value == 0:
-			raise ZeroDivisionError("Division by zero error!")
-		_retval = left_value / right
-	elif node.op == '+':
-		_retval = left_value + right_value
-	elif node.op == '-':
-		_retval = left_value - right_value
-	elif node.op == '*':
-		_retval = left_value * right_value
-	else:
-		raise ValueError(f"Unsupported operator: {node.op}")
-
-	print(f"NODE:")
-	print(node.left)
-	print(node.right)
-	print(f"NODE ENV:")
-	_curr = node.evaluator
-	_variable = Variable(Number(_retval))
-	node.evaluator.environment["x"] = _variable
-	return _retval
-
-
-def handle_variable(node):
-	_val = node.name
-	return _val
-
-def handle_assignment(node):
-	value = node.evaluator.walk(node.expression)  # Evaluate the expression to be assigned
-	node.evaluator.environment.update_env(node.variable.name, value)
-	return value
-
-
-def handle_print_statement(node):
-	value = node.evaluator.walk(node.expression)  # Evaluate the expression to be printed
-	print(value)  # Output the value
-	return value  # Optionally return the printed value
-
-
-def handle_root(node):
-	_evaluator = node.evaluator
-	for _node in node.branches():
-		_evaluator.eval(_node)
-	return _evaluator.environment["x"]
-
-
-def test_emitter_callback(node):
-	print()
-	print(f"NODE IN 'test_emitter_callback' BODY:")
-	print(node)
-	print(f"HEY FROM TEST EMITTER CALLBACK ON NODE:")
-	print(f"\t• {node.node_id}")
-	print()
-	print()
-
-
-_variable = Variable("x")
-_variable_2 = Variable("_test_1")
 _expr_1 = Number(4)
-_expr_2 = Number(102)
-_add_exp = BinOp(_expr_1, "+", _expr_2, variable=_variable)
-_mult_exp_2 = BinOp(_add_exp, "*", Number(3), variable=_variable_2)
-
-_expr_3 = Number(8)
-_mult_exp = BinOp(_add_exp, "*", _expr_3)
-_add_exp_2 = BinOp(_mult_exp, "+", Number(7), variable=_variable_2)
-
-_print_stmt = PrintStatement(_variable)
-_print_stmt_2 = PrintStatement(_variable_2)
+_expr_2 = Number(12)
+_bin_op_expr = BinOp(_expr_1, "*", _expr_2)
+_bb = BinOp(Number(3), "*", Number(2))
+_variable = Variable("x")
+_assignment = Assignment()
+_assignment.add(_variable)
+_assignment.add(_bin_op_expr)
+_print_stmt = PrintStatement()
+_print_stmt.add(_bb)
 
 
 _root = Root()
-_root.add(_mult_exp)
-# _root.add(_print_stmt)
+_root.add(_assignment)
+_root.add(_print_stmt)
 # _root.add(_print_stmt_2)
 
 
-TEST_NODE = _root
-TEST_NODE_ID = _root.node_id
-TEST_RECEIVER_ID = "[TEST_RECEIVER_ID]"
-test_evaluator = Evaluator(evaluator_id="TEST_EVALUATOR")
-test_evaluator.register(TEST_NODE_ID, test_emitter_callback, receiver_id=TEST_RECEIVER_ID)
-test_evaluator.register("Root", handle_root)
-test_evaluator.register("Number", handle_number)
-test_evaluator.register("BinOp", handle_binary_operation)
-test_evaluator.register("Variable", handle_variable)
-test_evaluator.register("Assignment", handle_assignment)
-test_evaluator.register("PrintStatement", handle_print_statement)
+test_evaluator = TestEvaluator(evaluator_id="TEST_EVALUATOR")
 
 
 def main():
+	_retval = test_evaluator.eval(_root)
 	print()
-	retval = test_evaluator.eval(TEST_NODE)
-	print(retval)
+	print(f"RESULT ---> {_retval}")
+	# _found_node = _root.node("BinOp")
+	# print()
+	# _text = ""
+	# if _found_node:
+	# 	_text = f"NODE **FOUND**: {_found_node}!!!"
+	# else:
+	# 	_text = f"NODE **NOT** FOUND..."
+	# print(_text)
+	# print()
+	# test_evaluator.walk(_assignment)
+	# retval = test_evaluator.eval(TEST_NODE)
+	# print(retval)
 	print()
 
 
