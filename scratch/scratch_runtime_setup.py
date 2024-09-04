@@ -18,7 +18,7 @@ from pysynchrony import (
 	PySynchronyPortError
 )
 
-from pyparse import Parser, Tokenizer, LexHandler
+from pyparse import Parser, Tokenizer, LexHandler, Token
 from .scratch_parse_table import ParseTable
 from .scratch_parse_env import ParserEnvironment
 from .scratch_init_grammar import (
@@ -95,24 +95,20 @@ class TestGrammar4TokenType(StrEnum):
 
 	NUMBER = "NUMBER"
 	PLUS_OPERATOR = "PLUS_OPERATOR"
+	SUB_OPERATOR = "SUB_OPERATOR"
 	MULT_OPERATOR = "MULT_OPERATOR"
+	DIV_OPERATOR = "DIV_OPERATOR"
+	FLOOR_DIV_OPERATOR = "FLOOR_DIV_OPERATOR"
 	WS = "WS"
 	LEFT_PAREN = "LEFT_PAREN"
 	RIGHT_PAREN = "RIGHT_PAREN"
-
 
 
 class TestGrammar4TokenizeHandler(LexHandler):
 
 	def __init__(self, tokenizer=None):
 		super().__init__(tokenizer=tokenizer)
-		self._symbol_mapping = {
-			v: k for k, v in enumerate(["0", "1", "2",
-										"3", "4", "5",
-										"6", "7", "8",
-										"9", "+", "*",
-										"(", ")", " "])
-		}
+		self._symbol_mapping = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "*", "-", "/", "//", "(", ")", " "]
 		self._token_type_idx_mapper = [
 			TestGrammar4TokenType.NUMBER,
 			TestGrammar4TokenType.NUMBER,
@@ -126,35 +122,63 @@ class TestGrammar4TokenizeHandler(LexHandler):
 			TestGrammar4TokenType.NUMBER,
 			TestGrammar4TokenType.PLUS_OPERATOR,
 			TestGrammar4TokenType.MULT_OPERATOR,
+			TestGrammar4TokenType.SUB_OPERATOR,
+			TestGrammar4TokenType.DIV_OPERATOR,
+			TestGrammar4TokenType.FLOOR_DIV_OPERATOR,
 			TestGrammar4TokenType.LEFT_PAREN,
 			TestGrammar4TokenType.RIGHT_PAREN,
 			TestGrammar4TokenType.WS
 		]
 
 	def handle(self):
+		# NOTE: variables initialized with "_a" suffix are aliases for method calls in
+		# 		order to suck out a litte bit more performnace since the additional
+		# 		lookup isn't needed
+		_add_token_alias = self.tokenizer.add_token
+		_tokenizer_advance_a = self.tokenizer.advance
+		_symbol_mapping_index_a = self._symbol_mapping.index
+		_cond_consume_a = self.tokenizer.cond_consume
 		while self.tokenizer.can_consume:
 			_current_char = self.tokenizer.current_char
-			_token = None
+			_next_char_peek = self.tokenizer.peek()
 
-			if _current_char == " ":
-				self.tokenizer.advance()
+			if _current_char.isdigit():
+				_token_val = self.tokenizer.cond_consume(lambda x, y, z: not x.isdigit())
+				_add_token_alias(TestGrammar4TokenType.NUMBER, _token_val, token_id=None)
 				continue
 
-			_token_idx = self._symbol_mapping.get(_current_char, None)
-			if _token_idx is None:
-				_error_details = f"symbol: '{_current_char}' does not exists within this handler's symbol mapping ('_symbol_mapping') property; please verify symbol mapping and try again..."
-				raise RuntimeError(_error_details)
-			_token_type = self._token_type_idx_mapper[_token_idx]
-			if _token_type == TestGrammar4TokenType.NUMBER:
-				_token_val = self.tokenizer.cond_consume(lambda curr_char, lexeme, tkzr: not curr_char.isdigit())
-			else:
-				_token_val = _current_char
 
-			_token = (_token_type, _token_val)
+			match _current_char:
+				case " ":
+					_add_token_alias(TestGrammar4TokenType.WS, " ", token_id=None)
+					_tokenizer_advance_a()
+					continue
+				case "/":
+					_next_char = self.tokenizer.peek()
+					if _next_char != "/":
+						_add_token_alias(TestGrammar4TokenType.DIV_OPERATOR, "/", token_id=None)
+						_tokenizer_advance_a()
+						continue
+					else:
+						_add_token_alias(TestGrammar4TokenType.FLOOR_DIV_OPERATOR, "//")
+						_tokenizer_advance_a()
+						_tokenizer_advance_a()
+						continue
+				case "+":
+					_add_token_alias(TestGrammar4TokenType.PLUS_OPERATOR, "+", token_id=None)
+					_tokenizer_advance_a()
+					continue
+				case "-":
+					_add_token_alias(TestGrammar4TokenType.SUB_OPERATOR, "-", token_id=None)
+					_tokenizer_advance_a()
+					continue
+				case "*":
+					_add_token_alias(TestGrammar4TokenType.MULT_OPERATOR, "*", token_id=None)
+					_tokenizer_advance_a()
+					continue
 
-			if _token is not None:
-				self.tokenizer.add_token(_token)
-			self.tokenizer.advance()
+			_error_details = f"symbol: '{_current_char}' does not exists within this handler's symbol mapping ('_symbol_mapping') property; please verify symbol mapping and try again..."
+			raise RuntimeError(_error_details)
 
 
 class TestGrammar4Tokenizer(Tokenizer):
@@ -525,7 +549,6 @@ class CoreParser2:
 				_debug_text_mainloop_bottom = "---------- BOTTOM OF 'parse' MAINLOOP ----------\n"
 				_colored_debug_text = bold_text(apply_color(_color_code, _debug_text_mainloop_bottom))
 				print(_colored_debug_text)
-
 
 		return parse_context
 
@@ -1139,4 +1162,34 @@ def user_runtime(env):
 
 
 if __name__ == "__main__":
-	pass
+	_TEST_INPUT_1_ = "1 * 1"
+	_TEST_INPUT_2_ = "1 + 1 // 503 * 1"
+	_TEST_INPUT_3_ = "1 * 0 + 1 / 1"
+	_TEST_INPUT_4_ = "8675309 + 18001314321"
+	
+	_TEST_INPUT_STREAM = [
+		_TEST_INPUT_1_,
+		_TEST_INPUT_2_,
+		_TEST_INPUT_3_,
+		_TEST_INPUT_4_
+	]
+
+	TEST_TOKENIZER_ID = f"[TEST_TOKENIZER]"
+	_test_tokenizer = TestGrammar4Tokenizer(tokenizer_id=TEST_TOKENIZER_ID)
+	_test_tokenizer_handler = TestGrammar4TokenizeHandler(tokenizer=_test_tokenizer)
+
+
+	print()
+	for _input_ in _TEST_INPUT_STREAM:
+		_test_tokenizer.set_input(_input_)
+		_token_results = _test_tokenizer.tokenize(_test_tokenizer_handler)
+		print(f"INPUT TO TOKENIZE ---> {_input_}\n")
+		print()
+		for _token in _token_results:
+			if _token == Token(TestGrammar4TokenType.WS, " "):
+				continue
+			print(f"\t• TYPE:  ---> {_token.token_type}")
+			print(f"\t• VALUE: ---> {_token.token_val}")
+			print()
+		print()
+		print()

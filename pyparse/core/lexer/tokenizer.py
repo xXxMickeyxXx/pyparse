@@ -1,27 +1,4 @@
-"""
-
-	_____TO-DO_____
-
-		A.) Cleanup module and remove designing testing code
-			(AS-OF-SUNDAY: 2024-09-01)
-
-"""
-
-
 from abc import ABC, abstractmethod
-from typing import (
-    Protocol,
-    Callable,
-    Union,
-    Any,
-    List,
-    Dict,
-    Tuple,
-    LiteralString,
-    Type,
-    Optional,
-    runtime_checkable
-)
 
 from .scanner import Scanner
 from ..token import Token
@@ -36,146 +13,6 @@ class Tokens(ABC):
 	though that should only happen in the 'Tokenizer' class so as to prevent
 	un-needed dependency
 	"""
-
-
-# class Tokenizer:
-
-# 	def __init__(self, input=None, tokenizer_id=None):
-# 		self._tokenizer_id = tokenizer_id or generate_id()
-# 		self._input = input
-# 		self._pointer = 0
-# 		self._tokens = []
-# 		self._scanner = None
-# 		self._input_len = len(self._input) if self._input is not None else 0
-
-# 	@property
-# 	def tokenizer_id(self):
-# 		return self._tokenizer_id
-
-# 	@property
-# 	def can_consume(self):
-# 		return self.scanner.can_consume
-
-# 	@property
-# 	def current_char(self):
-# 		_input = self._input
-# 		_pointer = self._pointer
-# 		return _input[_pointer] if _input and self.can_consume else None
-
-# 	@property
-# 	def tokens(self):
-# 		return self._tokens
-
-# 	@property
-# 	def token_count(self):
-# 		return len(self._tokens)
-
-# 	@property
-# 	def scanner(self):
-# 		if self._scanner is None:
-# 			self._scanner = self.create_scanner(self._input, scanner_id=self.tokenizer_id)
-# 		return self._scanner
-
-# 	@property
-# 	def input(self):
-# 		return self.scanner.input
-
-# 	def create_scanner(self, input=None, scanner_id=None):
-# 		return self.scanner_factory(input=input, scanner_id=scanner_id)
-
-# 	def scanner_factory(self, *args, **kwargs):
-# 		return Scanner(*args, **kwargs)
-
-# 	def create_token(self, token_type, token_val, token_id=None):
-# 		return self.token_factory(token_type, token_val, token_id=token_id)
-
-# 	def token_factory(self, *args, **kwargs):
-# 		return Token(*args, **kwargs)
-
-# 	def set_input(self, input):
-# 		self.scanner.set_input(input)
-
-# 	def reset(self, auto_flush=False):
-# 		if auto_flush:
-# 			self.flush_tokens()
-# 		elif self.token_count < 1 and not auto_flush:
-# 			# TODO: create and raise custom error here
-# 			_error_details = f"unable to reset instance of '{self.__class__.__name__}' as tokens are still present in the token buffer (i.e. the '_tokens' field); please flush buffer via the 'flush_tokens' method prior to calling the 'reset' or pass 'True' to the 'auto_flush' kwarg in either 'reset' (if resetting) or 'tokenize' method (if tokenizing input)..."
-# 			raise RuntimeError(_error_details)
-# 		self.scanner.reset()
-
-# 	def flush_tokens(self):
-# 		_retval = []
-# 		while self.tokens:
-# 			_next_token = self.tokens.pop(0)
-# 			_retval.append(_next_token)
-# 		assert len(self.tokens) == 0, "an error occured when attempting to flush token buffer (i.e. the '_tokens' field); please review and try again..."
-# 		return _retval
-
-# 	def peek(self, offset=0):
-# 		return self.scanner.peek(offset=offset)
-
-# 	def peek_range(self, start=0, until=-1, step=1):
-# 		return self.scanner.peek_range(start=start, until=until, step=step)
-
-# 	def advance(self):
-# 		return self.scanner.advance()
-
-# 	def consume(self):
-# 		return self.scanner.consume()
-
-# 	def cond_consume(self, condition):
-# 		return self.scanner.cond_consume(condition)
-
-# 	def expect(self, value):
-# 		return self.scanner.expect(value)
-
-# 	def expect_at(self, value, offset=1):
-# 		return self.scanner.expect_at(value, offset=offset)
-
-# 	def add_token(self, token_type, token_val, token_id=None):
-# 		# TODO: consider adding the 'block=False, timeout=None' params, like how the
-# 		# 		built-in 'Queue' object does it
-# 		_new_token = self.create_token(token_type, token_val, token_id=token_id)
-# 		self.tokens.append(_new_token)
-
-# 	def pop_token(self, idx=-1):
-# 		if not self.tokens or len(self.tokens) <= 0:
-# 			# TODO: create and raise custom error here
-# 			_error_details = f"unable to 'pop' token from token container, as it's currently empty..."
-# 			raise IndexError(_error_details)
-# 		return self.tokens.pop(idx)
-
-# 	def input_at(self, index):
-# 		if index >= self._input_len:
-# 			# TODO: create and raise custom error here
-# 			_error_details = f"unable to access token at index: {index} as it exceeds the bounds of tokens container..."
-# 			raise IndexError(_error_details)
-# 		return self.input[index]
-
-# 	def input_range(self, *slice_args):
-# 		_slicer = slice(*slice_args)
-# 		return self.input[_slicer]
-
-# 	def token_at(self, index):
-# 		if index >= self._input_len:
-# 			# TODO: create and raise custom error here
-# 			_error_details = f"unable to access token at index: {index} as it exceeds the bounds of tokens container..."
-# 			raise IndexError(_error_details)
-# 		return self._tokens[index]
-
-# 	def token_range(self, *slice_args):
-# 		_slicer = slice(*slice_args)
-# 		return self.tokens[_slicer]
-
-# 	def tokenize(self, handler, *, auto_flush=False):
-# 		handler.set_tokenizer(self)
-# 		handler.handle()
-# 		if auto_flush:
-# 			_tokens = self.flush_tokens()
-# 		else:
-# 			_tokens = self.tokens
-# 		return _tokens
 
 
 class Tokenizer:
@@ -239,9 +76,7 @@ class Tokenizer:
 
 	def reset(self):
 		self.scanner.reset()
-		_retval = self.flush_tokens()
-		self.set_input("")
-		return _retval
+		return self.flush_tokens()
 
 	def create_token(self, token_type, token_val, token_id=None):
 		return self.token_factory(token_type, token_val, token_id=token_id)
@@ -252,7 +87,7 @@ class Tokenizer:
 			raise RuntimeError(_error_details)
 		return self._token_factory(*args, **kwargs)
 
-	def peek(self, offset=0):
+	def peek(self, offset=1):
 		return self.scanner.peek(offset=offset)
 
 	def peek_range(self, start=0, until=-1, step=1):
@@ -306,13 +141,11 @@ class Tokenizer:
 	def tokenize(self, handler):
 		handler.set_tokenizer(self)
 		handler.handle()
-		return self.tokens
+		return self.reset()
 
 	def flush_tokens(self):
-		_retval = []
-		while self.tokens:
-			_next_token = self.tokens.pop(0)
-			_retval.append(_next_token)
+		_retval = [i for i in self.tokens]
+		self._tokens.clear()
 		assert len(self.tokens) == 0, "an error occured when attempting to flush token buffer (i.e. the '_tokens' field); please review and try again..."
 		return _retval
 

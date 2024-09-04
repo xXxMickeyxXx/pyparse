@@ -51,81 +51,19 @@ class Scanner(ABC):
         self._input = input
 
     def reset(self):
-        self._input = ""
+        self.set_input("")
         self.update_pointer(0)
 
-    # def update_pointer(self, idx):
-    #     if idx >= self._input_len:
-    #         _error_details = f"unable to update pointer to position of input at index: {idx} as that is out of the input's index bounds..."
-    #         raise ScannerError(details=_error_details)
-    #     self._pointer = idx
+    def update_pointer(self, idx):
+        if self.input_len > 0:
+            if idx >= self.input_len:
+                _error_details = f"unable to update pointer to position of input at index: {idx} as that is out of the input's index bounds (max: {len(self.input) - 1 if len(self.input) > 0 else 0})..."
+                raise ScannerError(details=_error_details)
+        self._pointer = idx
 
-    # def peek(self, offset=0):
-    #     if offset >= 1:
-    #         return self._peek_at(offset)
-    #     if self.can_consume:
-    #         _tmp_pointer = self._pointer + 1
-    #         if (_tmp_pointer) < self._input_len:
-    #             return self._input[_tmp_pointer]
-    #     return None
-
-    # def _peek_at(self, offset):
-    #     if self.can_consume:
-    #         _tmp_pointer = self._pointer + offset
-    #         if (_tmp_pointer) < self._input_len:
-    #             return self._input[_tmp_pointer]
-    #     return None
-
-    # def peek_range(self, start=0, until=-1, step=1):
-    #     if self.can_consume:
-    #         return tuple(self._input[self._pointer + start::step] if (until == -1 or until <=0) else self._input[self._pointer + start: until: steps])
-    #     return ()
-
-    # def advance(self, step=1):
-    #     if self.can_consume:
-    #         self._pointer += step
-    #     return self
-
-    # def consume(self):
-    #     _current_char = self.current_char
-    #     if not _current_char:
-    #         return _current_char
-    #     self.advance()
-    #     return _current_char
-
-    # def cond_consume(self, condition):
-    #     _lexeme = ""
-    #     _current_char = self.current_char
-    #     while self.can_consume:
-    #         if condition(_current_char, _lexeme, self):
-    #             break
-    #         _lexeme += _current_char
-    #         self.advance()
-    #         _current_char = self.current_char
-    #     return _lexeme
-
-    # def expect(self, value):
-    #     _peek_val = self.peek()
-    #     if _peek_val is not None and _peek_val == value:
-    #         return self.consume()
-    #     return False
-
-    # def expect_at(self, value, offset=1):
-    #     return self.peek(offset=offset) == value
-
-    def peek(self, offset=0):
-        if offset >= 1:
-            return self._peek_at(offset)
-        if self.can_consume:
-            _tmp_pointer = self.pointer + 1
-            if (_tmp_pointer) < self.input_len:
-                return self._input[_tmp_pointer]
-        return None
-
-    def _peek_at(self, offset):
-        if self.can_consume:
-            _tmp_pointer = self.pointer + offset
-            if (_tmp_pointer) < self.input_len:
+    def peek(self, offset=1):
+        _tmp_pointer = self.pointer + offset
+        if _tmp_pointer < self.input_len:
                 return self._input[_tmp_pointer]
         return None
 
