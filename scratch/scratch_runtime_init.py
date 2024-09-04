@@ -52,9 +52,9 @@ def runner(env):
 		env_id=f"ENVIRONMENT ID: {_PARSER_ENVIRONMENT_ID}"
 	)
 	_retval = env.run()
-
 	_runtime_logger.submit_log(
 		message=_result_logger_msg_mapping[_retval ^ 0],
+		retval=f"{_retval}",
 		env_id=f"ENVIRONMENT ID: {_PARSER_ENVIRONMENT_ID}",
 		function="runner",
 		file=str(__file__),
@@ -218,7 +218,7 @@ def parse_main():
 	# Invoke one of several runtimes for scratch sub-package testing
 	# user_input_runner()
 	# single_parse_runner(string="1*0")
-	# parse_and_display_runner(count=-1)
+	parse_and_display_runner(count=-1)
 
 
 	# Invoke main 'runner' function

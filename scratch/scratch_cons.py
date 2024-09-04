@@ -13,7 +13,7 @@ class PyParsePortID(IntEnum):
     READY = auto()
     EVENTS = auto()
     ACTIONS = auto()
-    PARSE_REQUEST = auto()
+    COMMANDS = auto()
 
 
 class PyParseEventID(IntEnum):

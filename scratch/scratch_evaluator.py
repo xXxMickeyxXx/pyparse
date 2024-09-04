@@ -70,7 +70,6 @@ class Evaluator:
 	def __init__(self, evaluator_id=None):
 		self._evaluator_id = evaluator_id or generate_id()
 		self._handlers = {}
-		self._channel = None
 		self._environment = {}
 
 	@property
@@ -78,14 +77,17 @@ class Evaluator:
 		return self._evaluator_id
 
 	@property
-	def channel(self):
-		if self._channel is None:
-			self._channel = PyChannel(channel_id=self.evaluator_id)
-		return self._channel
+	def handlers(self):
+		return self._handlers
 
 	@property
 	def environment(self):
 		return self._environment
+
+	def get(self, key, default=None):
+		if key not in self._environment:
+			return default
+		return self._environment[key]
 
 	def captured(self, key, *, value=None):
 		for _key, _value in self._environment.items():
@@ -110,26 +112,31 @@ class Evaluator:
 			_retval = True
 		return _retval
 
-	def emit(self, signal_id, *args, **kwargs):
-		_raw_results = self.channel.emit(signal_id, *args, **kwargs)
-		return _raw_results
+	def handle(self, handler_id, *args, **kwargs):
+		_handler = self.handlers.get(handler_id, None)
+		if _handler is None:
+			# TODO: create and raise custom error here
+			_error_details = f"invalid 'handler_id' {handler_id}; please update argument and try again..."
+			raise RuntimeError(_error_details)
+		return _handler(*args, **kwargs)
 
-	def register(self, signal_id, receiver=None, receiver_id=None, overwrite=False):
-		_signal = self.channel.signal(signal_id=signal_id)
-		return _signal.register(receiver, receiver_id=receiver_id, overwrite=overwrite)
+	def add_handler(self, handler_id, handler, overwrite=True):
+		if handler_id in self.handlers and not overwrite:
+			# TODO: create and raise custom error here
+			_error_details = f"unable to add handler under ID: {handler_id}) as one is already associated by that reference and the 'overwrite' argument was 'False' and it could not thus be overwritten; please review and try again..."
+			raise RuntimeError(_error_details)
+		self.handlers[handler_id] = handler
 
-	def remove(self, receiver_id):
-		return self.channel.remove(receiver_id)
+	def remove_handler(self, handler_id):
+		return self.handlers.pop(handler_id)
 
 	def update(self, key, value, overwrite=False):
 		if key not in self._environment or overwrite:
 			self._environment[key] = value
 
-	def eval(self, node, *node_ids):
+	def eval(self, node):
 		node.set_evaluator(self)
-		_handler = self.emit(node.node_id, node)
-		if _handler:
-			return [v for k, v in _handler.items()][-1]
+		return self.handle(node.node_id, node)
 
 	def walk(self, node):
 		return node.eval(self)

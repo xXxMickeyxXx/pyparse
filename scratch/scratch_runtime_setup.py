@@ -558,15 +558,12 @@ class ParserContext(PySynchronyScheduler):
 	def schedule_sleep(self, deadline, task):
 		self.send((deadline, task), PyParsePortID.SLEEP)
 
-	# def schedule_parse(self, parse_context):
-	# 	self.send(parse_context, PyParsePortID.PARSE_REQUEST)
-
 	# def schedule_action(self, action):
 	# 	self.send(action, PyParsePortID.ACTIONS)
 
-	# def _push_event(self, event):
-	# 	_port = self.port(PyParsePortID.EVENTS)
-	# 	return _port.send(event)
+	def _push_event(self, event):
+		_port = self.port(PyParsePortID.EVENTS)
+		return _port.send(event)
 
 	# def _events_handler_port(self, port):
 	# 	while port.pending():
@@ -579,9 +576,6 @@ class ParserContext(PySynchronyScheduler):
 	# 		_next_action = port.receive()
 	# 		_action_context = self._action_map[_next_action.action_id]
 	# 		return _action_context(_next_action, self)
-
-	# def _parse_request_handler_for_port_imp(self, port):
-	# 	raise NotImplementedError
 
 	def _sleep_handler_for_port_imp_2(self, port):
 		while True:
@@ -606,22 +600,45 @@ class ParserContext(PySynchronyScheduler):
 			return _execution_context(current_task, self)
 
 	def run_cycle(self):
-		self.step()
+		# _port_alias = self.port
+		# _schedule_task_alias = self.schedule_task
 
-	def step(self):
-		self.handle_port(PyParsePortID.SLEEP)
-		self.handle_port(PyParsePortID.READY)
-		self.handle_port(PyParsePortID.SLEEP)
-		self.handle_port(PyParsePortID.READY)
+		# _actions_port = _port_alias(PyParsePortID.ACTIONS)
+		
+
+		# _sleep_port = _port_alias(PyParsePortID.SLEEP)
+		# if _sleep_port.pending():
+		# 	while True:
+		# 		try:
+		# 			_peeked_port_data = _sleep_port.peek()
+		# 		except PySynchronyPortError:
+		# 			break
+		# 		else:
+		# 			if _peeked_port_data:
+		# 				_delta = _peeked_port_data[0] - time.time()
+		# 				if _delta > 0:
+		# 					return
+		# 				_, _sleep_task = _sleep_port.receive()
+		# 				_schedule_task_alias(_sleep_task)
+		# 				continue
+		# 			break
+
+		# _ready_port = _port_alias(PyParsePortID.READY)
+		# if _ready_port.pending():
+		# 	current_task _ready_port.receive()
+		# 	self._task_execution_context[current_task.task_id](current_task, self)
+
 		self.handle_port(PyParsePortID.SLEEP)
 		self.handle_port(PyParsePortID.READY)
 
 	def setup(self):
 		self.add_port(PySynchronyPort(port_id=PyParsePortID.SLEEP, queue_factory=PriorityQueueFactory()))
 		self.add_port(PySynchronyPort(port_id=PyParsePortID.READY))
+		self.add_port(PySynchronyPort(port_id=PyParsePortID.EVENTS, queue_factory=PriorityQueueFactory()))
+		self.add_port(PySynchronyPort(port_id=PyParsePortID.ACTIONS))
+		self.add_port(PySynchronyPort(port_id=PyParsePortID.COMMANDS))
 		# self.add_port(PySynchronyPort(port_id=PyParsePortID.ACTIONS))
 		# self.add_port(PySynchronyPort(port_id=PyParsePortID.EVENTS))
-		# self.add_port(PySynchronyPort(port_id=PyParsePortID.PARSE_REQUEST))
 		# self.event_loop.on_loop(self.run_cycle)
 
 	def run(self, environment):
@@ -651,16 +668,15 @@ class ParserContext(PySynchronyScheduler):
 		# self.event_loop.on_loop(environment.run)
 		self.event_loop.on_loop(self.run_cycle)
 		
-		# self.register_event(PyParseEventID.ON_EVENT, receiver=self._push_event)
+		self.register_event(PyParseEventID.ON_EVENT, receiver=self._push_event)
 		self.register_event(PyParseEventID.ON_QUIT, receiver=self.quit)
 		self.register_event(PyParseEventID.ON_FORCE_QUIT, receiver=self.force_quit)
 				
 		self.register_handler(PyParsePortID.SLEEP, self._sleep_handler_for_port_imp_2)
 		self.register_handler(PyParsePortID.READY, self._ready_handler_for_port_imp_2)
 
-		# self.register_handler(PyParsePortID.EVENTS, self._events_handler_port)
-		# self.register_handler(PyParsePortID.ACTIONS, self._actions_handler_for_port_imp)
-		# self.register_handler(PyParsePortID.PARSE_REQUEST, self._parse_request_handler_for_port_imp)
+		# # self.register_handler(PyParsePortID.EVENTS, self._events_handler_port)
+		# # self.register_handler(PyParsePortID.ACTIONS, self._actions_handler_for_port_imp)
 		return self.event_loop.run()
 
 
@@ -1073,7 +1089,7 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 		_TEST_TASK_ID = "TEST_COUNTDOWN_TASK"
 		parser_context.submit(close_at_finish, rate=.10)
 		# parser_context.submit(countdown, length=10, rate=1, step=1, action_id=_TEST_TASK_ID)
-		parser_context.submit(countdown, length=10, rate=1, step=1, task_id=_TEST_TASK_ID)
+		parser_context.submit(countdown, length=3, rate=1, step=1, task_id=_TEST_TASK_ID)
 
 	def __build_table_4__(self):
 		_tbl_builder = ManualGrammar4TableBuilder(self.grammar)
