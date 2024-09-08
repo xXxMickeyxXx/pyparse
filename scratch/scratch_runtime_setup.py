@@ -102,6 +102,7 @@ class TestGrammar4TokenType(StrEnum):
 	WS = "WS"
 	LEFT_PAREN = "LEFT_PAREN"
 	RIGHT_PAREN = "RIGHT_PAREN"
+	END_SYMBOL = "END_SYMBOL"
 
 
 class TestGrammar4TokenizeHandler(LexHandler):
@@ -174,6 +175,14 @@ class TestGrammar4TokenizeHandler(LexHandler):
 					continue
 				case "*":
 					_add_token_alias(TestGrammar4TokenType.MULT_OPERATOR, "*", token_id=None)
+					_tokenizer_advance_a()
+					continue
+				case "(":
+					_add_token_alias(TestGrammar4TokenType.LEFT_PAREN, "(", token_id=None)
+					_tokenizer_advance_a()
+					continue
+				case ")":
+					_add_token_alias(TestGrammar4TokenType.RIGHT_PAREN, ")", token_id=None)
 					_tokenizer_advance_a()
 					continue
 
@@ -474,10 +483,9 @@ class CoreParser2:
 		_color_code = 226
 
 		####################
-
 		_current_action = None
 		_current_state = parse_context.state()
-		_current_symbol = parse_context.current_symbol()
+		_current_symbol = parse_context.current_symbol().token_val
 		_end_of_input = False
 		while not parse_context.done_parsing:
 			
@@ -486,6 +494,9 @@ class CoreParser2:
 				_debug_text_mainloop_top = "---------- TOP OF 'parse' MAINLOOP ----------\n"
 				_colored_debug_text = bold_text(apply_color(_color_code, _debug_text_mainloop_top))
 				print(_colored_debug_text)
+				print()
+				print(f"• CURRENT STATE: {_current_state}")
+				print(f"• CURRENT SYMBOL: {_current_symbol}")
 
 			_current_action = self.parse_table.action(_current_state, _current_symbol, default=(ParserActionType.ERROR, None))
 			# _test_action_1 = self.parse_table.action(1, "$")
@@ -497,18 +508,20 @@ class CoreParser2:
 			# 	print(f"ITEM:\n\n{_test_action_item_1}\n\n\n")
 
 			if self.debug_mode:
-				_debug_text = f"CURRRENT STATE: {_current_state}\n, CURRENT SYMBOL: {_current_symbol}\n, CURRENT ACTION: {_current_action}\n"
+				# print()
+				# print(f"FULL '_current_action':\n\t{_current_action}\n\n")
+				_debug_text = f"• CURRRENT STATE: {_current_state}\n• CURRENT SYMBOL: {_current_symbol}\n• CURRENT ACTION: {_current_action}\n"
 				print(bold_text(apply_color(_color_code, _debug_text)))
 
 			_action = _current_action[0]
 
 			if self.debug_mode:
 				print()
-				print(f"CURRENT STATE: {parse_context.state()}")
-				print(f"CURRENT STATE STACK: {parse_context.stack}")
+				print(f"• CURRENT STATE: {parse_context.state()}")
+				print(f"• CURRENT STATE STACK: {parse_context.stack}")
 				print()
-				print(f"CURRENT SYMBOL: {parse_context.current_symbol()}")
-				print(f"CURRENT SYMBOL STACK: {parse_context.symbol_stack}")
+				print(f"• CURRENT SYMBOL: {parse_context.current_symbol().token_val}")
+				print(f"• CURRENT SYMBOL STACK: {parse_context.symbol_stack}")
 				print()
 				print()
 
@@ -541,7 +554,7 @@ class CoreParser2:
 			elif _action == ParserActionType.ACCEPT:
 				parse_context.set_result(True)
 
-			_current_symbol = parse_context.current_symbol()
+			_current_symbol = parse_context.current_symbol().token_val
 			_current_state = parse_context.state()
 
 
@@ -554,6 +567,7 @@ class CoreParser2:
 
 	def init_parse_context(self, parse_context):
 		parse_context.append_state(self.init_state)
+		# self._debug_mode = True  # WARNING: overrides whatever has been passed into as command line arg
 
 	def event_factory(self, event_id, **data):
 		return PySynchronyEvent(event_id, **data)
@@ -713,6 +727,7 @@ class ParseContext:
 		self._result_set = False
 		self._pointer = 0
 		self._state = None
+		self._symbol_state = None
 		self._stack = None
 		self._symbol_stack = None
 		if input is not None:
@@ -756,8 +771,11 @@ class ParseContext:
 	def state(self):
 		return self._state
 
+	def symbol_state(self):
+		return self._symbol_state
+
 	def reset(self):
-		self._input = ""
+		self._input = None
 		self._input_len = 0
 		self._result = None
 		self._result_set = False
@@ -785,12 +803,18 @@ class ParseContext:
 
 	def append_symbol(self, element):
 		self.symbol_stack.append(element)
+		self.update_symbol(element)
 
 	def pop_symbol(self):
-		return self.symbol_stack.pop()
+		element = self.symbol_stack.pop()
+		self.update_symbol(element)
+		return element
 
 	def update(self, state):
 		self._state = state
+
+	def update_symbol(self, symbol):
+		self._symbol_state = symbol
 
 	def stack_factory(self):
 		return deque()
@@ -1162,9 +1186,10 @@ def user_runtime(env):
 
 
 if __name__ == "__main__":
-	_TEST_INPUT_1_ = "1 * 1"
+	init_grammar_4(GRAMMAR)
+	_TEST_INPUT_1_ = "1 * 0 + 1"
 	_TEST_INPUT_2_ = "1 + 1 // 503 * 1"
-	_TEST_INPUT_3_ = "1 * 0 + 1 / 1"
+	_TEST_INPUT_3_ = "1 * 0 + (1 / 1)"
 	_TEST_INPUT_4_ = "8675309 + 18001314321"
 	
 	_TEST_INPUT_STREAM = [
@@ -1179,17 +1204,39 @@ if __name__ == "__main__":
 	_test_tokenizer_handler = TestGrammar4TokenizeHandler(tokenizer=_test_tokenizer)
 
 
+	# print()
+	# for _input_ in _TEST_INPUT_STREAM:
+	# 	_test_tokenizer.set_input(_input_)
+	# 	_token_results = _test_tokenizer.tokenize(_test_tokenizer_handler)
+	# 	print(f"INPUT TO TOKENIZE ---> {_input_}\n")
+	# 	print()
+	# 	for _token in _token_results:
+	# 		if _token == Token(TestGrammar4TokenType.WS, " "):
+	# 			continue
+	# 		print(f"\t• TYPE:  ---> {_token.token_type}")
+	# 		print(f"\t• VALUE: ---> {_token.token_val}")
+	# 		print()
+	# 	print()
+	# 	print()
+
+
+	_parse_table = ParseTable(table_id="TEST_RUNTIME_SETUP_PARSE_TABLE")
+	_manual_grammar_4_builder = ManualGrammar4TableBuilder(GRAMMAR)
+	# Build parse table out using manual builder
+	_manual_grammar_4_builder.build_table(_parse_table)
+	_test_parse_context = ParseContext()
+	_test_tokenizer.set_input(_TEST_INPUT_1_)
+	_tokens = _test_tokenizer.tokenize(_test_tokenizer_handler)
+	_tokens.append(Token(TestGrammar4TokenType.END_SYMBOL, "$", token_id=None))
+	_tokens = [i for i in _tokens if i.token_type != TestGrammar4TokenType.WS]
+	_test_parse_context.set_input(_tokens)
 	print()
-	for _input_ in _TEST_INPUT_STREAM:
-		_test_tokenizer.set_input(_input_)
-		_token_results = _test_tokenizer.tokenize(_test_tokenizer_handler)
-		print(f"INPUT TO TOKENIZE ---> {_input_}\n")
-		print()
-		for _token in _token_results:
-			if _token == Token(TestGrammar4TokenType.WS, " "):
-				continue
-			print(f"\t• TYPE:  ---> {_token.token_type}")
-			print(f"\t• VALUE: ---> {_token.token_val}")
-			print()
-		print()
-		print()
+	for i in _tokens:
+		print(i)
+	print()
+	_parser = CoreParser2(init_state=0, grammar=GRAMMAR, parse_table=_parse_table, debug_mode=False, parser_id="TEST_SCRATCH_RUNTIME_SETUP_PARSER")
+	_results = _parser.parse(_test_parse_context).result()
+	print(f"PARSE PASSED ---> {_results is True or bool(_results)}")
+	# _test_parse_context = ParseContext()
+	# _test_parse_context.set_input(_TEST_INPUT_1_)
+	# _tokens = _test_par

@@ -180,7 +180,7 @@ def parse_main():
 
 	def single_parse_runner(string="0+1*1*0*0+1+1+1+1+1+1+1+1+1+1+1", env=None):
 		_env = env if env is not None else _test_grammar_4_env
-		_parse_context = ParseContext()
+		_parse_context = ParseContext(end_symbol="$")
 		_parse_context.set_input(string)
 		_package_parse_result = _test_grammar_4_env.parse(_parse_context).result()
 		display_result(string, _package_parse_result)
@@ -217,12 +217,12 @@ def parse_main():
 
 	# Invoke one of several runtimes for scratch sub-package testing
 	# user_input_runner()
-	# single_parse_runner(string="1*0")
-	parse_and_display_runner(count=-1)
+	single_parse_runner(string="1*0+1")
+	# parse_and_display_runner(count=-1)
 
 
 	# Invoke main 'runner' function
-	runner(_test_grammar_4_env)
+	# runner(_test_grammar_4_env)
 
 
 if __name__ == "__main__":
