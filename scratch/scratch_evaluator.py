@@ -139,7 +139,8 @@ class Evaluator:
 		return self.handle(node.node_id, node)
 
 	def walk(self, node):
-		return node.eval(self)
+		for node in node.branches():
+			node.eval(self)
 
 
 if __name__ == "__main__":

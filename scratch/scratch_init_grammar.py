@@ -57,28 +57,6 @@ def init_grammar_4(grammar):
     grammar.create_rule("B", ["0"], rule_id="B_rule_1")
     grammar.create_rule("B", ["1"], rule_id="B_rule_2")
 
-    # init_rule = grammar.create_rule("$", ("E",), rule_id="INIT_RULE")
-    # init_rule.bind_state(0, "E", 3)
-
-    # E_rule_1 = grammar.create_rule("E", ("E", "*", "B"), rule_id="E_rule_1")
-    # E_rule_1.bind_state(0, "E", 3).bind_state(3, "E", 5).bind_state(5, "E", 7)
-
-    # E_rule_2 = grammar.create_rule("E", ("E", "+", "B"), rule_id="E_rule_2")
-    # E_rule_2.bind_state(0, "E", 3).bind_state(3, "E", 6).bind_state(6, "E", 8)
-
-    # E_rule_3 = grammar.create_rule("E", ("B",), rule_id="E_rule_3")
-    # E_rule_3.bind_state(0, "B", 4)
-
-    # B_rule_1 = grammar.create_rule("B", ("0",), rule_id="B_rule_1")
-    # B_rule_1.bind_state(0, "0", 1)
-
-    # B_rule_2 = grammar.create_rule("B", ("1",), rule_id="B_rule_2")
-    # B_rule_2.bind_state(0, "1", 2)
-
-    # NOTE: Initialize grammar states upfront to avoid slow parsing; this will
-    #       likely be removed in final design
-    # grammar.generate_states()
-
 
 def init_grammar_5(grammar):
     grammar.create_rule("$", ["S"], rule_id="INIT_RULE")
@@ -101,6 +79,20 @@ def init_grammar_6(grammar):
     # grammar.create_rule("S", ["A", "*", "A"], rule_id="S_rule_2")
     # grammar.create_rule("A", ["id"], rule_id="A_rule_1")
     # grammar.create_rule("A", ["S"], rule_id="A_rule_2")
+
+
+def init_grammar_7(grammar):
+    grammar.create_rule("$", ["E"], rule_id="INIT_RULE")
+    grammar.create_rule("E", ["E", "*", "B"], rule_id="E_rule_1")
+    grammar.create_rule("E", ["E", "/", "B"], rule_id="E_rule_2")
+    grammar.create_rule("E", ["E", "+", "B"], rule_id="E_rule_4")
+    grammar.create_rule("E", ["E", "-", "B"], rule_id="E_rule_5")
+    grammar.create_rule("E", ["B"], rule_id="E_rule_3")
+    grammar.create_rule("E", ["C"], rule_id="E_rule_6")
+    grammar.create_rule("C", ["B"], rule_id="C_rule_1")
+    grammar.create_rule("B", ["0"], rule_id="B_rule_1")
+    grammar.create_rule("B", ["1"], rule_id="B_rule_2")
+    grammar.create_rule("B", ["(", "E", ")"], rule_id="B_rule_3")
 
 
 if __name__ == "__main__":

@@ -14,8 +14,8 @@ from .scratch_runtime_setup import (
 	CoreParser2,
 	TestGrammar4ParserEnv,
 	ParseContext,
-	TestGrammar4Tokenizer,
-	TestGrammar4TokenizeHandler,
+	Tokenizer,
+	TestArithmaticGrammarTokenizeHandler,
 	parse_and_display,
 	user_runtime
 )
@@ -97,7 +97,7 @@ def parse_main():
 	# TODO: impolement tokenizer for 'init_grammar_4'
 	# Generate tokens to feed the parser
 	TOKENIZER_ID = 'SCRATCH_TEST_TOKENIZER'
-	_tokenizer = TestGrammar4Tokenizer(input="")
+	_tokenizer = Tokenizer(input="")
 
 
 	_runtime_logger.submit_log(
@@ -178,11 +178,11 @@ def parse_main():
 			print()
 
 
-	def single_parse_runner(string="0+1*1*0*0+1+1+1+1+1+1+1+1+1+1+1", env=None):
+	def single_parse_runner(string, env=None):
 		_env = env if env is not None else _test_grammar_4_env
 		_parse_context = ParseContext(end_symbol="$")
 		_parse_context.set_input(string)
-		_package_parse_result = _test_grammar_4_env.parse(_parse_context).result()
+		_package_parse_result = _env.execute(_parse_context).result()
 		display_result(string, _package_parse_result)
 
 		if not _package_parse_result:
@@ -201,23 +201,24 @@ def parse_main():
 
 	def parse_and_display_runner(env=None, count=-1):
 		_env = env if env is not None else _test_grammar_4_env
-		_test_input_lst = []
+		_test_input_lst = ['0 + 1', '1 + 0', '00 + 11', '11 + 00', '1 + 1', '0 + 0', '0 * 1', '1 * 0', '00 * 11', '11 * 00', '1 * 1', '0 * 0', '6 * 51']
+		_test_input_lst_filtered = []
 
-		for i in ['0 + 1', '1 + 0', '00 + 11', '11 + 00', '1 + 1', '0 + 0', '0 * 1', '1 * 0', '00 * 11', '11 * 00', '1 * 1', '0 * 0', '6 * 51']:
+		for i in _test_input_lst:
 			_tmp_lst = []
 			for e in i:
 				if e in {" ", "  ", "   "}:
 					continue
 				_tmp_lst.append(e)
-			_test_input_lst.append("".join(_tmp_lst))
+			_test_input_lst_filtered.append("".join(_tmp_lst))
 
 		_should_be_valid_results = [True, True, False, False, True, True, True, True, False, False, True, True, False]
-		parse_and_display(_env, _test_input_lst, _should_be_valid_results, count=count)
+		parse_and_display(_env, _test_input_lst_filtered, _should_be_valid_results, count=count)
 
 
 	# Invoke one of several runtimes for scratch sub-package testing
 	# user_input_runner()
-	single_parse_runner(string="1*0+1")
+	single_parse_runner("0+0+0+0+0+0+0*1", env=_test_grammar_4_env)
 	# parse_and_display_runner(count=-1)
 
 

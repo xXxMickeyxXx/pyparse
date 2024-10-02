@@ -28,7 +28,8 @@ from .scratch_init_grammar import (
 	init_grammar_3,
 	init_grammar_4,
 	init_grammar_5,
-	init_grammar_6
+	init_grammar_6,
+	init_grammar_7
 )
 from .scratch_grammar_rules_filter import (
 	RuleSelector,
@@ -91,7 +92,7 @@ TEST_PARSING_TEXT = apply_color(200, """
 """)
 
 
-class TestGrammar4TokenType(StrEnum):
+class TestArithmaticGrammarTokenType(StrEnum):
 
 	NUMBER = "NUMBER"
 	PLUS_OPERATOR = "PLUS_OPERATOR"
@@ -105,30 +106,30 @@ class TestGrammar4TokenType(StrEnum):
 	END_SYMBOL = "END_SYMBOL"
 
 
-class TestGrammar4TokenizeHandler(LexHandler):
+class TestArithmaticGrammarTokenizeHandler(LexHandler):
 
 	def __init__(self, tokenizer=None):
 		super().__init__(tokenizer=tokenizer)
 		self._symbol_mapping = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "*", "-", "/", "//", "(", ")", " "]
 		self._token_type_idx_mapper = [
-			TestGrammar4TokenType.NUMBER,
-			TestGrammar4TokenType.NUMBER,
-			TestGrammar4TokenType.NUMBER,
-			TestGrammar4TokenType.NUMBER,
-			TestGrammar4TokenType.NUMBER,
-			TestGrammar4TokenType.NUMBER,
-			TestGrammar4TokenType.NUMBER,
-			TestGrammar4TokenType.NUMBER,
-			TestGrammar4TokenType.NUMBER,
-			TestGrammar4TokenType.NUMBER,
-			TestGrammar4TokenType.PLUS_OPERATOR,
-			TestGrammar4TokenType.MULT_OPERATOR,
-			TestGrammar4TokenType.SUB_OPERATOR,
-			TestGrammar4TokenType.DIV_OPERATOR,
-			TestGrammar4TokenType.FLOOR_DIV_OPERATOR,
-			TestGrammar4TokenType.LEFT_PAREN,
-			TestGrammar4TokenType.RIGHT_PAREN,
-			TestGrammar4TokenType.WS
+			TestArithmaticGrammarTokenType.NUMBER,
+			TestArithmaticGrammarTokenType.NUMBER,
+			TestArithmaticGrammarTokenType.NUMBER,
+			TestArithmaticGrammarTokenType.NUMBER,
+			TestArithmaticGrammarTokenType.NUMBER,
+			TestArithmaticGrammarTokenType.NUMBER,
+			TestArithmaticGrammarTokenType.NUMBER,
+			TestArithmaticGrammarTokenType.NUMBER,
+			TestArithmaticGrammarTokenType.NUMBER,
+			TestArithmaticGrammarTokenType.NUMBER,
+			TestArithmaticGrammarTokenType.PLUS_OPERATOR,
+			TestArithmaticGrammarTokenType.MULT_OPERATOR,
+			TestArithmaticGrammarTokenType.SUB_OPERATOR,
+			TestArithmaticGrammarTokenType.DIV_OPERATOR,
+			TestArithmaticGrammarTokenType.FLOOR_DIV_OPERATOR,
+			TestArithmaticGrammarTokenType.LEFT_PAREN,
+			TestArithmaticGrammarTokenType.RIGHT_PAREN,
+			TestArithmaticGrammarTokenType.WS
 		]
 
 	def handle(self):
@@ -145,96 +146,50 @@ class TestGrammar4TokenizeHandler(LexHandler):
 
 			if _current_char.isdigit():
 				_token_val = self.tokenizer.cond_consume(lambda x, y, z: not x.isdigit())
-				_add_token_alias(TestGrammar4TokenType.NUMBER, _token_val, token_id=None)
+				_add_token_alias(TestArithmaticGrammarTokenType.NUMBER, _token_val, token_id=None)
 				continue
 
 
 			match _current_char:
 				case " ":
-					_add_token_alias(TestGrammar4TokenType.WS, " ", token_id=None)
+					_add_token_alias(TestArithmaticGrammarTokenType.WS, " ", token_id=None)
 					_tokenizer_advance_a()
 					continue
 				case "/":
 					_next_char = self.tokenizer.peek()
 					if _next_char != "/":
-						_add_token_alias(TestGrammar4TokenType.DIV_OPERATOR, "/", token_id=None)
+						_add_token_alias(TestArithmaticGrammarTokenType.DIV_OPERATOR, "/", token_id=None)
 						_tokenizer_advance_a()
 						continue
 					else:
-						_add_token_alias(TestGrammar4TokenType.FLOOR_DIV_OPERATOR, "//")
+						_add_token_alias(TestArithmaticGrammarTokenType.FLOOR_DIV_OPERATOR, "//")
 						_tokenizer_advance_a()
 						_tokenizer_advance_a()
 						continue
 				case "+":
-					_add_token_alias(TestGrammar4TokenType.PLUS_OPERATOR, "+", token_id=None)
+					_add_token_alias(TestArithmaticGrammarTokenType.PLUS_OPERATOR, "+", token_id=None)
 					_tokenizer_advance_a()
 					continue
 				case "-":
-					_add_token_alias(TestGrammar4TokenType.SUB_OPERATOR, "-", token_id=None)
+					_add_token_alias(TestArithmaticGrammarTokenType.SUB_OPERATOR, "-", token_id=None)
 					_tokenizer_advance_a()
 					continue
 				case "*":
-					_add_token_alias(TestGrammar4TokenType.MULT_OPERATOR, "*", token_id=None)
+					_add_token_alias(TestArithmaticGrammarTokenType.MULT_OPERATOR, "*", token_id=None)
 					_tokenizer_advance_a()
 					continue
 				case "(":
-					_add_token_alias(TestGrammar4TokenType.LEFT_PAREN, "(", token_id=None)
+					_add_token_alias(TestArithmaticGrammarTokenType.LEFT_PAREN, "(", token_id=None)
 					_tokenizer_advance_a()
 					continue
 				case ")":
-					_add_token_alias(TestGrammar4TokenType.RIGHT_PAREN, ")", token_id=None)
+					_add_token_alias(TestArithmaticGrammarTokenType.RIGHT_PAREN, ")", token_id=None)
 					_tokenizer_advance_a()
 					continue
 
 			_error_details = f"symbol: '{_current_char}' does not exists within this handler's symbol mapping ('_symbol_mapping') property; please verify symbol mapping and try again..."
 			raise RuntimeError(_error_details)
-
-
-class TestGrammar4Tokenizer(Tokenizer):
-	pass
-
-
-class TestGrammar6Tokenizer(Tokenizer):
-
-	# TODO/NOTE: use some sort of chain which has handlers to work with input stream
-
-	def __init__(self, input=None):
-		super().__init__(input=input)
-		self.on_loop(self._tokenize)
-		self._valid_symbols = SYMBOLS
-
-	def _tokenize(self):
-		if not self.can_consume:
-			self.quit()
-			return
-
-		_next_token = None
-		_next_char = self.consume()
-		if _next_char in {" ", "\r\n", "\r", "\n", "\t"}:
-			return
-		elif _next_char == "i":
-			_expected_d = self.consume()
-			if _expected_d:
-				_next_char += _expected_d
-				_next_token = ("id", _next_char)
-				self.push_token(_next_token)
-			else:
-				print(f"ACTUAL VALUE OF EXPECTED VALUE @ RUNTIME ERROR ---> {_expected_d}")
-				_error_details = f"unable to tokenize; expected 'd' after encountering an 'i'..."
-				raise RuntimeError(_error_details)
-
-		elif _next_char == "+":
-			_next_token = ("PLUS", _next_char)
-			self.push_token(_next_token)
-		elif _next_char == "*":
-			_next_token = ("MULTIPLY", _next_char)
-			self.push_token(_next_token)
-		elif _next_char == "-":
-			_next_token = ("MINUS", _next_char)
-			self.push_token(_next_token)
-		else:
-			_error_details = f"error tokenizing input on character: '{_next_char}'..."
-			raise RuntimeError(_error_details)
+		_add_token_alias(TestArithmaticGrammarTokenType.END_SYMBOL, "$", token_id=None)
 
 
 class ParserSettings:
@@ -485,7 +440,9 @@ class CoreParser2:
 		####################
 		_current_action = None
 		_current_state = parse_context.state()
-		_current_symbol = parse_context.current_symbol().token_val
+		_current_symbol = parse_context.current_symbol()
+		if hasattr(_current_symbol, "token_val"):
+			_current_symbol = _current_symbol.token_val
 		_end_of_input = False
 		while not parse_context.done_parsing:
 			
@@ -495,8 +452,8 @@ class CoreParser2:
 				_colored_debug_text = bold_text(apply_color(_color_code, _debug_text_mainloop_top))
 				print(_colored_debug_text)
 				print()
-				print(f"• CURRENT STATE: {_current_state}")
-				print(f"• CURRENT SYMBOL: {_current_symbol}")
+				# print(f"• CURRENT STATE: {_current_state}")
+				# print(f"• CURRENT SYMBOL: {_current_symbol}")
 
 			_current_action = self.parse_table.action(_current_state, _current_symbol, default=(ParserActionType.ERROR, None))
 			# _test_action_1 = self.parse_table.action(1, "$")
@@ -517,10 +474,12 @@ class CoreParser2:
 
 			if self.debug_mode:
 				print()
-				print(f"• CURRENT STATE: {parse_context.state()}")
+				# print(f"• CURRENT STATE: {parse_context.state()}")
+				print(f"• CURRENT STATE: {_current_state}")
 				print(f"• CURRENT STATE STACK: {parse_context.stack}")
 				print()
-				print(f"• CURRENT SYMBOL: {parse_context.current_symbol().token_val}")
+				# print(f"• CURRENT SYMBOL: {parse_context.current_symbol().token_val}")
+				print(f"• CURRENT SYMBOL: {_current_symbol}")
 				print(f"• CURRENT SYMBOL STACK: {parse_context.symbol_stack}")
 				print()
 				print()
@@ -554,7 +513,9 @@ class CoreParser2:
 			elif _action == ParserActionType.ACCEPT:
 				parse_context.set_result(True)
 
-			_current_symbol = parse_context.current_symbol().token_val
+			_current_symbol = parse_context.current_symbol()
+			if hasattr(_current_symbol, "token_val"):
+				_current_symbol = _current_symbol.token_val
 			_current_state = parse_context.state()
 
 
@@ -884,11 +845,10 @@ class AutomaticGrammar4TableBuilder:
 
 class ManualGrammar4TableBuilder:
 
-	__slots__ = ("_grammar", "_item_states")
+	__slots__ = ("_grammar")
 
 	def __init__(self, grammar):
 		self._grammar = grammar
-		self._item_states = grammar.generate_states() if grammar is not None else None
 
 	@property
 	def grammar(self):
@@ -896,9 +856,9 @@ class ManualGrammar4TableBuilder:
 
 	@property
 	def item_states(self):
-		if self._item_states:
-			self._item_states = self.grammar.generate_states()
-		return self._item_states
+		# if self._item_states:
+		# 	self._item_states = self.grammar.generate_states()
+		return self.grammar.generate_states()
 
 	def build_table(self, table):
 		INIT_RULE = self.grammar.select(RuleIDSelector("INIT_RULE"))[0]
@@ -1010,6 +970,10 @@ class ManualGrammar6TableBuilder(ManualGrammar4TableBuilder):
 	pass
 
 
+class ManualGrammar7TableBuilder(ManualGrammar4TableBuilder):
+	pass
+
+
 class TestGrammar4ParserEnv(ParserEnvironment):
 
 	def __init__(self, parser=None, grammar=None, tokenizer=None, parse_table=None, env_id=None):
@@ -1113,13 +1077,11 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 			self.setup()
 		return self._parser_context.run(self)
 
-	@staticmethod
-	def _init_grammar_6(grammar):
-		init_grammar_6(grammar)
+	def _init_grammar_6(self, grammar):
+		init_grammar_6(self.grammar)
 
-	@staticmethod
-	def _init_grammar_4(grammar):
-		init_grammar_4(grammar)
+	def _init_grammar_4(self, grammar):
+		init_grammar_4(self.grammar)
 
 	@staticmethod
 	def _init_test_data_(parser_env, path_input):
@@ -1127,8 +1089,7 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 		_source_file_data = read_source(_source_file)
 		parser_env.set_test_data(_source_file_data)
 
-	@staticmethod
-	def _init_mainloop_(parser_context):
+	def _init_mainloop_(self, parser_context):
 		parser_context.submit(self.parser.mainloop)
 
 	@staticmethod
@@ -1146,9 +1107,14 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 		_tbl_builder = ManualGrammar6TableBuilder(self.grammar)
 		self.parse_table.build(_tbl_builder)
 
-	def parse(self, parse_context):
+	def __build_table_7__(self):
+		_tbl_builder = ManualGrammar7TableBuilder(self.grammar)
+		self.parse_table.build(_tbl_builder)
+
+	def execute(self, parse_context):
 		self.__build_table_4__()
 		# self.__build_table_6__()
+		# self.__build_table_7__()
 		return self.parser.parse(parse_context)
 
 
@@ -1162,7 +1128,7 @@ def parse_and_display(evn, test_data, actual_results, count=-1):
 	while _test_data_queue and (_counter < count if (isinstance(count, int) and count > 0) else True):
 		_next_test_data_piece = _test_data_queue.popleft()
 		_parse_context = ParseContext(input=_next_test_data_piece)
-		_parse_result = evn.parse(_parse_context).result()
+		_parse_result = evn.execute(_parse_context).result()
 		_compare_results = _parse_result == actual_results[_counter]
 		_passing_message = apply_color(10, f"TEST-CASE PASSED") if _compare_results else apply_color(9, f"TEST-CASE FAILED")
 		display_result(_next_test_data_piece, _parse_result, _passing_message)
@@ -1177,7 +1143,7 @@ def user_runtime(env):
 	_user_input = input(_input_start_symbol)
 	while _user_input.lower() not in _exit_runtime_vals:
 		_parse_context = ParseContext(input=_user_input)
-		_parse_result = env.parse(_parse_context).result()
+		_parse_result = env.execute(_parse_context).result()
 		display_result(_user_input, _parse_result)
 		print()
 		_user_input = input(_input_start_symbol)
@@ -1187,21 +1153,23 @@ def user_runtime(env):
 
 if __name__ == "__main__":
 	init_grammar_4(GRAMMAR)
-	_TEST_INPUT_1_ = "1 * 0 + 1"
+	_TEST_INPUT_1_ = "1 / 1"
 	_TEST_INPUT_2_ = "1 + 1 // 503 * 1"
-	_TEST_INPUT_3_ = "1 * 0 + (1 / 1)"
+	_TEST_INPUT_3_ = "1 * 0 + 1 / 1"
 	_TEST_INPUT_4_ = "8675309 + 18001314321"
+	_TEST_INPUT_5_ = "0 + 1 * 0 + 0 * 1 + 1"
 	
 	_TEST_INPUT_STREAM = [
 		_TEST_INPUT_1_,
 		_TEST_INPUT_2_,
 		_TEST_INPUT_3_,
-		_TEST_INPUT_4_
+		_TEST_INPUT_4_,
+		_TEST_INPUT_5_
 	]
 
 	TEST_TOKENIZER_ID = f"[TEST_TOKENIZER]"
-	_test_tokenizer = TestGrammar4Tokenizer(tokenizer_id=TEST_TOKENIZER_ID)
-	_test_tokenizer_handler = TestGrammar4TokenizeHandler(tokenizer=_test_tokenizer)
+	_test_tokenizer_handler = TestArithmaticGrammarTokenizeHandler()
+	_test_tokenizer = Tokenizer(tokenizer_id=TEST_TOKENIZER_ID, handler=_test_tokenizer_handler)  # NOTE: should make 'add_handler' instead and use the 'tokenizer.tokenize()' method call with 'input' instead (encapsulating the 'handling' logic within the implementation, ideally an interface rather))
 
 
 	# print()
@@ -1211,7 +1179,7 @@ if __name__ == "__main__":
 	# 	print(f"INPUT TO TOKENIZE ---> {_input_}\n")
 	# 	print()
 	# 	for _token in _token_results:
-	# 		if _token == Token(TestGrammar4TokenType.WS, " "):
+	# 		if _token == Token(TestArithmaticGrammarTokenType.WS, " "):
 	# 			continue
 	# 		print(f"\t• TYPE:  ---> {_token.token_type}")
 	# 		print(f"\t• VALUE: ---> {_token.token_val}")
@@ -1221,22 +1189,41 @@ if __name__ == "__main__":
 
 
 	_parse_table = ParseTable(table_id="TEST_RUNTIME_SETUP_PARSE_TABLE")
-	_manual_grammar_4_builder = ManualGrammar4TableBuilder(GRAMMAR)
+	# _manual_grammar_4_builder = ManualGrammar4TableBuilder(GRAMMAR)
+	_manual_grammar_7_builder = ManualGrammar7TableBuilder(GRAMMAR)
+	
 	# Build parse table out using manual builder
-	_manual_grammar_4_builder.build_table(_parse_table)
+	# _manual_grammar_4_builder.build_table(_parse_table)
+	_manual_grammar_7_builder.build_table(_parse_table)
 	_test_parse_context = ParseContext()
-	_test_tokenizer.set_input(_TEST_INPUT_1_)
-	_tokens = _test_tokenizer.tokenize(_test_tokenizer_handler)
-	_tokens.append(Token(TestGrammar4TokenType.END_SYMBOL, "$", token_id=None))
-	_tokens = [i for i in _tokens if i.token_type != TestGrammar4TokenType.WS]
-	_test_parse_context.set_input(_tokens)
 	print()
-	for i in _tokens:
-		print(i)
 	print()
-	_parser = CoreParser2(init_state=0, grammar=GRAMMAR, parse_table=_parse_table, debug_mode=False, parser_id="TEST_SCRATCH_RUNTIME_SETUP_PARSER")
-	_results = _parser.parse(_test_parse_context).result()
-	print(f"PARSE PASSED ---> {_results is True or bool(_results)}")
+	_parse_table.print()
+	print()
+	print(f"ITEM STATES")
+	print()
+	for state, items in _manual_grammar_7_builder.item_states.items():
+		print(bold_text(apply_color(226, f"S{state} ------------------------------")))
+		for item in items:
+			print(f"{item}")
+			print()
+		print()
+		print()
+	print()
+	for _input in _TEST_INPUT_STREAM:
+		# TODO: call 'reset' within the 'set_input' method of both parse_context and tokenizer (though check if that doesn't undo previously executed logic, affecting state or otherwise)
+		_tokens = [i for i in _test_tokenizer.tokenize(_input) if i.token_type != TestArithmaticGrammarTokenType.WS]
+		# _tokens = [i for i in _tokens if i.token_type != TestArithmaticGrammarTokenType.WS]
+		_test_parse_context.reset()
+		_test_parse_context.set_input(_tokens)
+		_parser = CoreParser2(init_state=0, grammar=GRAMMAR, parse_table=_parse_table, debug_mode=False, parser_id="TEST_SCRATCH_RUNTIME_SETUP_PARSER")
+		_results = _parser.parse(_test_parse_context).result()
+		_results = _results is True or bool(_results)
+		print(f"PARSE PASSED ---> {_results}")
+		for _i in _tokens:
+			print(_i)
+		print()
+		print()
 	# _test_parse_context = ParseContext()
 	# _test_parse_context.set_input(_TEST_INPUT_1_)
 	# _tokens = _test_par

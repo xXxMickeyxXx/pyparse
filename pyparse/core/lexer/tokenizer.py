@@ -17,14 +17,17 @@ class Tokens(ABC):
 
 class Tokenizer:
 
-	def __init__(self, input=None, token_factory=Token, tokenizer_id=None):
+	def __init__(self, input=None, handler=None, token_factory=Token, tokenizer_id=None):
 		self._tokenizer_id = tokenizer_id or generate_id()
 		self._scanner = None
-		self._input = input or ""
+		self._input = input
 		# self._pointer = 0
 		self._tokens = []
 		# self._input_len = len(self._input)
 		self._token_factory = token_factory
+		self._handler = handler
+		if self._handler:
+			self._handler.set_tokenizer(self)
 
 	@property
 	def tokenizer_id(self):
@@ -64,7 +67,22 @@ class Tokenizer:
 
 	@property
 	def input(self):
+		if self._input is None or not self._input:
+			# TODO: create and raise custom error here
+			_error_details = f"unable to access 'input' property as one has not yet been associated with instance of '{self.__class__.__name__}'..."
 		return self.scanner.input
+
+	@property
+	def handler(self):
+		if self._handler is None:
+			# TODO: create and raise custom error here
+			_error_details = f"unable to access 'handler' property as one has not yet been associated with instance of '{self.__class__.__name__}'..."
+			raise AttributeError(_error_details)
+		return self._handler
+
+	def set_handler(self, handler):
+		self._handler = handler
+		handler.set_tokenizer(self)
 
 	def scanner_factory(self, *args, **kwargs):
 		return Scanner(*args, **kwargs)
@@ -128,7 +146,7 @@ class Tokenizer:
 		return self.tokens.pop(idx)
 
 	def token_at(self, index):
-		if index >= self._input_len:
+		if index >= len(self.tokens):
 			# TODO: create and raise custom error here
 			_error_details = f"unable to access token at index: {index} as it exceeds the bounds of tokens container..."
 			raise IndexError(_error_details)
@@ -138,9 +156,9 @@ class Tokenizer:
 		_slicer = slice(*slice_args)
 		return self.tokens[_slicer]
 
-	def tokenize(self, handler):
-		handler.set_tokenizer(self)
-		handler.handle()
+	def tokenize(self, input):
+		self.set_input(input)
+		self.handler.handle()
 		return self.reset()
 
 	def flush_tokens(self):

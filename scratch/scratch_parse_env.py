@@ -31,7 +31,7 @@ class ParserEnvironment(ABC):
 		self._parser = parser
 
 	@abstractmethod
-	def run(self):
+	def execute(self):
 		raise NotImplementedError
 
 

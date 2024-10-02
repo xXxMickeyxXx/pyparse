@@ -110,8 +110,6 @@ class BinOp(Expression):
 		self.left = left
 		self.op = op
 		self.right = right
-		self.add(self.left)
-		self.add(self.right)
 
 
 class Number(Expression):
@@ -150,24 +148,15 @@ class Assignment(Statement):
 
 	def __init__(self, variable: Variable = None, expression: Expression = None, node_id=None):
 		super().__init__(node_id=node_id)
-		if variable is not None:
-			self.add(variable)
-		if expression is not None:
-			self.add(expression)
-
-	# def eval(self, evaluator):
-	# 	_Variable_node = self.node("Variable")
-	# 	_Variable_node_id = _Variable_node.identifier
-	# 	evaluator.environment.update({_Variable_node_id: _Variable_node})
-	# 	return evaluator.eval(self)
+		self.variable = variable
+		self.expression = expression
 
 
 class PrintStatement(Statement):
 
 	def __init__(self, expression=None, node_id=None):
 		super().__init__(node_id=node_id)
-		if expression:
-			self.add(expression)
+		self.expression = expression
 
 
 class TestEvaluator(Evaluator):
@@ -188,8 +177,18 @@ class TestEvaluator(Evaluator):
 		return node.number
 
 	def handle_binary_operation(self, node):
-		left_value = node.left
-		right_value = node.right
+		left_value = node.left.eval(self)
+		right_value = node.right.eval(self)
+		# print(f"A ---> {_a}")
+		# print(f"B ---> {_b}")
+		# if isinstance(node.left, Node):
+		# 	left_value = self.eval(node.left)
+		# else:
+		# 	left_value = node.left
+		# if isinstance(node.right, Node):
+		# 	right_value = self.eval(node.right)
+		# else:
+		# 	right_value = node.right
 		match node.op:
 			case "/":
 				return left_value / right_value
@@ -205,71 +204,57 @@ class TestEvaluator(Evaluator):
 		return _val
 
 	def handle_assignment(self, node):
-		value = node.node("Variable")
-		_expr = node.node("BinOp")
-		_expr_eval = self.eval(_expr)
-		self.capture(value.identifier, _expr_eval, overwrite=False)
-		return _expr_eval
+		print()
+		print(f"\t• ---------- CALLING NODE@: {node.node_id} ----------• ")
+		print()
+		value = self.eval(node.variable)
+		_expr_val = self.eval(node.expression)
+		self.update(node.variable, _expr_val)
+		return _expr_val
 
 	def handle_print_statement(self, node):
-		print()
-		print(f"\t• ---------- CALLING NODE@: {node.node_id} ----------• ")
-		print()
-		for _node in node.branches():
-			print(f"BRANCH: {node.node_id}.{_node.node_id}")
-			self.eval(_node)
-		print(f"'handle_print_statement'@")
-		return node
+		_res = []
+		for _branch in node.branches():
+			_res_ = self.eval(_branch)
+			_res.append(_res_)
+		print(f"RES: {_res}")
+		return _res
 
 	def handle_root(self, node):
-		print()
-		print(f"\t• ---------- CALLING NODE@: {node.node_id} ----------• ")
-		print()
-		_retval = None
-		for _node in node.branches():
-			print(f"\n\nNODE: {_node}")
-			print(f"IS ROOT: {_node.is_root}")
-			_res = self.eval(_node)
-			if _res:
-				print(f"\t• RESULTS ---> {_res}\n")
+		_res = []
+		_print_node = node.branches()[0]
+		return self.eval(_print_node.branches()[0])
+		# for _node in node.branches():
+		# 	_retv = self.eval(_node)
+		# 	_res.append(_retv)
+		# return _res
 
 
 _expr_1 = Number(12)
 _expr_2 = Number(4)
 _bin_op_expr = BinOp(_expr_1, "*", _expr_2)
 _bin_op_expr_2 = BinOp(_bin_op_expr, "+", Number(7))
+_bin_op_expr_3 = BinOp(_bin_op_expr_2, "*", _bin_op_expr)
 _variable = Variable("x")
-_assignment = Assignment()
-_assignment.add(_variable)
-_assignment.add(_bin_op_expr)
-_assignment.add(_bin_op_expr_2)
+_assignment = Assignment(variable=_variable, expression=_bin_op_expr_3)
+_print_statement = PrintStatement()
+_print_statement.add(_assignment)
 
 
 _root = Root()
-_root.add(_assignment)
-_root.add(PrintStatement(_assignment))
+_root.add(_print_statement)
 
 
 test_evaluator = TestEvaluator(evaluator_id="TEST_EVALUATOR")
 
 
-# @profile_callable(sort_by=SortBy.TIME)
+@profile_callable(sort_by=SortBy.TIME)
 def main():
 	print()
-	test_evaluator.eval(_root)
-	print()
-	# _found_node = _root.node("BinOp")
-	# print()
-	# _text = ""
-	# if _found_node:
-	# 	_text = f"NODE **FOUND**: {_found_node}!!!"
-	# else:
-	# 	_text = f"NODE **NOT** FOUND..."
-	# print(_text)
-	# print()
-	# test_evaluator.walk(_assignment)
-	# retval = test_evaluator.eval(TEST_NODE)
-	# print(retval)
+	_root_result = test_evaluator.eval(_root)
+	print(f"ROOT RESULT: {_root_result}")
+	print(f"RESULT:")
+	print(test_evaluator.get(_variable, "'FALSE'"))
 	print()
 
 
