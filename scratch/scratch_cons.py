@@ -31,6 +31,7 @@ class PyParseLoggerID(StrEnum):
     RUNTIME = auto()
     SHELL_INIT = auto()
     LOGGING_INIT = auto()
+    FINAL_REDESIGN = auto()
 
 
 class ParserActionState(IntEnum):

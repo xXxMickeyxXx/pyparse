@@ -18,7 +18,7 @@ from pysynchrony import (
 	PySynchronyPortError
 )
 
-from pyparse import Parser, Tokenizer, LexHandler, Token
+from pyparse import Tokenizer, LexHandler, Token
 from .scratch_parse_table import ParseTable
 from .scratch_parse_env import ParserEnvironment
 from .scratch_init_grammar import (
@@ -349,6 +349,7 @@ class ParserEvent(PySynchronyEvent):
 class InputStream:
 	"""NOTE: will be responsible for actually containing/managing a given input/input
 	stream. Each instance of 'ParseContext' will contain an instance of this class."""
+	pass
 
 
 class CoreParser2:
@@ -441,8 +442,8 @@ class CoreParser2:
 		_current_action = None
 		_current_state = parse_context.state()
 		_current_symbol = parse_context.current_symbol()
-		if hasattr(_current_symbol, "token_val"):
-			_current_symbol = _current_symbol.token_val
+		if hasattr(_current_symbol, "token_type"):
+			_current_symbol = _current_symbol.token_type
 		_end_of_input = False
 		while not parse_context.done_parsing:
 			
@@ -452,21 +453,10 @@ class CoreParser2:
 				_colored_debug_text = bold_text(apply_color(_color_code, _debug_text_mainloop_top))
 				print(_colored_debug_text)
 				print()
-				# print(f"• CURRENT STATE: {_current_state}")
-				# print(f"• CURRENT SYMBOL: {_current_symbol}")
 
-			_current_action = self.parse_table.action(_current_state, _current_symbol, default=(ParserActionType.ERROR, None))
-			# _test_action_1 = self.parse_table.action(1, "$")
-			# print(f"TEST ACTION:\n\t ---> {_test_action_1}")
-			# if len(_test_action_1) >= 2: 
-			# 	_test_action_item_1 = _test_action_1[1]
-			# 	print(_test_action_item_1)
-			# 	print(f"^^^^TEST ACTION ITEM^^^^")
-			# 	print(f"ITEM:\n\n{_test_action_item_1}\n\n\n")
+			_current_action = self.parse_table.action((_current_state, _current_symbol), default=(ParserActionType.ERROR, None))
 
 			if self.debug_mode:
-				# print()
-				# print(f"FULL '_current_action':\n\t{_current_action}\n\n")
 				_debug_text = f"• CURRRENT STATE: {_current_state}\n• CURRENT SYMBOL: {_current_symbol}\n• CURRENT ACTION: {_current_action}\n"
 				print(bold_text(apply_color(_color_code, _debug_text)))
 
@@ -474,11 +464,9 @@ class CoreParser2:
 
 			if self.debug_mode:
 				print()
-				# print(f"• CURRENT STATE: {parse_context.state()}")
 				print(f"• CURRENT STATE: {_current_state}")
 				print(f"• CURRENT STATE STACK: {parse_context.stack}")
 				print()
-				# print(f"• CURRENT SYMBOL: {parse_context.current_symbol().token_val}")
 				print(f"• CURRENT SYMBOL: {_current_symbol}")
 				print(f"• CURRENT SYMBOL STACK: {parse_context.symbol_stack}")
 				print()
@@ -488,6 +476,8 @@ class CoreParser2:
 			_parse_sym_stack = parse_context.symbol_stack
 
 			if _action == ParserActionType.SHIFT:
+				if self.debug_mode:
+					print(f"IN SHIFT ACTION:")
 				parse_context.append_state(_current_action[1])
 				parse_context.append_symbol(_current_symbol)
 				parse_context.advance()
@@ -501,7 +491,7 @@ class CoreParser2:
 					if self.debug_mode:
 						print(f"POPPED STATE: {_popped_state}")
 						print(f"POPPED SYMBOL: {_popped_symbol}")
-				_goto_state = self.parse_table.goto(parse_context.state(), _reduce_item.rule_head)
+				_goto_state = self.parse_table.goto((parse_context.state(), _reduce_item.rule_head))
 				_next_state = _goto_state[0]
 				parse_context.append_state(_next_state)
 				parse_context.append_symbol(_reduce_item.rule_head)
@@ -514,8 +504,8 @@ class CoreParser2:
 				parse_context.set_result(True)
 
 			_current_symbol = parse_context.current_symbol()
-			if hasattr(_current_symbol, "token_val"):
-				_current_symbol = _current_symbol.token_val
+			if hasattr(_current_symbol, "token_type"):
+				_current_symbol = _current_symbol.token_type
 			_current_state = parse_context.state()
 
 
@@ -810,6 +800,16 @@ class AutomaticGrammar4TableBuilder:
 	def __init__(self, grammar):
 		self._grammar = grammar
 
+	@property
+	def grammar(self):
+		return self._grammar
+
+	@property
+	def item_states(self):
+		# if self._item_states:
+		# 	self._item_states = self.grammar.generate_states()
+		return self.grammar.generate_states()
+
 	def build_table(self, table):
 		_rules = self._grammar.rules()
 		item_states = self._grammar.generate_states()
@@ -872,126 +872,179 @@ class ManualGrammar4TableBuilder:
 		E_times_B_copy_1 = E_times_B.copy()
 		E_plus_B_copy_1 = E_plus_B.copy()
 		E_is_B_copy_1 = E_is_B.copy()
-		table.add_action(0, "0", (ParserActionType.SHIFT, 3))
-		table.add_action(0, "1", (ParserActionType.SHIFT, 4))
-		table.add_action(0, "E", (ParserActionType.SHIFT, 1))
-		table.add_action(0, "B", (ParserActionType.SHIFT, 2))
-		table.add_action(0, "*", (ParserActionType.ERROR, None))
-		table.add_action(0, "+", (ParserActionType.ERROR, None))
-		table.add_action(0, "$", (ParserActionType.ERROR, None))	
-		table.add_goto(0, "E", (1, E_times_B_copy_1.advance_by(1)))
-		table.add_goto(0, "E", (1, E_plus_B_copy_1.advance_by(1)))
-		table.add_goto(0, "B", (2, E_is_B_copy_1.advance_by(1)))
+		table.add_action((0, "0"), (ParserActionType.SHIFT, 3))
+		table.add_action((0, "1"), (ParserActionType.SHIFT, 4))
+		table.add_action((0, "E"), (ParserActionType.SHIFT, 1))
+		table.add_action((0, "B"), (ParserActionType.SHIFT, 2))
+		table.add_action((0, "*"), (ParserActionType.ERROR, None))
+		table.add_action((0, "+"), (ParserActionType.ERROR, None))
+		table.add_action((0, "$"), (ParserActionType.ERROR, None))	
+		table.add_goto((0, "E"), (1, E_times_B_copy_1.advance_by(1)))
+		table.add_goto((0, "E"), (1, E_plus_B_copy_1.advance_by(1)))
+		table.add_goto((0, "B"), (2, E_is_B_copy_1.advance_by(1)))
 
 		# STATE 1 PARSE TABLE TRANSITION DECLARATIONS:
 		INIT_RULE_copy = INIT_RULE.copy()
-		table.add_action(1, "*", (ParserActionType.SHIFT, 5))
-		table.add_action(1, "+", (ParserActionType.SHIFT, 6))
-		table.add_action(1, "E", (ParserActionType.ERROR, None))
-		table.add_action(1, "B", (ParserActionType.ERROR, None))
-		table.add_action(1, "$", (ParserActionType.ACCEPT, INIT_RULE_copy.advance_by(1)))
-		table.add_action(1, "0", (ParserActionType.ERROR, None))
-		table.add_action(1, "1", (ParserActionType.ERROR, None))
-		table.add_goto(1, "E", None)
-		table.add_goto(1, "B", None)
+		table.add_action((1, "*"), (ParserActionType.SHIFT, 5))
+		table.add_action((1, "+"), (ParserActionType.SHIFT, 6))
+		table.add_action((1, "E"), (ParserActionType.ERROR, None))
+		table.add_action((1, "B"), (ParserActionType.ERROR, None))
+		table.add_action((1, "$"), (ParserActionType.ACCEPT, INIT_RULE_copy.advance_by(1)))
+		table.add_action((1, "0"), (ParserActionType.ERROR, None))
+		table.add_action((1, "1"), (ParserActionType.ERROR, None))
+		table.add_goto((1, "E"), None)
+		table.add_goto((1, "B"), None)
 
 		# STATE 2 PARSE TABLE TRANSITION DECLARATIONS:
 		E_is_B_copy_2 = E_is_B.copy()
-		table.add_action(2, "*", (ParserActionType.REDUCE, E_is_B_copy_2.advance_by(1)))
-		table.add_action(2, "+", (ParserActionType.REDUCE, E_is_B_copy_2.advance_by(1)))
-		table.add_action(2, "$", (ParserActionType.REDUCE, E_is_B_copy_2.advance_by(1)))
-		table.add_action(2, "0", (ParserActionType.ERROR, None))
-		table.add_action(2, "1", (ParserActionType.ERROR, None))
-		table.add_goto(2, "E", None)
-		table.add_goto(2, "B", None)
+		table.add_action((2, "*"), (ParserActionType.REDUCE, E_is_B_copy_2.advance_by(1)))
+		table.add_action((2, "+"), (ParserActionType.REDUCE, E_is_B_copy_2.advance_by(1)))
+		table.add_action((2, "$"), (ParserActionType.REDUCE, E_is_B_copy_2.advance_by(1)))
+		table.add_action((2, "0"), (ParserActionType.ERROR, None))
+		table.add_action((2, "1"), (ParserActionType.ERROR, None))
+		table.add_goto((2, "E"), None)
+		table.add_goto((2, "B"), None)
 
 		# STATE 3 PARSE TABLE TRANSITION DECLARATIONS:
 		B_is_0_copy = B_is_0.copy()
-		table.add_action(3, "*", (ParserActionType.REDUCE, B_is_0_copy.advance_by(1)))
-		table.add_action(3, "+", (ParserActionType.REDUCE, B_is_0_copy.advance_by(1)))
-		table.add_action(3, "$", (ParserActionType.REDUCE, B_is_0_copy.advance_by(1)))
-		table.add_action(3, "0", (ParserActionType.ERROR, None))
-		table.add_action(3, "1", (ParserActionType.ERROR, None))
-		table.add_goto(3, "E", None)
-		table.add_goto(3, "B", None)
+		table.add_action((3, "*"), (ParserActionType.REDUCE, B_is_0_copy.advance_by(1)))
+		table.add_action((3, "+"), (ParserActionType.REDUCE, B_is_0_copy.advance_by(1)))
+		table.add_action((3, "$"), (ParserActionType.REDUCE, B_is_0_copy.advance_by(1)))
+		table.add_action((3, "0"), (ParserActionType.ERROR, None))
+		table.add_action((3, "1"), (ParserActionType.ERROR, None))
+		table.add_goto((3, "E"), None)
+		table.add_goto((3, "B"), None)
 
 		# STATE 4 PARSE TABLE TRANSITION DECLARATIONS:
 		B_is_1_copy = B_is_1.copy()
-		table.add_action(4, "*", (ParserActionType.REDUCE, B_is_1_copy.advance_by(1)))
-		table.add_action(4, "+", (ParserActionType.REDUCE, B_is_1_copy.advance_by(1)))
-		table.add_action(4, "$", (ParserActionType.REDUCE, B_is_1_copy.advance_by(1)))
-		table.add_action(4, "0", (ParserActionType.ERROR, None))
-		table.add_action(4, "1", (ParserActionType.ERROR, None))
-		table.add_goto(4, "E", None)
-		table.add_goto(4, "B", None)
+		table.add_action((4, "*"), (ParserActionType.REDUCE, B_is_1_copy.advance_by(1)))
+		table.add_action((4, "+"), (ParserActionType.REDUCE, B_is_1_copy.advance_by(1)))
+		table.add_action((4, "$"), (ParserActionType.REDUCE, B_is_1_copy.advance_by(1)))
+		table.add_action((4, "0"), (ParserActionType.ERROR, None))
+		table.add_action((4, "1"), (ParserActionType.ERROR, None))
+		table.add_goto((4, "E"), None)
+		table.add_goto((4, "B"), None)
 
 		# STATE 5 PARSE TABLE TRANSITION DECLARATIONS:
 		E_times_B_copy_2 = E_times_B.copy()
-		table.add_action(5, "0", (ParserActionType.SHIFT, 3))
-		table.add_action(5, "1", (ParserActionType.SHIFT, 4))
-		table.add_action(5, "*", (ParserActionType.ERROR, None))
-		table.add_action(5, "+", (ParserActionType.ERROR, None))
-		table.add_action(5, "$", (ParserActionType.ERROR, None))
-		table.add_goto(5, "E", None)
-		table.add_goto(5, "B", (7, E_times_B_copy_2.advance_by(2)))
+		table.add_action((5, "0"), (ParserActionType.SHIFT, 3))
+		table.add_action((5, "1"), (ParserActionType.SHIFT, 4))
+		table.add_action((5, "*"), (ParserActionType.ERROR, None))
+		table.add_action((5, "+"), (ParserActionType.ERROR, None))
+		table.add_action((5, "$"), (ParserActionType.ERROR, None))
+		table.add_goto((5, "E"), None)
+		table.add_goto((5, "B"), (7, E_times_B_copy_2.advance_by(2)))
 
 		# STATE 6 PARSE TABLE TRANSITION DECLARATIONS:
 		E_plus_B_copy_2 = E_plus_B.copy()
-		table.add_action(6, "0", (ParserActionType.SHIFT, 3))
-		table.add_action(6, "1", (ParserActionType.SHIFT, 4))
-		table.add_action(6, "*", (ParserActionType.ERROR, None))
-		table.add_action(6, "+", (ParserActionType.ERROR, None))
-		table.add_action(6, "$", (ParserActionType.ERROR, None))
-		table.add_goto(6, "E", None)
-		table.add_goto(6, "B", (8, E_plus_B_copy_2.advance_by(2)))
+		table.add_action((6, "0"), (ParserActionType.SHIFT, 3))
+		table.add_action((6, "1"), (ParserActionType.SHIFT, 4))
+		table.add_action((6, "*"), (ParserActionType.ERROR, None))
+		table.add_action((6, "+"), (ParserActionType.ERROR, None))
+		table.add_action((6, "$"), (ParserActionType.ERROR, None))
+		table.add_goto((6, "E"), None)
+		table.add_goto((6, "B"), (8, E_plus_B_copy_2.advance_by(2)))
 
 		# STATE 7 PARSE TABLE TRANSITION DECLARATIONS:
 		E_times_B_copy_3 = E_times_B.copy()
-		table.add_action(7, "*", (ParserActionType.REDUCE, E_times_B_copy_3.advance_by(3)))
-		table.add_action(7, "+", (ParserActionType.REDUCE, E_times_B_copy_3.advance_by(3)))
-		table.add_action(7, "$", (ParserActionType.REDUCE, E_times_B_copy_3.advance_by(3)))
-		table.add_action(7, "0", (ParserActionType.ERROR, None))
-		table.add_action(7, "1", (ParserActionType.ERROR, None))
-		table.add_goto(7, "E", None)
-		table.add_goto(7, "B", None)
+		table.add_action((7, "*"), (ParserActionType.REDUCE, E_times_B_copy_3.advance_by(3)))
+		table.add_action((7, "+"), (ParserActionType.REDUCE, E_times_B_copy_3.advance_by(3)))
+		table.add_action((7, "$"), (ParserActionType.REDUCE, E_times_B_copy_3.advance_by(3)))
+		table.add_action((7, "0"), (ParserActionType.ERROR, None))
+		table.add_action((7, "1"), (ParserActionType.ERROR, None))
+		table.add_goto((7, "E"), None)
+		table.add_goto((7, "B"), None)
 
 		# STATE 8 PARSE TABLE TRANSITION DECLARATIONS:
 		E_plus_B_copy_3 = E_plus_B.copy()
-		table.add_action(8, "*", (ParserActionType.REDUCE, E_plus_B_copy_3.advance_by(3)))
-		table.add_action(8, "+", (ParserActionType.REDUCE, E_plus_B_copy_3.advance_by(3)))
-		table.add_action(8, "$", (ParserActionType.REDUCE, E_plus_B_copy_3.advance_by(3)))
-		table.add_action(8, "0", (ParserActionType.ERROR, None))
-		table.add_action(8, "1", (ParserActionType.ERROR, None))
-		table.add_goto(8, "E", None)
-		table.add_goto(8, "B", None)
-
-
-class ManualGrammar6TableBuilder(ManualGrammar4TableBuilder):
-	pass
+		table.add_action((8, "*"), (ParserActionType.REDUCE, E_plus_B_copy_3.advance_by(3)))
+		table.add_action((8, "+"), (ParserActionType.REDUCE, E_plus_B_copy_3.advance_by(3)))
+		table.add_action((8, "$"), (ParserActionType.REDUCE, E_plus_B_copy_3.advance_by(3)))
+		table.add_action((8, "0"), (ParserActionType.ERROR, None))
+		table.add_action((8, "1"), (ParserActionType.ERROR, None))
+		table.add_goto((8, "E"), None)
+		table.add_goto((8, "B"), None)
 
 
 class ManualGrammar7TableBuilder(ManualGrammar4TableBuilder):
-	pass
+	
+	def build_table(self, table):
+		super().build_table(table)
+		# # STATE 0 PARSE TABLE TRANSITION DECLARATIONS:
+		# E_times_B_copy_1 = E_times_B.copy()
+		# E_plus_B_copy_1 = E_plus_B.copy()
+		# E_is_B_copy_1 = E_is_B.copy()
+		# table.add_action((0, "0"), (ParserActionType.SHIFT, 3))
+		# table.add_action((0, "1"), (ParserActionType.SHIFT, 4))
+		# table.add_action((0, "E"), (ParserActionType.SHIFT, 1))
+		# table.add_action((0, "B"), (ParserActionType.SHIFT, 2))
+		# table.add_action((0, "*"), (ParserActionType.ERROR, None))
+		# table.add_action((0, "+"), (ParserActionType.ERROR, None))
+		# table.add_action((0, "$"), (ParserActionType.ERROR, None))	
+		# table.add_goto((0, "E"), (1, E_times_B_copy_1.advance_by(1)))
+		# table.add_goto((0, "E"), (1, E_plus_B_copy_1.advance_by(1)))
+		# table.add_goto((0, "B"), (2, E_is_B_copy_1.advance_by(1)))
+
+		# # STATE 1 PARSE TABLE TRANSITION DECLARATIONS:
+		# INIT_RULE_copy = INIT_RULE.copy()
+		# table.add_action((1, "*"), (ParserActionType.SHIFT, 5))
+		# table.add_action((1, "+"), (ParserActionType.SHIFT, 6))
+		# table.add_action((1, "E"), (ParserActionType.ERROR, None))
+		# table.add_action((1, "B"), (ParserActionType.ERROR, None))
+		# table.add_action((1, "$"), (ParserActionType.ACCEPT, INIT_RULE_copy.advance_by(1)))
+		# table.add_action((1, "0"), (ParserActionType.ERROR, None))
+		# table.add_action((1, "1"), (ParserActionType.ERROR, None))
+		# table.add_goto((1, "E"), None)
+		# table.add_goto((1, "B"), None)
+
+		# # STATE 2 PARSE TABLE TRANSITION DECLARATIONS:
+		# E_is_B_copy_2 = E_is_B.copy()
+		# table.add_action((2, "*"), (ParserActionType.REDUCE, E_is_B_copy_2.advance_by(1)))
+		# table.add_action((2, "+"), (ParserActionType.REDUCE, E_is_B_copy_2.advance_by(1)))
+		# table.add_action((2, "$"), (ParserActionType.REDUCE, E_is_B_copy_2.advance_by(1)))
+		# table.add_action((2, "0"), (ParserActionType.ERROR, None))
+		# table.add_action((2, "1"), (ParserActionType.ERROR, None))
+		# table.add_goto((2, "E"), None)
+		# table.add_goto((2, "B"), None)
 
 
-class TestGrammar4ParserEnv(ParserEnvironment):
+class AutomaticGrammar7TableBuilder(AutomaticGrammar4TableBuilder):
+	
+	def build_table(self, table):
+		_init_item = self.grammar.init_item
+		_init_rule_head = self.grammar.init_symbol
+		_terminals = self.grammar.terminals()
+		
+		print(f"BUILDING PARSE TABLE FOR TEST GRAMMAR # 7:")
+		print()
+		for state, item_sets in self.item_states.items():
+			for _item in item_sets:
+				_next_symbol = _item.next_symbol(default=None)
+				if _item.at_end:
+					raise NotImplementedError("HANDLE BUILDING TABLE WHEN AN ITEM IS REDUCABLE...")
+				elif _next_symbol in _terminals:
+					_next_state = self._find_next_state(_item)
+					table.add_action(state, _next_symbol, (ParserActionType.SHIFT, _next_state, _item))
+
+
+	def _find_next_state(self, item):
+		_item_copy = item.copy()
+		_item_copy.advance()
+		for state, items in self.item_states.items():
+			if _item_copy in items:
+				return state
+		return None
+
+
+class TestGrammarParserEnv(ParserEnvironment):
 
 	def __init__(self, parser=None, grammar=None, tokenizer=None, parse_table=None, env_id=None):
-		super().__init__(parser=parser, env_id=env_id)
-		self._grammar = grammar
+		super().__init__(parser=parser, grammar=grammar, env_id=env_id)
 		self._tokenizer = tokenizer
 		self._parse_table = parse_table
 		self._parser_context = ParserContext(context_id=env_id)
 		self._test_data = None
 		self._initialized = False
-
-	@property
-	def grammar(self):
-		if self._grammar is None:
-			# TODO: create and raise custom error here
-			_error_details = f"unable to access the 'grammar' field as one has not yet been associated with this instance of '{self.__class__.__name__}'..."
-			raise AttributeError(_error_details)
-		return self._grammar
 
 	@property
 	def tokenizer(self):
@@ -1030,10 +1083,11 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 	def setup(self):
 		if not self._initialized:
 			self._parser_context.setup()
-			self._init_grammar_4(self.grammar)
-			self._init_test_data_(self, TEST_INPUT_1)
+			# self._init_grammar_4(self.grammar)
+			# self._init_grammar_7(self.grammar)
+			# self._init_test_data_(self, TEST_INPUT_1)
 			# self._init_mainloop_(self._parser_context)
-			self._init_test_task_(self._parser_context)
+			# self._init_test_task_(self._parser_context)
 			self._initialized = True
 		else:
 			# TODO: create and raise custom error here
@@ -1053,9 +1107,6 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 			_error_details = f"Error Reading Source File Contents -- unable to read data contained within file @: {filepath}"
 			raise RuntimeError
 		return [i for i in _file_data.split("\n") if i]
-
-	def set_grammar(self, grammar):
-		self._grammar = grammar
 
 	def set_tokenizer(self, tokenizer):
 		self._tokenizer = tokenizer
@@ -1077,11 +1128,11 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 			self.setup()
 		return self._parser_context.run(self)
 
-	def _init_grammar_6(self, grammar):
-		init_grammar_6(self.grammar)
-
 	def _init_grammar_4(self, grammar):
 		init_grammar_4(self.grammar)
+
+	def _init_grammar_7(self, grammar):
+		init_grammar_7(self.grammar)
 
 	@staticmethod
 	def _init_test_data_(parser_env, path_input):
@@ -1101,21 +1152,37 @@ class TestGrammar4ParserEnv(ParserEnvironment):
 
 	def __build_table_4__(self):
 		_tbl_builder = ManualGrammar4TableBuilder(self.grammar)
-		self.parse_table.build(_tbl_builder)
-
-	def __build_table_6__(self):
-		_tbl_builder = ManualGrammar6TableBuilder(self.grammar)
+		# _tbl_builder = AutomaticGrammar4TableBuilder(self.grammar)
 		self.parse_table.build(_tbl_builder)
 
 	def __build_table_7__(self):
 		_tbl_builder = ManualGrammar7TableBuilder(self.grammar)
 		self.parse_table.build(_tbl_builder)
 
-	def execute(self, parse_context):
-		self.__build_table_4__()
-		# self.__build_table_6__()
-		# self.__build_table_7__()
-		return self.parser.parse(parse_context)
+	def tokenize(self, input):
+		# Tokens with white-space removed
+		return [i for i in self.tokenizer.tokenize(input) if i != TestArithmaticGrammarTokenType.WS]
+
+	def execute(self, input):
+		# self._init_grammar_4(GRAMMAR)
+		# self.__build_table_4__()
+
+		self._init_grammar_7(GRAMMAR)
+		self.__build_table_7__()
+
+		# Generate tokens from input
+		_tokens = self.tokenize(input)
+
+		# Display tokens
+		for token in _tokens:
+			print(f"TOKEN ---> {token}")
+		print()
+		print()
+
+		# Instantiate the parse context object with tokens. (NOTE: generated specifically for test grammar 7)
+		# _parse_context = ParseContext(input=input)  # NOTE: for parsing test grammar # 4
+		_parse_context = ParseContext(input=_tokens)  # NOTE: for parsing test grammar # 7
+		return self.parser.parse(_parse_context)
 
 
 def parse_and_display(evn, test_data, actual_results, count=-1):
@@ -1153,6 +1220,7 @@ def user_runtime(env):
 
 if __name__ == "__main__":
 	init_grammar_4(GRAMMAR)
+	# init_grammar_7(GRAMMAR)
 	_TEST_INPUT_1_ = "1 / 1"
 	_TEST_INPUT_2_ = "1 + 1 // 503 * 1"
 	_TEST_INPUT_3_ = "1 * 0 + 1 / 1"
@@ -1182,7 +1250,7 @@ if __name__ == "__main__":
 	# 		if _token == Token(TestArithmaticGrammarTokenType.WS, " "):
 	# 			continue
 	# 		print(f"\t• TYPE:  ---> {_token.token_type}")
-	# 		print(f"\t• VALUE: ---> {_token.token_val}")
+	# 		print(f"\t• VALUE: ---> {_token.token_value}")
 	# 		print()
 	# 	print()
 	# 	print()
@@ -1190,10 +1258,14 @@ if __name__ == "__main__":
 
 	_parse_table = ParseTable(table_id="TEST_RUNTIME_SETUP_PARSE_TABLE")
 	# _manual_grammar_4_builder = ManualGrammar4TableBuilder(GRAMMAR)
+	# _automatic_grammar_4_builder = AutomaticGrammar4TableBuilder(GRAMMAR)
 	_manual_grammar_7_builder = ManualGrammar7TableBuilder(GRAMMAR)
-	
+	print()
+	print()
+	print()
 	# Build parse table out using manual builder
 	# _manual_grammar_4_builder.build_table(_parse_table)
+	# _automatic_grammar_4_builder.build_table(_parse_table)
 	_manual_grammar_7_builder.build_table(_parse_table)
 	_test_parse_context = ParseContext()
 	print()

@@ -12,10 +12,11 @@ from .scratch_parse_table import ParseTable
 from .scratch_runtime_setup import (
 	GRAMMAR,
 	CoreParser2,
-	TestGrammar4ParserEnv,
+	TestGrammarParserEnv,
 	ParseContext,
 	Tokenizer,
 	TestArithmaticGrammarTokenizeHandler,
+	TestArithmaticGrammarTokenType,
 	parse_and_display,
 	user_runtime
 )
@@ -23,7 +24,14 @@ from .scratch_shell_init import initialize_shell
 from .scratch_logging_init import init_logging
 # from .source_descriptor import SourceFile, 
 from .scratch_cons import PyParseLoggerID
-from .utils import display_result
+from .utils import (
+	display_result,
+	display_item_states,
+	bold_text,
+	apply_color,
+	underline_text,
+	center_text
+)
 
 
 _runtime_logger = PyLogger.get(PyParseLoggerID.RUNTIME)
@@ -43,19 +51,19 @@ def runner(env):
 
 	_runtime_logger.submit_log(
 		message=f"'pyparse' environment has completed it's setup...initializing test input and parse context...",
-		env_id=f"ENVIRONMENT ID: {_PARSER_ENVIRONMENT_ID}"
+		env_id=f"{_PARSER_ENVIRONMENT_ID}"
 	)
 
 
 	_runtime_logger.submit_log(
 		message=f"Test input and parse context for the 'pyparse' package runtime has been initialized...entering parser's mainloop...",
-		env_id=f"ENVIRONMENT ID: {_PARSER_ENVIRONMENT_ID}"
+		env_id=f"{_PARSER_ENVIRONMENT_ID}"
 	)
 	_retval = env.run()
 	_runtime_logger.submit_log(
 		message=_result_logger_msg_mapping[_retval ^ 0],
 		retval=f"{_retval}",
-		env_id=f"ENVIRONMENT ID: {_PARSER_ENVIRONMENT_ID}",
+		env_id=f"{_PARSER_ENVIRONMENT_ID}",
 		function="runner",
 		file=str(__file__),
 		module=f"scratch_runtime_init"
@@ -87,23 +95,23 @@ def parse_main():
 
 	# Instantiate parser environment
 	PARSER_ENVIRONMENT_ID = "SCRATCH_TEST_PARSER_ENV"
-	_test_grammar_4_env = TestGrammar4ParserEnv(env_id=PARSER_ENVIRONMENT_ID)
+	_test_grammar_env = TestGrammarParserEnv(env_id=PARSER_ENVIRONMENT_ID)
 
 
 	_runtime_logger.submit_log(
 		message=f"Initializing 'pyparse' runtime environment ('pyparse', running as a package)",
-		env_id=f"ENVIRONMENT ID: {PARSER_ENVIRONMENT_ID}"
+		env_id=f"{PARSER_ENVIRONMENT_ID}"
 	)
 	# TODO: impolement tokenizer for 'init_grammar_4'
 	# Generate tokens to feed the parser
 	TOKENIZER_ID = 'SCRATCH_TEST_TOKENIZER'
-	_tokenizer = Tokenizer(input="")
+	_tokenizer = Tokenizer(input="", handler=TestArithmaticGrammarTokenizeHandler())
 
 
 	_runtime_logger.submit_log(
 		message=f"Tokenizer has been initialized",
-		env_id=f"ENVIRONMENT ID: {PARSER_ENVIRONMENT_ID}",
-		tokenizer_id=f"TOKENIZER ID: {TOKENIZER_ID} (TOKENIZER IS CURRENTLY DISABLED)"
+		env_id=f"{PARSER_ENVIRONMENT_ID}",
+		tokenizer_id=f"{TOKENIZER_ID} (TOKENIZER IS CURRENTLY DISABLED)"
 	)
 
 
@@ -115,7 +123,7 @@ def parse_main():
 
 	_runtime_logger.submit_log(
 		message=f"Parse table has been initialized",
-		env_id=f"ENVIRONMENT ID: {PARSER_ENVIRONMENT_ID}",
+		env_id=f"{PARSER_ENVIRONMENT_ID}",
 		table_id=f"PARSE TABLE ID: {PARSE_TABLE_ID}"
 	)
 
@@ -128,24 +136,23 @@ def parse_main():
 
 
 	_runtime_logger.submit_log(
-		message=f"'pyparse' has been initialized",
-		env_id=f"ENVIRONMENT ID: {PARSER_ENVIRONMENT_ID}",
-		parser_id=f"PARSE TABLE ID: {PARSER_ID}"
+		message=f"Parser has been initialized",
+		env_id=f"{PARSER_ENVIRONMENT_ID}",
+		parser_id=f"{PARSER_ID}"
 	)
 
 
-
 	# Set parer env's 'parser', 'grammar', 'tokenizer' and 'parse_table' fields
-	_test_grammar_4_env.set_grammar(GRAMMAR)
-	_test_grammar_4_env.set_tokenizer(_tokenizer)
-	_test_grammar_4_env.set_table(_parse_table)
-	_test_grammar_4_env.set_parser(_parser_impl)
+	_test_grammar_env.set_grammar(GRAMMAR)
+	_test_grammar_env.set_tokenizer(_tokenizer)
+	_test_grammar_env.set_table(_parse_table)
+	_test_grammar_env.set_parser(_parser_impl)
 
 
-	_test_grammar_4_env.setup()
+	_test_grammar_env.setup()
 	_runtime_logger.submit_log(
 		message=f"'pyparse' environment has been initialized and has set it's 'grammar', 'tokenizer', 'table', and 'parser' fields; continuing setup...",
-		env_id=f"ENVIRONMENT ID: {PARSER_ENVIRONMENT_ID}",
+		env_id=f"{PARSER_ENVIRONMENT_ID}",
 		grammar_id=GRAMMAR.grammar_id,
 		tokenizer_id=TOKENIZER_ID,
 		table_id=PARSE_TABLE_ID,
@@ -155,7 +162,7 @@ def parse_main():
 
 	def user_input_runner():
 		_counter = 0
-		_user_runtime_generator = user_runtime(_test_grammar_4_env)
+		_user_runtime_generator = user_runtime(_test_grammar_env)
 		while True:
 			try:
 				_user_input, _parse_result = next(_user_runtime_generator)
@@ -169,7 +176,7 @@ def parse_main():
 					_package_parse_message = f"'pyparse' package runtime has succeeded parsing it's associated input; exiting runtime and gracefully shutting down program..."
 				_runtime_logger.submit_log(
 					message=_package_parse_message,
-					env_id=f"ENVIRONMENT ID: {PARSER_ENVIRONMENT_ID}",
+					env_id=f"{PARSER_ENVIRONMENT_ID}",
 					parse_result=_parse_result,
 					user_input=_user_input,
 					runtime_cycle=_counter
@@ -179,10 +186,33 @@ def parse_main():
 
 
 	def single_parse_runner(string, env=None):
-		_env = env if env is not None else _test_grammar_4_env
-		_parse_context = ParseContext(end_symbol="$")
-		_parse_context.set_input(string)
-		_package_parse_result = _env.execute(_parse_context).result()
+		_env = env if env is not None else _test_grammar_env
+
+		_package_parse_result = _env.execute(string).result()
+
+		_toggle_val = 208 ^ 90
+		_color = 90
+
+		for state, _items in _env.grammar.generate_states().items():
+			_state_text = bold_text(apply_color(11, f"STATE: {state} -----------------\n"))
+			print(_state_text)
+			for _item in _items:
+				_color ^= _toggle_val
+				_color_border = bold_text(apply_color(_color, f"----------"))
+				print(_color_border)
+				print(f"RULE ID: {_item.rule_id}")
+				print(f"PRODUCTION:")
+				print(f"\t• {_item.rule_head} -> {_item.rule_body}")
+				print(f"STATUS:")
+				print(f"\t• {_item.status()}")
+				print(_color_border)				
+				print()
+				print()
+			print()
+			print()
+			print()
+		print()
+
 		display_result(string, _package_parse_result)
 
 		if not _package_parse_result:
@@ -192,15 +222,18 @@ def parse_main():
 
 		_runtime_logger.submit_log(
 			message=_package_parse_message,
-			env_id=f"ENVIRONMENT ID: {PARSER_ENVIRONMENT_ID}",
+			env_id=f"{PARSER_ENVIRONMENT_ID}",
 			result=_package_parse_result
 		)
+
+		# _test_grammar_env.parse_table.print()
+
 		for _ in range(5):
 			print()
 
 
 	def parse_and_display_runner(env=None, count=-1):
-		_env = env if env is not None else _test_grammar_4_env
+		_env = env if env is not None else _test_grammar_env
 		_test_input_lst = ['0 + 1', '1 + 0', '00 + 11', '11 + 00', '1 + 1', '0 + 0', '0 * 1', '1 * 0', '00 * 11', '11 * 00', '1 * 1', '0 * 0', '6 * 51']
 		_test_input_lst_filtered = []
 
@@ -218,12 +251,17 @@ def parse_main():
 
 	# Invoke one of several runtimes for scratch sub-package testing
 	# user_input_runner()
-	single_parse_runner("0+0+0+0+0+0+0*1", env=_test_grammar_4_env)
+
+	# _INPUT_1_ = "1+0+0+0+0+0+0*1+1"
+	# single_parse_runner(_INPUT_1_, env=_test_grammar_env)
+
+	_INPUT_2_ = "1+0"
+	single_parse_runner(_INPUT_2_, env=_test_grammar_env)
 	# parse_and_display_runner(count=-1)
 
 
 	# Invoke main 'runner' function
-	# runner(_test_grammar_4_env)
+	# runner(_test_grammar_env)
 
 
 if __name__ == "__main__":

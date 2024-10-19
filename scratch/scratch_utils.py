@@ -40,5 +40,12 @@ def read_source(source_file):
     return [i for i in _file_data.split("\n") if i]
 
 
+def countdown_helper(start, stop=1):
+    _stack = [i for i in range(stop, start+1)]
+    while _stack:
+        _number = _stack.pop(-1)
+        yield _number
+
+
 if __name__ == "__main__":
     pass

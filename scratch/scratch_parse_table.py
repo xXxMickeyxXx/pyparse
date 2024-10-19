@@ -49,27 +49,37 @@ class ParseTable:
     def table_id(self):
         return self._table_id
 
-    def add_action(self, state, symbol, action, overwrite=True):
-        _action_key = (state, symbol)
-        if _action_key not in self._action or overwrite:
-            self._action[_action_key] = action
+    def add_action(self, state, action, overwrite=True):
+        if state not in self._action or overwrite:
+            self._action[state] = action
             return True
         return False
 
-    def add_goto(self, state, non_terminal, next_state, overwrite=True):
-        _goto_key = (state, non_terminal)
-        if _goto_key not in self._goto or overwrite:
-            self._goto[_goto_key] = next_state
+    # def add_action(self, state, symbol, action, overwrite=True):
+    #     _action_key = (state, symbol)
+    #     if _action_key not in self._action or overwrite:
+    #         self._action[_action_key] = action
+    #         return True
+    #     return False
+
+    def add_goto(self, state, goto, overwrite=True):
+        if state not in self._goto or overwrite:
+            self._goto[state] = goto
             return True
         return False
 
-    def action(self, state, symbol, default=None):
-        _action_key = (state, symbol)
-        return self._action.get(_action_key, default)
+    # def add_goto(self, state, non_terminal, next_state, overwrite=True):
+    #     _goto_key = (state, non_terminal)
+    #     if _goto_key not in self._goto or overwrite:
+    #         self._goto[_goto_key] = next_state
+    #         return True
+    #     return False
 
-    def goto(self, state, non_terminal, default=None):
-        _goto_key = (state, non_terminal)
-        return self._goto.get(_goto_key, default)
+    def action(self, state, default=None):
+        return self._action.get(state, default)
+
+    def goto(self, state, default=None):
+        return self._goto.get(state, default)
 
     def build(self, builder):
         return builder.build_table(self)

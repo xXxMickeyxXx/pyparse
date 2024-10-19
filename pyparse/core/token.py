@@ -31,7 +31,7 @@ class Token(ABC):
         return _new_cls
 
     def __init__(self, token_type, token_val, token_id=None):
-        self._token_id = token_id or generate_id()
+        self._token_id = token_id or token_type
         self._token_type = token_type
         self._token_val = token_val
 

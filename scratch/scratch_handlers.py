@@ -7,8 +7,6 @@ class Handler(ABC):
 
     def __init__(self, handler_id):
         self._handler_id = handler_id
-        self._input = None
-        self._input_set = False
         self._chain = None
 
     @property
@@ -22,27 +20,14 @@ class Handler(ABC):
             raise AttributeError(_error_details)
         return self._chain
 
-    @property
-    def input(self):
-        if not self._input_set:
-            # TODO: create and raise custom error here
-            _error_details = f"unable to access 'input' as it does not yet exists within instance of '{self.__class__.__name__}'; via the 'set_input' method, please set input before making another attempt to retrieve field (NOTE: 'inpu't field and it's lifecycle are automatically managed when passing as an argument to instance's 'handle' method)"
-            raise AttributeError(_error_details)
-        return self._input
-
     def set_chain(self, chain):
         self._chain = chain
 
-    def set_input(self, input):
-        self._input = input
-        self._input_set = True
-
     def reset(self):
-        self._input = None
-        self._input_set = False
+        self._chain = None
 
     @abstractmethod
-    def handle(self, input):
+    def handle(self, data):
         raise NotImplementedError
 
 
@@ -74,135 +59,77 @@ class Chain:
             _error_details = f"invalid 'handler_id' argument; handler_id: {handler_id} does not exists within instance of '{self.__class__.__name__}'..."
             raise KeyError(_error_details)
 
-    def select(self, handler_id):
-        _handler = None
-        for _handler_id, _handler_val in self._handlers.items():
-            if _handler_id == handler_id:
-                _handler = _handler_val
-                break
-        else:
-            _error_details = f"instance of '{self.__class__.__name__}' does not contain a handler with the ID: {handler_id}; please verify 'handler_id' argument and try again..."
-        return _handler
+    # def select(self, handler_id):
+    #     _handler = None
+    #     for _handler_id, _handler_val in self._handlers.items():
+    #         if _handler_id == handler_id:
+    #             _handler = _handler_val
+    #             break
+    #     else:
+    #         _error_details = f"instance of '{self.__class__.__name__}' does not contain a handler with the ID: {handler_id}; please verify 'handler_id' argument and try again..."
+    #     return _handler
 
-    def handle(self, input):
+    def handle(self, data):
         _retval = {}
         self._continue = True
         for _handler_id, handler in self._handlers.items():
-            print(f"HANDLER ID: {handler.handler_id} IN chain's 'handle' method")
             handler.set_chain(self)
-            _retval[_handler_id] = handler.handle(input)
+            _retval[_handler_id] = handler.handle(data)
             handler.reset()
             if not self._continue:
                 break
         return _retval
 
 
-"""
-class ParserHandle:
-
-    __slots__ = ("_state", "_parser", "_context_id", "_stack", "_input_pointer")
-
-    def __init__(self, init_state=None, parser=None, context_id=None):
-        self._state = init_state
-        self._parser = parser
-        self._context_id = context_id or generate_id()
-        self._stack = None
-        self._input_pointer = 0
-
-    @property
-    def init_state(self):
-        return self._init_state
-
-    @property
-    def parser(self):
-        return self._parser
-
-    @property
-    def context_id(self):
-        return self._context_id
-
-    @property
-    def stack(self):
-        return self._stack
-
-    def add_listener(self, receiver, receiver_id=None, overwrite=False):
-        self.signal.register(receiver, receiver_id=receiver_id, overwrite=overwrite)
-        return True
-
-    def remove_listener(self, receiver_id):
-        return self.signal.remove(receiver_id)
-
-    def state(self):
-        return self._state
-
-    def set_state(self, state):
-        self._state = state
-
-    def stack_factory(self):
-        return deque()
-
-    def set_parser(self, parser):
-        if self._parser is not None:
-            # TODO: create and raise custom error here
-            _error_details = f"unable to set parser as one has already been associated with instance of {self.__class__.__name__}..."
-            raise RuntimeError(_error_details)
-        self._parser = parser
-
-    def save(self, parser):
-        raise NotImplementedError
-
-    def restore(self, parser):
-        raise NotImplementedError
-"""
-
-
 if __name__ == "__main__":
+    from time import sleep as sleepy
+
+    from pyprofiler import profile_callable, SortBy
+    from .scratch_utils import countdown_helper
+
+
     class Handler1(Handler):
 
         _instances = 0
-        _pass = 0
 
         def __new__(cls, *args, **kwargs):
             _new_cls = super().__new__(cls)
             cls._instances += 1
             return _new_cls
 
-        def __init__(self, stop_text):
+        def __init__(self, stop_text, sleep=False):
             super().__init__(f"{self.__class__.__name__}v{self._instances}")
             self._stop_text = stop_text
-            self._first_stop_find = 0
+            self._sleep = sleep
 
-        def handle(self, chain):
-            _input = self.input()
+        def handle(self, data):
+            _input = data
             print(f"INPUT:     {_input}")
             print(f"STOP TEXT: {self._stop_text}")
-            if _input == self._stop_text:
-                if self._pass <= 0:
-                    self.__class__._pass += 1
-                    print(f"MATCH FOUND HOWEVER ONE MORE CYCLE IS REQUIRED...")
-                    return True
-                else:
-                    print(f"MATCH FOUND WITH {self.handler_id}...STOPPING HANDLER CHAIN...")
-                    chain.stop()
-            return False
+            if _input != self._stop_text:
+                print(f"MATCH COULD NOT BE FOUND WITH HANDLER ID: {self.handler_id}...CONINTUING ON...")
+            else:
+                if self._sleep:
+                    print(f"MATCH FOUND WITH {self.handler_id}...STOPPING HANDLER CHAIN IN...")
+                    for i in countdown_helper(3):
+                        print(f"{i} SECOND(S)")
+                        sleepy(1)
+                self.chain.stop()
+            print()
 
 
+    @profile_callable(sort_by=SortBy.TIME)
     def test_main():
         _chain = Chain(chain_id="[ • --- TEST_CHAIN_HANDLER --- • ]")
         _chain.add(Handler1("GOODBYE_MOTO!!!"))
-        _chain.add(Handler1("!SHIT!"))        
+        _chain.add(Handler1("!SHIT!", sleep=True))        
         _chain.add(Handler1("HELLO_MOTO!!!"))
         print()
         _single_input_1 = "GOODBYE_MOTO!!!"
         _single_input_2 = "HELLO_MOTO!!!"
         _single_input_3 = "!SHIT!"
-        _chain.handle(_single_input_1)
-        print()
-        print()
-        _chain.handle(_single_input_2)
-        print()
-        print()
         _chain.handle(_single_input_3)
+        print()
 
 
     test_main()

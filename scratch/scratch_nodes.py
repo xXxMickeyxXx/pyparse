@@ -248,7 +248,7 @@ _root.add(_print_statement)
 test_evaluator = TestEvaluator(evaluator_id="TEST_EVALUATOR")
 
 
-@profile_callable(sort_by=SortBy.TIME)
+# @profile_callable(sort_by=SortBy.TIME)
 def main():
 	print()
 	_root_result = test_evaluator.eval(_root)

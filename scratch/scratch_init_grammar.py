@@ -52,8 +52,6 @@ def init_grammar_4(grammar):
     grammar.create_rule("E", ["E", "*", "B"], rule_id="E_rule_1")
     grammar.create_rule("E", ["E", "+", "B"], rule_id="E_rule_2")
     grammar.create_rule("E", ["B"], rule_id="E_rule_3")
-    # grammar.create_rule("E", ["E", "/", "B"], rule_id="E_rule_4")
-    # grammar.create_rule("T", ["(", "E", ")"], rule_id="T_rule_1")
     grammar.create_rule("B", ["0"], rule_id="B_rule_1")
     grammar.create_rule("B", ["1"], rule_id="B_rule_2")
 
@@ -82,17 +80,67 @@ def init_grammar_6(grammar):
 
 
 def init_grammar_7(grammar):
+    # grammar.create_rule("$", ["E"], rule_id="INIT_RULE")
+    # grammar.create_rule("E", ["E", "*", "B"], rule_id="E_rule_1")
+    # grammar.create_rule("E", ["E", "/", "B"], rule_id="E_rule_2")
+    # grammar.create_rule("E", ["E", "+", "B"], rule_id="E_rule_3")
+    # grammar.create_rule("E", ["E", "-", "B"], rule_id="E_rule_4")
+    # grammar.create_rule("E", ["B"], rule_id="E_rule_5")
+    # grammar.create_rule("B", ["C"], rule_id="B_rule_1")
+    # grammar.create_rule("B", ["T"], rule_id="B_rule_2")
+    # grammar.create_rule("C", ["(", "E", ")"], rule_id="C_rule_1")
+    # grammar.create_rule("T", ["number"], rule_id="T_rule_1")
+    # grammar.create_rule("number", ["NUMBER"], rule_id="number_rule_1")
     grammar.create_rule("$", ["E"], rule_id="INIT_RULE")
-    grammar.create_rule("E", ["E", "*", "B"], rule_id="E_rule_1")
-    grammar.create_rule("E", ["E", "/", "B"], rule_id="E_rule_2")
-    grammar.create_rule("E", ["E", "+", "B"], rule_id="E_rule_4")
-    grammar.create_rule("E", ["E", "-", "B"], rule_id="E_rule_5")
-    grammar.create_rule("E", ["B"], rule_id="E_rule_3")
-    grammar.create_rule("E", ["C"], rule_id="E_rule_6")
-    grammar.create_rule("C", ["B"], rule_id="C_rule_1")
-    grammar.create_rule("B", ["0"], rule_id="B_rule_1")
-    grammar.create_rule("B", ["1"], rule_id="B_rule_2")
-    grammar.create_rule("B", ["(", "E", ")"], rule_id="B_rule_3")
+    grammar.create_rule("E", ["B"], rule_id="E_rule_1")
+    grammar.create_rule("B", ["B", "operator", "B"], rule_id="B_rule_1")
+    grammar.create_rule("B", ["C"], rule_id="B_rule_2")
+    grammar.create_rule("C", ["(", "E", ")"], rule_id="C_rule_1")
+    grammar.create_rule("operator", ["+"], rule_id="operator_rule_1")
+    grammar.create_rule("operator", ["-"], rule_id="operator_rule_2")
+    grammar.create_rule("operator", ["*"], rule_id="operator_rule_3")
+    grammar.create_rule("operator", ["/"], rule_id="operator_rule_4")
+
+
+def init_grammar_8(grammar):
+    # Test arithmatic grammr
+    grammar.create_rule("$", ["E"], rule_id="INIT_RULE")
+    grammar.create_rule("E", ["E", "operator", "E"], rule_id="E_1")
+    grammar.create_rule("E", ["B"], rule_id="E_2")
+    grammar.create_rule("B", ["C"], rule_id="B_1")
+    grammar.create_rule("B", ["number"], rule_id="B_2")
+    grammar.create_rule("C", ["(", "E", ")"], rule_id="C_1")
+    grammar.create_rule("number", ["NUMBER"], rule_id="C_1")
+    grammar.create_rule("operator", ["+"], rule_id="operator_1")
+    grammar.create_rule("operator", ["-"], rule_id="operator_2")
+    grammar.create_rule("operator", ["*"], rule_id="operator_3")
+    grammar.create_rule("operator", ["/"], rule_id="operator_4")
+
+    
+def init_grammar_9(grammar):
+    # Simple test grammar in order to help in making the 
+    grammar.create_rule("#", ["S"], rule_id="INIT_RULE")
+    grammar.create_rule("S", ["a", "A"], rule_id="S_rule_1")
+    grammar.create_rule("A", ["B"], rule_id="A_rule_1")
+    grammar.create_rule("B", ["b"], rule_id="B_rule_1")
+
+
+_grammar_initializers = {
+    1: init_grammar_1,
+    2: init_grammar_2,
+    3: init_grammar_3,
+    4: init_grammar_4,
+    5: init_grammar_5,
+    6: init_grammar_6,
+    7: init_grammar_7,
+    8: init_grammar_8,
+    9: init_grammar_9
+}
+
+
+def init_grammar(grammar, initializer_key, initializers=_grammar_initializers):
+    _initializer = initializers[initializer_key]
+    _initializer(grammar)
 
 
 if __name__ == "__main__":
