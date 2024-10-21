@@ -123,6 +123,8 @@ def init_grammar_9(grammar):
     grammar.create_rule("S", ["a", "A"], rule_id="S_rule_1")
     grammar.create_rule("A", ["B"], rule_id="A_rule_1")
     grammar.create_rule("B", ["b"], rule_id="B_rule_1")
+    grammar.create_rule("B", ["C"], rule_id="B_rule_2")
+    grammar.create_rule("C", ["(", "S", ")"], rule_id="C_rule_1")
 
 
 _grammar_initializers = {
