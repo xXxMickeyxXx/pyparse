@@ -102,24 +102,6 @@ class Grammar9TableBuilder(TableBuilder):
 		table.add_action((5, "#"), (ParserActionType.REDUCE, A_rule_1.copy().advance_by(1)))
 
 
-		# table.add_action((2, "b"), (ParserActionType.SHIFT, 3))
-		# # table.add_action((2, "B"), (ParserActionType.REDUCE, A_rule_1.copy().advance_by(1)))
-		# table.add_goto((2, "B"), (5, A_rule_1.copy().advance_by(1)))
-		# table.add_action((3, "#"), (ParserActionType.REDUCE, B_rule_1.copy().advance_by(1)))
-
-		# table.add_action((5, "B"), (ParserActionType.REDUCE, A_rule_1.copy().advance_by(1)))
-		# table.add_goto((5, "B"), (2, S_rule_1.copy().advance_by(1)))
-		# # table.add_goto((5, "#"), (4, A_rule_1.copy().advance_by(1)))
-		# # table.add_goto((5, "B"), (2, ))
-		# # table.add_action((3, "b"), (ParserActionType.REDUCE, B_rule_1.copy().advance_by(1)))
-		# # table.add_action((3, "#"), (ParserActionType.REDUCE, B_rule_1.copy().advance_by(1)))
-		# # table.add_goto((3, "B"), (2, A_rule_1.advance_by(0)))
-		
-		# # table.add_action((4, "#"), (ParserActionType.ACCEPT, INIT_RULE.copy().advance_by(1)))
-
-
-
-
 class Grammar9TokenizerHandler(LexHandler):
 	pass
 
@@ -171,7 +153,7 @@ class FinalRedesignEnv(ParserEnvironment):
 			_grammar_version = self.field("grammar_version", default=9)
 			init_grammar(self.grammar, _grammar_version)
 			self.parser.set_table(self.parse_table)
-			_tbl_builder = self.field("table_builder", default=None)
+			_tbl_builder = Grammar9TableBuilder(self.grammar)
 			_tbl_builder.build_table(self.parse_table)
 			self._initialized = True
 
@@ -180,7 +162,6 @@ class FinalRedesignEnv(ParserEnvironment):
 			self.setup()
 		# _tokens = self.tokenize(input)
 		_parse_context = self.create_context(input, end_symbol=self.field("end_symbol", default="$"))
-		self.parse_table.print()
 		return self.parser.parse(_parse_context).result()
 
 	def create_context(self, *args, **kwargs):
