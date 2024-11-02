@@ -1,24 +1,19 @@
 from abc import ABC, abstractmethod
 
+from ...utils import generate_id
+
 
 class LexHandler(ABC):
 
-    def __init__(self, tokenizer=None):
-        self._tokenizer = tokenizer
+    def __init__(self, handler_id=None):
+        self._handler_id = handler_id or generate_id()
 
     @property
-    def tokenizer(self):
-        if self._tokenizer is None:
-            # TODO: create and raise custom error here
-            _error_details = f"unable to access 'tokenizer' property as one has not yet been asociated with this instance of '{self.__class__.__name__}'..."
-            raise AttributeError(_error_details)
-        return self._tokenizer
-
-    def set_tokenizer(self, tokenizer):
-        self._tokenizer = tokenizer
+    def handler_id(self):
+        return self._handler_id
 
     @abstractmethod
-    def handle(self):
+    def handle(self, tokenizer):
         raise NotImplementedError
 
 

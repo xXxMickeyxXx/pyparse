@@ -21,13 +21,15 @@ class Tokenizer:
 		self._tokenizer_id = tokenizer_id or generate_id()
 		self._scanner = None
 		self._input = input
-		# self._pointer = 0
 		self._tokens = []
-		# self._input_len = len(self._input)
 		self._token_factory = token_factory
 		self._handler = handler
-		if self._handler:
-			self._handler.set_tokenizer(self)
+		# if handler:
+		# 	self.set_handler(handler)
+
+		# self._handler = handler
+		# if self._handler:
+		# 	self._handler.set_tokenizer(self)
 
 	@property
 	def tokenizer_id(self):
@@ -40,25 +42,12 @@ class Tokenizer:
 			self._scanner.set_input(self._input)
 		return self._scanner
 
-	# @property
-	# def can_consume(self):
-	# 	return self._input is not None and self._pointer < self._input_len
-
-	# @property
-	# def current_char(self):
-	# 	_input = self._input
-	# 	_pointer = self._pointer
-	# 	return _input[_pointer] if _input and self.can_consume else None
-
 	@property
 	def can_consume(self):
 		return self.scanner.can_consume
 
 	@property
 	def current_char(self):
-		# _input = self.scanner._input
-		# _pointer = self.scanner._pointer
-		# return _input[_pointer] if _input and self.can_consume else None
 		return self.scanner.current_char
 
 	@property
@@ -82,7 +71,7 @@ class Tokenizer:
 
 	def set_handler(self, handler):
 		self._handler = handler
-		handler.set_tokenizer(self)
+		# handler.set_tokenizer(self)
 
 	def scanner_factory(self, *args, **kwargs):
 		return Scanner(*args, **kwargs)
@@ -90,7 +79,6 @@ class Tokenizer:
 	def set_input(self, input):
 		self._input = input
 		self.scanner.set_input(input)
-		# self._input_len = len(input)
 
 	def reset(self):
 		self.scanner.reset()
@@ -158,13 +146,13 @@ class Tokenizer:
 
 	def tokenize(self, input):
 		self.set_input(input)
-		self.handler.handle()
+		self.handler.handle(self)
 		return self.reset()
 
 	def flush_tokens(self):
 		_retval = [i for i in self.tokens]
 		self._tokens.clear()
-		assert len(self.tokens) == 0, "an error occured when attempting to flush token buffer (i.e. the '_tokens' field); please review and try again..."
+		assert len(self.tokens) == 0, "an error occured when attempting to flush token buffer; please review and try again..."
 		return _retval
 
 

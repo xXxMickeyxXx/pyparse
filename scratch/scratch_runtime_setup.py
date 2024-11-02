@@ -5,6 +5,7 @@ from pathlib import Path
 import time
 from enum import IntEnum, StrEnum, auto
 
+from pyevent import PyChannel
 from pylog import PyLogger, LogType
 from pysynchrony import (
 	PySynchronyScheduler,
@@ -108,9 +109,9 @@ class TestArithmaticGrammarTokenType(StrEnum):
 
 class TestArithmaticGrammarTokenizeHandler(LexHandler):
 
-	def __init__(self, tokenizer=None):
-		super().__init__(tokenizer=tokenizer)
-		self._symbol_mapping = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "*", "-", "/", "//", "(", ")", " "]
+	def __init__(self):
+		super().__init__(handler_id=self.__class__.__name__)
+		# self._symbol_mapping = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "*", "-", "/", "//", "(", ")", " "]
 		self._token_type_idx_mapper = [
 			TestArithmaticGrammarTokenType.NUMBER,
 			TestArithmaticGrammarTokenType.NUMBER,
@@ -132,20 +133,19 @@ class TestArithmaticGrammarTokenizeHandler(LexHandler):
 			TestArithmaticGrammarTokenType.WS
 		]
 
-	def handle(self):
+	def handle(self, tokenizer):
 		# NOTE: variables initialized with "_a" suffix are aliases for method calls in
 		# 		order to suck out a litte bit more performnace since the additional
 		# 		lookup isn't needed
-		_add_token_alias = self.tokenizer.add_token
-		_tokenizer_advance_a = self.tokenizer.advance
-		_symbol_mapping_index_a = self._symbol_mapping.index
-		_cond_consume_a = self.tokenizer.cond_consume
-		while self.tokenizer.can_consume:
-			_current_char = self.tokenizer.current_char
-			_next_char_peek = self.tokenizer.peek()
+		_add_token_alias = tokenizer.add_token
+		_tokenizer_advance_a = tokenizer.advance
+		_cond_consume_a = tokenizer.cond_consume
+		while tokenizer.can_consume:
+			_current_char = tokenizer.current_char
+			_next_char_peek = tokenizer.peek()
 
 			if _current_char.isdigit():
-				_token_val = self.tokenizer.cond_consume(lambda x, y, z: not x.isdigit())
+				_token_val = tokenizer.cond_consume(lambda x, y, z: not x.isdigit())
 				_add_token_alias(TestArithmaticGrammarTokenType.NUMBER, _token_val, token_id=None)
 				continue
 
@@ -156,7 +156,7 @@ class TestArithmaticGrammarTokenizeHandler(LexHandler):
 					_tokenizer_advance_a()
 					continue
 				case "/":
-					_next_char = self.tokenizer.peek()
+					_next_char = tokenizer.peek()
 					if _next_char != "/":
 						_add_token_alias(TestArithmaticGrammarTokenType.DIV_OPERATOR, "/", token_id=None)
 						_tokenizer_advance_a()
@@ -187,7 +187,7 @@ class TestArithmaticGrammarTokenizeHandler(LexHandler):
 					_tokenizer_advance_a()
 					continue
 
-			_error_details = f"symbol: '{_current_char}' does not exists within this handler's symbol mapping ('_symbol_mapping') property; please verify symbol mapping and try again..."
+			_error_details = f"unexpected character: '{_current_char}'; handler is unable to determine how to tokenize character...please review and try again..."
 			raise RuntimeError(_error_details)
 		_add_token_alias(TestArithmaticGrammarTokenType.END_SYMBOL, "$", token_id=None)
 
@@ -426,10 +426,6 @@ class CoreParser2:
 		# TODO: perhaps create and raise custom error here if '_grammar' has already been set
 		self._logger = logger
 
-	@staticmethod
-	def create_event(event_id, **data):
-		return PySynchronyEvent(event_id, **data)
-
 	# # TODO: interface should include this as an 'abstractmethod' 
 	def parse(self, parse_context):
 		self.init_parse_context(parse_context)
@@ -439,12 +435,8 @@ class CoreParser2:
 		_color_code = 226
 
 		####################
-		_current_action = None
-		_current_state = parse_context.state()
-		_current_symbol = parse_context.current_symbol()
-		if hasattr(_current_symbol, "token_type"):
-			_current_symbol = _current_symbol.token_type
-		_end_of_input = False
+		# if hasattr(_current_symbol, "token_type"):
+		# 	_current_symbol = _current_symbol.token_type
 		while not parse_context.done_parsing:
 			
 			if self.debug_mode:
@@ -454,6 +446,9 @@ class CoreParser2:
 				print(_colored_debug_text)
 				print()
 
+
+			_current_state = parse_context.state()
+			_current_symbol = parse_context.current_symbol()
 			_current_action = self.parse_table.action((_current_state, _current_symbol), default=(ParserActionType.ERROR, None))
 
 			if self.debug_mode:
@@ -503,12 +498,6 @@ class CoreParser2:
 			elif _action == ParserActionType.ACCEPT:
 				parse_context.set_result(True)
 
-			_current_symbol = parse_context.current_symbol()
-			if hasattr(_current_symbol, "token_type"):
-				_current_symbol = _current_symbol.token_type
-			_current_state = parse_context.state()
-
-
 			if self.debug_mode:
 				_debug_text_mainloop_bottom = "---------- BOTTOM OF 'parse' MAINLOOP ----------\n"
 				_colored_debug_text = bold_text(apply_color(_color_code, _debug_text_mainloop_bottom))
@@ -537,7 +526,7 @@ class ParserContext(PySynchronyScheduler):
 		_channel = self.channel()
 		_channel.register(signal_id, receiver=receiver, receiver_id=receiver_id)
 
-	# def submit(self, action, action_type, *args, action_id=None, **kwargs):
+	# def submit(self, action, *args, action_id=None, **kwargs):
 	# 	inspect.
 
 	def schedule_task(self, task):
@@ -719,6 +708,12 @@ class ParseContext:
 	def end_symbol(self):
 		return self._end_symbol
 
+	def peek(self, offset=0):
+		_peek_idx = self._pointer + offset
+		if _peek_idx < self._input_len:
+			return self.input[_peek_idx]
+		return self.end_symbol
+
 	def state(self):
 		return self._state
 
@@ -776,9 +771,10 @@ class ParseContext:
 			self._input_len = len(self._input)
 
 	def current_symbol(self):
-		if self._pointer < self._input_len:
-			return self.input[self._pointer]
-		return self.end_symbol
+		return self.peek(offset=0)
+		# if self._pointer < self._input_len:
+		# 	return self.input[self._pointer]
+		# return self.end_symbol
 
 	def advance(self):
 		if not self.can_advance:
@@ -847,11 +843,15 @@ class ManualGrammar4TableBuilder:
 
 	__slots__ = ("_grammar")
 
-	def __init__(self, grammar):
+	def __init__(self, grammar=None):
 		self._grammar = grammar
 
 	@property
 	def grammar(self):
+		if self._grammar is None:
+			# TODO: create and raise custom error here
+			_error_details = f"unable to access the 'grammar' field as one has not yet been associated with this instance of '{self.__class__.__name__}'..."
+			raise AttributeError(_error_details)
 		return self._grammar
 
 	@property
@@ -859,6 +859,9 @@ class ManualGrammar4TableBuilder:
 		# if self._item_states:
 		# 	self._item_states = self.grammar.generate_states()
 		return self.grammar.generate_states()
+
+	def set_grammar(self, grammar):
+		self._grammar = grammar
 
 	def build_table(self, table):
 		INIT_RULE = self.grammar.select(RuleIDSelector("INIT_RULE"))[0]

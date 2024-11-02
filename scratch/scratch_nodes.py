@@ -5,6 +5,9 @@ from .scratch_evaluator import Evaluator
 from .scratch_utils import generate_id
 
 
+# TODO: perhaps change recursive nature of searching for a node within a nodes children to being iterative
+
+
 class Node:
 
 	def __init__(self, node_id=None):
@@ -65,7 +68,7 @@ class Node:
 	def nodes(self, node_id):
 		_nodes = []
 		if self.node_id == node_id:
-			return self
+			return [self]
 		for _node in self._branches:
 			_result = _node.nodes(node_id)
 			if _result is not None:

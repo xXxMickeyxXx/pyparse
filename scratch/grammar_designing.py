@@ -19,6 +19,9 @@ from .scratch_grammar_rules_filter import (
 from . import item_details
 
 
+# TODO: add some argument to grammar for the augmented start symbol
+
+
 class Grammar:
 
     # NOTE: this will replace the original 'Grammar' implementation
