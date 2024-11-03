@@ -504,7 +504,7 @@ class CoreParser3(CoreParser2):
 
 			if self.debug_mode:
 				print(f"• ACTION INFO:")
-				print(f"\t{_action_info}")
+				print(f"\t{_action_info}\n")
 
 			if _action == ParserActionType.SHIFT:
 				if self.debug_mode:

@@ -136,7 +136,7 @@ def G10_environment_factory():
 	__TABLE_BUILDER__ = DateGrammarTableBuilder(grammar=__GRAMMAR__)
 
 	_PARSER_ID_ = "CoreParser3"
-	__PARSER__ = CoreParser3(init_state=0, grammar=__GRAMMAR__, parse_table=__PARSE_TABLE__, debug_mode=False, parser_id=_PARSER_ID_)
+	__PARSER__ = CoreParser3(init_state=0, grammar=__GRAMMAR__, parse_table=__PARSE_TABLE__, debug_mode=True, parser_id=_PARSER_ID_)
 	_final_redesign_env = FinalRedesignEnv(parser=__PARSER__, grammar=__GRAMMAR__, tokenizer=__TOKENIZER__, table_builder=__TABLE_BUILDER__, parse_table=__PARSE_TABLE__)
 
 	_final_redesign_env.add_field("tokenize", True)
@@ -203,12 +203,9 @@ def final_main():
 	_TEST_INPUTS_1_ = [
 		("  /12/2024", False),
 		("12/22/1990", True),
+		("12.22 .2004", True),
+		("11/29/2025", True),
 		("12/22/1990", False)
-	]
-
-	_TEST_INPUTS_2_ = [
-		("12.22.2004", True),
-		("11/29/2025", True)
 	]
 
 
