@@ -659,7 +659,8 @@ class ParserContext(PySynchronyScheduler):
 
 class ParseContext:
 
-	def __init__(self, input=None, end_symbol="$"):
+	def __init__(self, input=None, end_symbol="$", context_id=None):
+		self._context_id = context_id or generate_id()
 		self._input = None
 		self._input_len = 0
 		self._end_symbol = end_symbol
@@ -672,6 +673,10 @@ class ParseContext:
 		self._symbol_stack = None
 		if input is not None:
 			self.set_input(input)
+
+	@property
+	def context_id(self):
+		return self._context_id
 
 	@property
 	def input(self):

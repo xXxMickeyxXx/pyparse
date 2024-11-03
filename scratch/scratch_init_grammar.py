@@ -128,6 +128,14 @@ def init_grammar_9(grammar):
     grammar.create_rule("C", ["(", "S", ")"], rule_id="C_rule_1")
 
 
+def init_grammar_10(grammar):
+    # Date grammar for parsing and facilitating the usage of date
+    grammar.create_rule("#", ["date"], rule_id="INIT_RULE")
+    grammar.create_rule("date_delim", ["/"], rule_id="date_delim_slash")
+    grammar.create_rule("date_delim", ["-"], rule_id="date_delim_hyphen")
+    grammar.create_rule("date_delim", ["."], rule_id="date_delim_dot")
+
+
 _grammar_initializers = {
     1: init_grammar_1,
     2: init_grammar_2,
@@ -137,7 +145,8 @@ _grammar_initializers = {
     6: init_grammar_6,
     7: init_grammar_7,
     8: init_grammar_8,
-    9: init_grammar_9
+    9: init_grammar_9,
+    10: init_grammar_10
 }
 
 
