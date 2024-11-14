@@ -39,8 +39,7 @@ from .scratch_runtime_setup import (
 )
 from .scratch_shell_init import initialize_shell
 from .scratch_logging_init import init_logging
-# from .source_descriptor import SourceFile, 
-from .scratch_cons import PyParseLoggerID
+from .scratch_cons import PyParseLoggerID, ParserActionType
 from .utils import (
 	display_result,
 	display_item_states,
@@ -91,7 +90,7 @@ def display_tokens(tokens, input):
 		print()
 
 
-def G9_environment_factory():
+def G9_environment_factory(debug_mode=False):
 
 	__GRAMMAR__ = test_grammar_factory()
 
@@ -100,10 +99,9 @@ def G9_environment_factory():
 
 	__PARSE_TABLE__ = ParseTable(table_id="[ • --- • Grammar9ParseTable • ---• ]")
 	__TABLE_BUILDER__ = Grammar9TableBuilder(grammar=__GRAMMAR__)
-	# __TABLE_BUILDER__ = ManualGrammar4TableBuilder(grammar=__GRAMMAR__)
 
 	_PARSER_ID_ = "CoreParser3"
-	__PARSER__ = CoreParser3(init_state=0, grammar=__GRAMMAR__, parse_table=__PARSE_TABLE__, debug_mode=False, parser_id=_PARSER_ID_)
+	__PARSER__ = CoreParser3(init_state=0, grammar=__GRAMMAR__, parse_table=__PARSE_TABLE__, debug_mode=debug_mode, parser_id=_PARSER_ID_)
 	_final_redesign_env = FinalRedesignEnv(parser=__PARSER__, grammar=__GRAMMAR__, tokenizer=__TOKENIZER__, table_builder=__TABLE_BUILDER__, parse_table=__PARSE_TABLE__)
 
 	_final_redesign_env.add_field("tokenize", True)
@@ -124,7 +122,7 @@ def G9_environment_factory():
 	return _final_redesign_env
 
 
-def G10_environment_factory():
+def G10_environment_factory(debug_mode=False):
 	# Environment factory for test grammar 10, i.e. a simple 'date' grammar
 
 	__GRAMMAR__ = test_grammar_factory()
@@ -136,7 +134,7 @@ def G10_environment_factory():
 	__TABLE_BUILDER__ = DateGrammarTableBuilder(grammar=__GRAMMAR__)
 
 	_PARSER_ID_ = "CoreParser3"
-	__PARSER__ = CoreParser3(init_state=0, grammar=__GRAMMAR__, parse_table=__PARSE_TABLE__, debug_mode=True, parser_id=_PARSER_ID_)
+	__PARSER__ = CoreParser3(init_state=0, grammar=__GRAMMAR__, parse_table=__PARSE_TABLE__, debug_mode=debug_mode, parser_id=_PARSER_ID_)
 	_final_redesign_env = FinalRedesignEnv(parser=__PARSER__, grammar=__GRAMMAR__, tokenizer=__TOKENIZER__, table_builder=__TABLE_BUILDER__, parse_table=__PARSE_TABLE__)
 
 	_final_redesign_env.add_field("tokenize", True)
@@ -149,7 +147,7 @@ def G10_environment_factory():
 
 
 	# Display parse table setup
-	# __PARSE_TABLE__.print()
+	__PARSE_TABLE__.print()
 
 	# Display item sets
 	# display_item_states(__GRAMMAR__.generate_states())
@@ -159,9 +157,11 @@ def G10_environment_factory():
 
 def run_testing(test_inputs, environment):
 	print()
+	print()
 	for idx, (_INPUT_, _is_valid) in enumerate(test_inputs, start=1):
 		_TOKENIZED_INPUT = environment.tokenize(_INPUT_)
-		_parse_result = environment.execute(_TOKENIZED_INPUT, context_id=f"TEST-INPUT-{idx}")
+		_parse_context = environment.execute(_TOKENIZED_INPUT, context_id=f"TEST-INPUT-{idx}")
+		_parse_result = _parse_context.result()
 		_test_passed = _parse_result == _is_valid
 		_result_text_out = bold_text(apply_color(11, f"\tTEST-INPUT-{idx}")) + f"  \n\t  |\n  \t  |\n" + f"\t  • " + bold_text(apply_color(208, f"{_INPUT_}")) + "\n\t  |\n\t  |\n\t  |\n\t  • -----> " + bold_text((apply_color(10, " • --- VALID • --- • ") if _parse_result else apply_color(9, " • --- • INVALID • --- • ")))
 		_test_passed_disp_text = f"  " + (bold_text(apply_color(10, "**PASS**")) if _test_passed else bold_text(apply_color(9, "**FAIL**")))
@@ -173,44 +173,43 @@ def run_testing(test_inputs, environment):
 		print()
 		print()
 		print()
-	print()
-	print()
 
 
-# @profile_callable(sort_by=SortBy.TIME)
-def final_main():
-	# _TEST_INPUTS_1_ = [
-	# 	("ab", True),
-	# 	# ("ab!", False),
-	# 	# ("a!b", False),
-	# 	# ("ba!", False),
-	# 	# ("b!a", False),
-	# 	# ("!ab", False),
-	# 	# ("!ba", False),
-	# 	("(ab)", True),
-	# 	("(ab!)", False),
-	# 	# ("(a!b)", False),
-	# 	# ("(ba!)", False),
-	# 	# ("(b!a)", False),
-	# 	# ("(!ab)", False),
-	# 	# ("(!ba)", False)
-	# ]
-
-	# _test_grammar_9_env = G9_environment_factory()	
-	# run_testing(_TEST_INPUTS_1_, _test_grammar_9_env)
-
-
+@profile_callable(sort_by=SortBy.TIME)
+def final_main(debug_mode=False):
 	_TEST_INPUTS_1_ = [
-		("  /12/2024", False),
-		("12/22/1990", True),
-		("12.22 .2004", True),
-		("11/29/2025", True),
-		("12/22/1990", False)
+		("ab", True),
+		("ab!", True),
+		("a!b", False),
+		("ba!", False),
+		("b!a", False),
+		("!ab", False),
+		("!ba", False),
+		("(ab)", True),
+		("(a!b)", False),
+		("(ba!)", False),
+		("(ab!)", True),
+		("(b!a)", False),
+		("(!ab)", False),
+		("(!ba)", False),
+		("aaaaaaaaaaaaaaaaaaabbbbbbbbbbbbb!!!!!!!!abbb!)", False)
 	]
 
+	_test_grammar_9_env = G9_environment_factory(debug_mode=debug_mode)	
+	run_testing(_TEST_INPUTS_1_, _test_grammar_9_env)
 
-	_G10_environment_factory = G10_environment_factory()	
-	run_testing(_TEST_INPUTS_1_, _G10_environment_factory)
+
+	# _TEST_INPUTS_2_ = [
+	# 	("  /12/2024", False),
+	# 	("12/22/2000", True),
+	# 	("12.22 .2004", True),
+	# 	("11/29/2025", True),
+	# 	("12/22/1991", True)
+	# ]
+
+
+	# _G10_environment_factory = G10_environment_factory(debug_mode=debug_mode)	
+	# run_testing(_TEST_INPUTS_2_, _G10_environment_factory)
 
 
 if __name__ == "__main__":

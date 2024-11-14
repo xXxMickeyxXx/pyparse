@@ -671,6 +671,8 @@ class ParseContext:
 		self._symbol_state = None
 		self._stack = None
 		self._symbol_stack = None
+		self._action_info = None
+		self._parser = None
 		if input is not None:
 			self.set_input(input)
 
@@ -712,6 +714,23 @@ class ParseContext:
 	@property
 	def end_symbol(self):
 		return self._end_symbol
+
+	@property
+	def parser(self):
+		if self._parser is None:
+			# TODO: create and raise custom error here
+			_error_details = f"parser has not yet been associated for instance of '{self.__class__.__name__}'..."
+			raise RuntimeError(_error_details)
+		return self._parser
+
+	def action_info(self):
+		return self, *self._action_info
+
+	def set_parser(self, parser):
+		self._parser = parser
+
+	def set_action(self, *action_info):
+		self._action_info = action_info
 
 	def peek(self, offset=0):
 		_peek_idx = self._pointer + offset

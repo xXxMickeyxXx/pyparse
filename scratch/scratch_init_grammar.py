@@ -130,7 +130,11 @@ def init_grammar_9(grammar):
 
 def init_grammar_10(grammar):
     # Date grammar for parsing and facilitating the usage of date
-    grammar.create_rule("#", ["date"], rule_id="INIT_RULE")
+    grammar.create_rule("#", ["date"], rule_id="HASHTAG_END")
+    grammar.create_rule("date", ["date_unit", "date_delim", "date_unit", "date_delim", "date_unit"], rule_id="date")
+    grammar.create_rule("date_unit", ["month"], rule_id="month")
+    grammar.create_rule("date_unit", ["day"], rule_id="day")
+    grammar.create_rule("date_unit", ["year"], rule_id="year")
     grammar.create_rule("date_delim", ["/"], rule_id="date_delim_slash")
     grammar.create_rule("date_delim", ["-"], rule_id="date_delim_hyphen")
     grammar.create_rule("date_delim", ["."], rule_id="date_delim_dot")

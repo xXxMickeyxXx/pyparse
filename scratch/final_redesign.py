@@ -17,6 +17,7 @@ from enum import StrEnum, auto
 from abc import ABC, abstractmethod
 
 from pyparse import Tokenizer, LexHandler, Token
+from pyevent import PyChannel
 from pylog import PyLogger, LogType
 from pysynchrony import (
 	PySynchronyScheduler,
@@ -33,6 +34,8 @@ from pyutils import (
     cmd_argument,
     DEFAULT_PARSER as DEFAULT_CMD_LINE_PARSER
 )
+from pyprofiler import profile_callable, SortBy
+
 from .scratch_runtime_setup import (
 	TestArithmaticGrammarTokenType,
 	TestArithmaticGrammarTokenizeHandler,
@@ -224,7 +227,7 @@ class DateGrammarTokenizerHandler(LexHandler):
 	  |
 	  |
 	  |
-	  • -----> List[int] -> [00-30] & List[int] -> [2000-2030]
+	  • -----> List[int] -> [2000-2030]
 
 
   	VALID 'DateGrammarTokenType.YEAR' VALUES:
@@ -268,21 +271,21 @@ class DateGrammarTokenizerHandler(LexHandler):
 			_current_char = tokenizer.current_char
 			
 			if _current_char in {" ", "\n", "\t", "\r\n"}:
-				self.skip_ws(tokenizer)
+				tokenizer.cond_consume(lambda curr_chr, lexeme, scanner: curr_chr not in {" ", "\n", "\t", "\r\n"})
 				continue
 
 			if _current_char.isdigit():
 				if not _month_lexed:
-					_token_val = tokenizer.cond_consume(lambda curr_char, lexeme, scanner: not curr_char.isdigit())
-					_add_token_alias(DateGrammarTokenType.MONTH, _token_val, token_id=None)
+					_month_token_val = tokenizer.cond_consume(lambda curr_char, lexeme, scanner: not curr_char.isdigit())
+					_add_token_alias(DateGrammarTokenType.MONTH, _month_token_val, token_id=None)
 					_month_lexed = True
 				elif not _day_lexed:
-					_token_val = tokenizer.cond_consume(lambda curr_char, lexeme, scanner: not curr_char.isdigit())
-					_add_token_alias(DateGrammarTokenType.DAY, _token_val, token_id=None)
+					_day_token_val = tokenizer.cond_consume(lambda curr_char, lexeme, scanner: not curr_char.isdigit())
+					_add_token_alias(DateGrammarTokenType.DAY, _day_token_val, token_id=None)
 					_day_lexed = True
 				elif not _year_lexed:
-					_token_val = tokenizer.cond_consume(lambda curr_char, lexeme, scanner: not curr_char.isdigit())
-					_add_token_alias(DateGrammarTokenType.YEAR, _token_val, token_id=None)
+					_year_token_val = tokenizer.cond_consume(lambda curr_char, lexeme, scanner: not curr_char.isdigit())
+					_add_token_alias(DateGrammarTokenType.YEAR, _year_token_val, token_id=None)
 					_year_lexed = True
 				else:
 					_error_details = f"error tokenizing number-like symbol; please review and try again..."
@@ -300,9 +303,6 @@ class DateGrammarTokenizerHandler(LexHandler):
 			_tokenizer_advance_a()
 
 		_add_token_alias(self._token_mapping[self._end_symbol], self._end_symbol, token_id=None)
-
-	def skip_ws(self, tokenizer):
-		_result = tokenizer.cond_consume(lambda curr_chr, lexeme, scanner: curr_chr not in {" ", "\n", "\t", "\r\n"})
 
 
 class TableBuilder(ABC):
@@ -330,111 +330,143 @@ class TableBuilder(ABC):
 
 class Grammar9TableBuilder(TableBuilder):
 
-	# def build_table(self, table):
-	# 	INIT_RULE = self.grammar.select(RuleIDSelector("INIT_RULE"))[0]
-	# 	S_rule_1 = self.grammar.select(RuleIDSelector("S_rule_1"))[0]
-	# 	A_rule_1 = self.grammar.select(RuleIDSelector("A_rule_1"))[0]
-	# 	B_rule_1 = self.grammar.select(RuleIDSelector("B_rule_1"))[0]
-
-	# 	# SYMBOLS ---> [a, b, S, A, B]
-	# 	# STATE 0:
-	# 	# table.add_action((0, "("), (ParserActionType.SHIFT))
-	# 	table.add_action((0, "a"), (ParserActionType.SHIFT, 2))
-	# 	table.add_goto((0, "S"), (1, INIT_RULE.copy().advance_by(1)))
-
-	# 	# STATE 1:
-	# 	table.add_action((1, "#"), (ParserActionType.ACCEPT, S_rule_1.copy().advance_by(1)))
-
-	# 	# STATE 2:
-	# 	table.add_action((2, "b"), (ParserActionType.SHIFT, 3))
-	# 	table.add_goto((2, "A"), (4, S_rule_1.copy().advance_by(2)))
-	# 	table.add_goto((2, "B"), (5, B_rule_1.copy().advance_by(1)))
-
-	# 	# STATE 3:
-	# 	table.add_action((3, "#"), (ParserActionType.REDUCE, B_rule_1.copy().advance_by(1)))
-
-	# 	# STATE 4:
-	# 	table.add_action((4, "#"), (ParserActionType.REDUCE, S_rule_1.copy().advance_by(2)))
-
-	# 	# STATE 5:
-	# 	table.add_action((5, "#"), (ParserActionType.REDUCE, A_rule_1.copy().advance_by(1)))
-
 	def build_table(self, table):
-		INIT_RULE = self.grammar.select(RuleIDSelector("INIT_RULE"))[0]
-		S_rule_1 = self.grammar.select(RuleIDSelector("S_rule_1"))[0]
-		S_rule_2 = self.grammar.select(RuleIDSelector("S_rule_2"))[0]
-		S_rule_3 = self.grammar.select(RuleIDSelector("S_rule_3"))[0]
-		A_rule_1 = self.grammar.select(RuleIDSelector("A_rule_1"))[0]
-		B_rule_1 = self.grammar.select(RuleIDSelector("B_rule_1"))[0]
-		# B_rule_2 = self.grammar.select(RuleIDSelector("B_rule_2"))[0]
-		C_rule_1 = self.grammar.select(RuleIDSelector("C_rule_1"))[0]
+		# INIT_RULE = self.grammar.select(RuleIDSelector("INIT_RULE"))[0]
+		# S_rule_1 = self.grammar.select(RuleIDSelector("S_rule_1"))[0]
+		# S_rule_2 = self.grammar.select(RuleIDSelector("S_rule_2"))[0]
+		# S_rule_3 = self.grammar.select(RuleIDSelector("S_rule_3"))[0]
+		# A_rule_1 = self.grammar.select(RuleIDSelector("A_rule_1"))[0]
+		# B_rule_1 = self.grammar.select(RuleIDSelector("B_rule_1"))[0]
+		# # B_rule_2 = self.grammar.select(RuleIDSelector("B_rule_2"))[0]
+		# C_rule_1 = self.grammar.select(RuleIDSelector("C_rule_1"))[0]
 
-		# STATE 0:
-		# table.add_action((0, "a"), (ParserActionType.SHIFT, 2))
+		# # STATE 0:
+		# # table.add_action((0, "a"), (ParserActionType.SHIFT, 2))
+		# # table.add_goto((0, "S"), (1, INIT_RULE.copy().advance_by(1)))
+
+		# table.add_action((0, "a"), (ParserActionType.SHIFT, 4))
+		# table.add_action((0, "("), (ParserActionType.SHIFT, 1))
 		# table.add_goto((0, "S"), (1, INIT_RULE.copy().advance_by(1)))
-
-		table.add_action((0, "a"), (ParserActionType.SHIFT, 4))
-		table.add_action((0, "("), (ParserActionType.SHIFT, 1))
-		table.add_goto((0, "S"), (1, INIT_RULE.copy().advance_by(1)))
-		table.add_goto((0, "C"), (1, S_rule_3.copy().advance_by(1)))
+		# table.add_goto((0, "C"), (1, S_rule_3.copy().advance_by(1)))
 
 
 
-		# STATE 1:
+		# # STATE 1:
+		# # table.add_action((1, "#"), (ParserActionType.ACCEPT, S_rule_1.copy().advance_by(1)))
+		# # table.add_action((1, "b"), (ParserActionType.ACCEPT, S_rule_1.copy().advance_by(1)))
+		# # table.add_action((1, "!"), (ParserActionType.SHIFT, 3))
+
 		# table.add_action((1, "#"), (ParserActionType.ACCEPT, S_rule_1.copy().advance_by(1)))
-		# table.add_action((1, "b"), (ParserActionType.ACCEPT, S_rule_1.copy().advance_by(1)))
+		# table.add_action((1, "a"), (ParserActionType.SHIFT, 4))
+		# # table.add_action((1, "b"), (ParserActionType.ACCEPT, S_rule_1.copy().advance_by(1)))
 		# table.add_action((1, "!"), (ParserActionType.SHIFT, 3))
+		# table.add_goto((1, "S"), (5, C_rule_1.copy().advance_by(2)))
 
-		table.add_action((1, "#"), (ParserActionType.ACCEPT, S_rule_1.copy().advance_by(1)))
-		table.add_action((1, "a"), (ParserActionType.SHIFT, 4))
-		# table.add_action((1, "b"), (ParserActionType.ACCEPT, S_rule_1.copy().advance_by(1)))
-		table.add_action((1, "!"), (ParserActionType.SHIFT, 3))
-		table.add_goto((1, "S"), (5, C_rule_1.copy().advance_by(2)))
-
-		# STATE 2:
+		# # STATE 2:
+		# # table.add_action((2, "b"), (ParserActionType.SHIFT, 4))
+		# # table.add_goto((2, "A"), (8, S_rule_1.copy().advance_by(2)))
+		# # table.add_goto((2, "B"), (5, B_rule_1.copy().advance_by(1)))
+		# # # table.add_goto((2, "C"), (6, B_rule_2.copy().advance_by(1)))
+		# # table.add_action((2, "("), (ParserActionType.SHIFT, 7))
+		
 		# table.add_action((2, "b"), (ParserActionType.SHIFT, 4))
 		# table.add_goto((2, "A"), (8, S_rule_1.copy().advance_by(2)))
 		# table.add_goto((2, "B"), (5, B_rule_1.copy().advance_by(1)))
 		# # table.add_goto((2, "C"), (6, B_rule_2.copy().advance_by(1)))
 		# table.add_action((2, "("), (ParserActionType.SHIFT, 7))
 		
+		# # STATE 3:
+		# table.add_action((3, "#"), (ParserActionType.REDUCE, S_rule_2.copy().advance_by(2)))
+
+		# # STATE 4:
+		# # table.add_action((4, "#"), (ParserActionType.REDUCE, B_rule_1.copy().advance_by(1)))
+		
+		# table.add_action((4, "b"), (ParserActionType.SHIFT, 8))
+
+		# # STATE 5:
+		# table.add_action((5, "#"), (ParserActionType.REDUCE, A_rule_1.copy().advance_by(1)))
+
+		# table.add_action((5, ")"), (ParserActionType.SHIFT, 10))
+		# table.add_action((5, "!"), (ParserActionType.SHIFT, 6))
+
+		# # STATE 6:
+		# # table.add_action((6, "#"), (ParserActionType.REDUCE, B_rule_2.copy().advance_by(1)))
+
+		# table.add_action((6, ")"), (ParserActionType.REDUCE, S_rule_2.copy().advance_by(2)))
+
+		# # STATE 7:
+		# table.add_action((7, "a"), (ParserActionType.SHIFT, 2))
+
+		# # STATE 8:
+		# table.add_action((8, "#"), (ParserActionType.REDUCE, B_rule_1.copy().advance_by(1)))
+		# table.add_action((8, "b"), (ParserActionType.REDUCE, S_rule_1.copy().advance_by(3)))
+		# # table.add_action((8, "!"), (ParserActionType.REDUCE, B_rule_1.copy().advance_by(1)))
+
+		# # STATE 9:
+		# # table.add_action((9, ")"), (ParserActionType.SHIFT, 10))
+
+		# table.add_action((9, ")"), (ParserActionType.SHIFT, 10))
+		# table.add_action((9, "#"), (ParserActionType.REDUCE, S_rule_1.copy().advance_by(2)))
+
+
+		# # STATE 10:
+		# table.add_action((10, "#"), (ParserActionType.REDUCE, C_rule_1.copy().advance_by(3)))
+
+
+		INIT_RULE = self.grammar.select(RuleIDSelector("INIT_RULE"))[0]
+		S_rule_1 = self.grammar.select(RuleIDSelector("S_rule_1"))[0]
+		S_rule_2 = self.grammar.select(RuleIDSelector("S_rule_2"))[0]
+		S_rule_3 = self.grammar.select(RuleIDSelector("S_rule_3"))[0]
+		A_rule_1 = self.grammar.select(RuleIDSelector("A_rule_1"))[0]
+		B_rule_1 = self.grammar.select(RuleIDSelector("B_rule_1"))[0]
+		C_rule_1 = self.grammar.select(RuleIDSelector("C_rule_1"))[0]
+
+		# STATE 0:
+		table.add_action((0, "a"), (ParserActionType.SHIFT, 4))
+		table.add_action((0, "("), (ParserActionType.SHIFT, 1))
+		table.add_goto((0, "S"), (1, INIT_RULE.copy().advance_by(1)))
+		table.add_goto((0, "C"), (1, S_rule_3.copy().advance_by(1)))
+
+		# STATE 1:
+		table.add_action((1, "#"), (ParserActionType.ACCEPT, S_rule_1.copy().advance_by(1)))
+		table.add_action((1, "a"), (ParserActionType.SHIFT, 4))
+		table.add_action((1, "!"), (ParserActionType.SHIFT, 3))
+		table.add_goto((1, "S"), (5, C_rule_1.copy().advance_by(2)))
+
+		# STATE 2:
 		table.add_action((2, "b"), (ParserActionType.SHIFT, 4))
 		table.add_goto((2, "A"), (8, S_rule_1.copy().advance_by(2)))
 		table.add_goto((2, "B"), (5, B_rule_1.copy().advance_by(1)))
-		# table.add_goto((2, "C"), (6, B_rule_2.copy().advance_by(1)))
 		table.add_action((2, "("), (ParserActionType.SHIFT, 7))
 		
 		# STATE 3:
 		table.add_action((3, "#"), (ParserActionType.REDUCE, S_rule_2.copy().advance_by(2)))
+		table.add_action((3, "!"), (ParserActionType.REDUCE, S_rule_1.copy().advance_by(2)))
+		table.add_action((3, ")"), (ParserActionType.REDUCE, S_rule_1.copy().advance_by(2)))
 
 		# STATE 4:
-		# table.add_action((4, "#"), (ParserActionType.REDUCE, B_rule_1.copy().advance_by(1)))
-		
 		table.add_action((4, "b"), (ParserActionType.SHIFT, 8))
+		table.add_goto((4, "B"), (3, S_rule_2.copy().advance_by(1)))
 
 		# STATE 5:
 		table.add_action((5, "#"), (ParserActionType.REDUCE, A_rule_1.copy().advance_by(1)))
-
 		table.add_action((5, ")"), (ParserActionType.SHIFT, 10))
+		table.add_action((5, "!"), (ParserActionType.SHIFT, 6))
 
 		# STATE 6:
-		# table.add_action((6, "#"), (ParserActionType.REDUCE, B_rule_2.copy().advance_by(1)))
+		table.add_action((6, ")"), (ParserActionType.REDUCE, S_rule_2.copy().advance_by(2)))
 
 		# STATE 7:
 		table.add_action((7, "a"), (ParserActionType.SHIFT, 2))
 
 		# STATE 8:
-		# table.add_action((8, "#"), (ParserActionType.REDUCE, S_rule_1.copy().advance_by(3)))
-		
-		for _symbol in self.grammar.terminals():
-			table.add_action((8, _symbol), (ParserActionType.REDUCE, S_rule_1.copy().advance_by(3)))
+		table.add_action((8, "#"), (ParserActionType.REDUCE, B_rule_1.copy().advance_by(1)))
+		table.add_action((8, "!"), (ParserActionType.REDUCE, B_rule_1.copy().advance_by(1)))
+		table.add_action((8, ")"), (ParserActionType.REDUCE, B_rule_1.copy().advance_by(1)))
 
 		# STATE 9:
-		# table.add_action((9, ")"), (ParserActionType.SHIFT, 10))
-
 		table.add_action((9, ")"), (ParserActionType.SHIFT, 10))
 		table.add_action((9, "#"), (ParserActionType.REDUCE, S_rule_1.copy().advance_by(2)))
-
 
 		# STATE 10:
 		table.add_action((10, "#"), (ParserActionType.REDUCE, C_rule_1.copy().advance_by(3)))
@@ -446,15 +478,15 @@ class DateGrammarTableBuilder(TableBuilder):
 		pass
 
 
+"""
 class CoreParser3(CoreParser2):
 
-	# def __init__(self, init_state=0, grammar=None, parse_table=None, debug_mode=False, parser_id=None):
-	# 	super().__init__(init_state=init_state, grammar=grammar, parse_table=parse_table, debug_mode=debug_mode, parser_id=parser_id)
-	# 	self._parser_context = ParserContext(context_id=self.parser_id)
+	def __init__(self, init_state=0, grammar=None, parse_table=None, debug_mode=False, parser_id=None):
+		super().__init__(init_state=init_state, grammar=grammar, parse_table=parse_table, debug_mode=debug_mode, parser_id=parser_id)
+	# 	self._channel = PyChannel(channel_id=parser_id)
 
-	# @property
-	# def parser_context(self):
-	# 	return self._parser_context
+	# def register(self, action, receiver=None, receiver_id=None):
+	# 	self._channel.register(action, receiver=receiver, receiver_id=receiver_id)
 
 	def parse(self, parse_context):
 		# NOTE: remove below (up unti' series of consecutive '#'s) code as it's for coloring terminal debug output
@@ -469,6 +501,8 @@ class CoreParser3(CoreParser2):
 		_current_state = parse_context.state()
 		_current_symbol = parse_context.current_symbol().token_val
 		_action_info = self.parse_table.action((_current_state, _current_symbol), default=(ParserActionType.ERROR, None))
+		_parse_stack = parse_context.stack
+		_parse_sym_stack = parse_context.symbol_stack
 		while not parse_context.done_parsing:
 			# if parse_context.done_parsing:
 			# 	break
@@ -493,20 +527,23 @@ class CoreParser3(CoreParser2):
 					log_type=LogType.DEBUG
 					)
 
-			_parse_stack = parse_context.stack
-			_parse_sym_stack = parse_context.symbol_stack
 
-			if (len(parse_context.symbol_stack) >= 2 and parse_context.symbol_stack[-2] == "a") and (parse_context.symbol_stack[-1] == "b"):
-				_action_info = self.parse_table.action((parse_context.state(), parse_context.symbol_stack[-1]), default=(ParserActionType.ERROR, None))
+			if (len(_parse_sym_stack) >= 2 and _parse_sym_stack[-2] == "a") and (_parse_sym_stack[-1] == "b"):
+				_action_info = self.parse_table.action((parse_context.state(), _parse_sym_stack[-1]), default=(ParserActionType.ERROR, None))
 
 
 			_action = _action_info[0]
+
+			# self._channel.emit(_action, self, parse_context, _action_info)
 
 			if self.debug_mode:
 				print(f"• ACTION INFO:")
 				print(f"\t{_action_info}\n")
 
-			if _action == ParserActionType.SHIFT:
+			# NOTE: possibly use match/case syntax here
+			if _action == ParserActionType.ERROR:
+				parse_context.set_result(False)
+			elif _action == ParserActionType.SHIFT:
 				if self.debug_mode:
 					print(f"IN SHIFT ACTION:")
 				parse_context.append_state(_action_info[1])
@@ -521,18 +558,18 @@ class CoreParser3(CoreParser2):
 				# 		for this behaviour to be ran. Should also allow for other actions. NOTE:
 				# 		the actual layout for the function will completely change once all of the
 				# 		pieces are more glued together and it's more clear how I'm implementing it
-				if _current_state == 0 and _current_symbol == "a":
-					_next_input_char = parse_context.peek(offset=1)
-					if _next_input_char == "b":
-						parse_context.append_state(9)
-						parse_context.append_symbol("A")
-						parse_context.advance()
+				# if _current_state == 0 and _current_symbol == "a":
+				# 	_next_input_char = parse_context.peek(offset=1)
+				# 	if _next_input_char == "b":
+				# 		parse_context.append_state(9)
+				# 		parse_context.append_symbol("A")
+				# 		parse_context.advance()
 
-						self.logger.submit_log(
-							message=f"Since the current state of the parser is 0/'a' (CURRENT-STATE/CURRENT-SYMBOL) and since the next input symbol is a 'b', Performing shortcut SHORTCUT SHIFT action",
-							new_state=f"PARSE CONTEXT ID: {parse_context.context_id} ---> (9/A)",
-							log_type=LogType.DEBUG
-							)
+				# 		self.logger.submit_log(
+				# 			message=f"Since the current state of the parser is 0/'a' (CURRENT-STATE/CURRENT-SYMBOL) and since the next input symbol is a 'b', Performing shortcut SHORTCUT SHIFT action",
+				# 			new_state=f"PARSE CONTEXT ID: {parse_context.context_id} ---> (9/A)",
+				# 			log_type=LogType.DEBUG
+				# 			)
 				parse_context.advance()
 			elif _action == ParserActionType.REDUCE:
 				_reduce_item = _action_info[1]
@@ -564,8 +601,6 @@ class CoreParser3(CoreParser2):
 					_next_state = _goto_state[0]
 					parse_context.append_state(_next_state)
 					parse_context.append_symbol(_reduce_item.rule_head)
-			elif _action == ParserActionType.ERROR:
-				parse_context.set_result(False)
 			elif _action == ParserActionType.ACCEPT:
 				parse_context.set_result(True)
 
@@ -588,6 +623,71 @@ class CoreParser3(CoreParser2):
 
 	def init_parse(self):
 		pass
+"""
+
+
+class CoreParser3(CoreParser2):
+
+	def __init__(self, init_state=0, grammar=None, parse_table=None, debug_mode=False, parser_id=None):
+		super().__init__(init_state=init_state, grammar=grammar, parse_table=parse_table, debug_mode=debug_mode, parser_id=parser_id)
+		self._channel = PyChannel(channel_id=parser_id)
+		self.init_parser()
+
+	def init_parser(self):
+		self.register(ParserActionType.SHIFT, self.__SHIFT__)
+		self.register(ParserActionType.ACCEPT, self.__ACCEPT__)
+		self.register(ParserActionType.ERROR, self.__ERROR__)
+		self.register(ParserActionType.REDUCE, self.__REDUCE__)
+
+	def register(self, action_type, receiver=None, receiver_id=None):
+		self._channel.register(action_type, receiver=receiver, receiver_id=receiver_id)
+
+	def parse(self, parse_context):
+		# NOTE: remove below (up unti' series of consecutive '#'s) code as it's for coloring terminal debug output		
+		parse_context.set_parser(self)
+		parse_context.append_state(self.init_state)
+		_current_state = parse_context.state()
+		_current_symbol = parse_context.current_symbol().token_val
+		_action_info = self.parse_table.action((_current_state, _current_symbol), default=(ParserActionType.ERROR, None))
+		parse_context.set_action(_action_info)
+		_action_type = _action_info[0]
+		_parse_stack = parse_context.stack
+		_parse_sym_stack = parse_context.symbol_stack
+
+		while not parse_context.done_parsing:
+			self._channel.emit(_action_type, *parse_context.action_info())
+			
+			_current_state = parse_context.state()
+			_current_symbol = parse_context.current_symbol().token_val
+			_action_info = self.parse_table.action((_current_state, _current_symbol), default=(ParserActionType.ERROR, None))
+			_action_type = _action_info[0]
+			parse_context.set_action(_action_info)
+		return parse_context
+
+	def __REDUCE__(self, parse_context, action_info):
+		_reduce_item = action_info[1]
+		for _ in range(_reduce_item.rule_size):
+			parse_context.pop_state()
+			parse_context.pop_symbol()
+		_goto_key = (parse_context.state(), _reduce_item.rule_head)
+		_goto_state = parse_context.parser.parse_table.goto(_goto_key)
+		_next_state = _goto_state[0]
+		parse_context.append_state(_next_state)
+		parse_context.append_symbol(_reduce_item.rule_head)
+
+	def __SHIFT__(self, parse_context, action_info):
+		parse_context.append_state(action_info[1])
+		parse_context.append_symbol(parse_context.current_symbol().token_val)
+		parse_context.advance()
+
+	def __ACCEPT__(self, parse_context, action_info):
+		parse_context.set_result(True)
+
+	def __REDUCE_2__(self, parse_context, action_info):
+		pass
+
+	def __ERROR__(self, parse_context, action_info):
+		parse_context.set_result(False)
 
 
 class FinalRedesignEnv(ParserEnvironment):
@@ -636,6 +736,10 @@ class FinalRedesignEnv(ParserEnvironment):
 	def set_builder(self, table_builder):
 		self._table_builder = table_builder
 
+	@classmethod
+	def logging_set(cls):
+		cls.LOGGING_SET = True
+
 	def setup(self):
 		if not self._initialized:
 			_grammar_version = self.field("grammar_version", default=10)
@@ -664,7 +768,6 @@ class FinalRedesignEnv(ParserEnvironment):
 				logging_callbacks=_logging_setup_callbacks,
 				encoding=ENCODING
 			)
-
 			self._initialized = True
 
 	def execute(self, input, context_id=None):
