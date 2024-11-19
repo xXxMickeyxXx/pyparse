@@ -15,6 +15,9 @@ from .scratch_init_grammar import (
 	init_grammar
 )
 from .final_redesign import (
+	Grammar8TokenType,
+	Grammar8TokenizerHandler,
+	Grammar8TableBuilder,
 	Grammar9TokenType,
 	Grammar9TokenizerHandler,
 	Grammar9TableBuilder,
@@ -22,6 +25,7 @@ from .final_redesign import (
 	DateGrammarTokenizerHandler,
 	DateGrammarTableBuilder,
 	CoreParser3,
+	Grammar8Parser,
 	FinalRedesignEnv
 )
 from .scratch_parse_table import ParseTable
@@ -50,6 +54,7 @@ from .utils import (
 )
 
 
+"""
 def display_tokens(tokens, input):
 	_tokens_str = bold_text(apply_color(214, "** TOKENS **"))
 	_all_except_last_token = tokens[:-1:]
@@ -78,6 +83,7 @@ def display_tokens(tokens, input):
 	print(f"  |                     |                     |")
 	print(f"  +---------------------+---------------------+")
 	print()
+"""
 
 
 def display_tokens(tokens, input):
@@ -88,6 +94,34 @@ def display_tokens(tokens, input):
 		print(f"\tTOKEN TYPE:  {apply_color(208, _token.token_type)}")
 		print(f"\tTOKEN VALUE: {apply_color(208, _token.token_val)}")
 		print()
+
+
+def G8_environment_factory(debug_mode=False):
+	__GRAMMAR__ = test_grammar_factory()
+
+	_G8_tokenizer_handler = Grammar8TokenizerHandler()
+	__TOKENIZER__ = Tokenizer(handler=_G8_tokenizer_handler)
+
+	__PARSE_TABLE__ = ParseTable(table_id="[ • --- • Grammar8ParseTable • ---• ]")
+	__TABLE_BUILDER__ = Grammar8TableBuilder(grammar=__GRAMMAR__)
+
+	_PARSER_ID_ = "Grammar8Parser"
+	__PARSER__ = Grammar8Parser(init_state=0, grammar=__GRAMMAR__, parse_table=__PARSE_TABLE__, debug_mode=debug_mode, parser_id=_PARSER_ID_)
+	_final_redesign_env = FinalRedesignEnv(parser=__PARSER__, grammar=__GRAMMAR__, tokenizer=__TOKENIZER__, table_builder=__TABLE_BUILDER__, parse_table=__PARSE_TABLE__)
+
+	_final_redesign_env.add_field("tokenize", True)
+	_final_redesign_env.add_field("grammar_version", 8)
+	_final_redesign_env.add_field("end_symbol", "$")
+	_final_redesign_env.add_field("logger", PyLogger.get(_PARSER_ID_))
+
+
+	# Init grammar (add grammar rules for defined grammar), etc.
+	_final_redesign_env.setup()
+
+
+	# Display item sets
+	# display_item_states(__GRAMMAR__.generate_states())
+	return _final_redesign_env
 
 
 def G9_environment_factory(debug_mode=False):
@@ -147,7 +181,7 @@ def G10_environment_factory(debug_mode=False):
 
 
 	# Display parse table setup
-	__PARSE_TABLE__.print()
+	# __PARSE_TABLE__.print()
 
 	# Display item sets
 	# display_item_states(__GRAMMAR__.generate_states())
@@ -160,6 +194,7 @@ def run_testing(test_inputs, environment):
 	print()
 	for idx, (_INPUT_, _is_valid) in enumerate(test_inputs, start=1):
 		_TOKENIZED_INPUT = environment.tokenize(_INPUT_)
+		_TOKENIZED_INPUT = [i for i in _TOKENIZED_INPUT if i.token_type != Grammar8TokenType.SKIP]
 		_parse_context = environment.execute(_TOKENIZED_INPUT, context_id=f"TEST-INPUT-{idx}")
 		_parse_result = _parse_context.result()
 		_test_passed = _parse_result == _is_valid
@@ -177,32 +212,56 @@ def run_testing(test_inputs, environment):
 
 @profile_callable(sort_by=SortBy.TIME)
 def final_main(debug_mode=False):
+	# __file__data = None
+	# with open(__file__, "r") as _in_file:
+	# 	__file__data = _in_file.read()
+
+
 	_TEST_INPUTS_1_ = [
-		("ab", True),
-		("ab!", True),
-		("a!b", False),
-		("ba!", False),
-		("b!a", False),
-		("!ab", False),
-		("!ba", False),
-		("(ab)", True),
-		("(a!b)", False),
-		("(ba!)", False),
-		("(ab!)", True),
-		("(b!a)", False),
-		("(!ab)", False),
-		("(!ba)", False),
-		("aaaaaaaaaaaaaaaaaaabbbbbbbbbbbbb!!!!!!!!abbb!)", False)
+		# (__file__data, False),
+		("(8 + 2)", True),
+		("10 + 10", True),
+		("10 + 10 10", False),
+		("10 + 10\n", True),
+		("10 +", False),
+		("10 + -", False),
+		("3 * 2 + 1", True),
+		("(3 * 2 + 1)", True),
+		("12 / 3 + (2 * 1)", True)
 	]
 
-	_test_grammar_9_env = G9_environment_factory(debug_mode=debug_mode)	
-	run_testing(_TEST_INPUTS_1_, _test_grammar_9_env)
+
+	_test_grammar_8_env = G8_environment_factory(debug_mode=debug_mode)	
+	run_testing(_TEST_INPUTS_1_, _test_grammar_8_env)
+
+
+
+	# _TEST_INPUTS_1_ = [
+	# 	("ab", True),
+	# 	("ab!", True),
+	# 	("a!b", False),
+	# 	("ba!", False),
+	# 	("b!a", False),
+	# 	("!ab", False),
+	# 	("!ba", False),
+	# 	("(ab)", True),
+	# 	("(a!b)", False),
+	# 	("(ba!)", False),
+	# 	("(ab!)", True),
+	# 	("(b!a)", False),
+	# 	("(!ab)", False),
+	# 	("(!ba)", False),
+	# 	("aaaaaaaaaaaaaaaaaaabbbbbbbbbbbbb!!!!!!!!abbb!)", False)
+	# ]
+
+	# _test_grammar_9_env = G9_environment_factory(debug_mode=debug_mode)	
+	# run_testing(_TEST_INPUTS_1_, _test_grammar_9_env)
 
 
 	# _TEST_INPUTS_2_ = [
 	# 	("  /12/2024", False),
 	# 	("12/22/2000", True),
-	# 	("12.22 .2004", True),
+	# 	("12.22.2004", True),
 	# 	("11/29/2025", True),
 	# 	("12/22/1991", True)
 	# ]

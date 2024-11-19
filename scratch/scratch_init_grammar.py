@@ -110,7 +110,7 @@ def init_grammar_8(grammar):
     grammar.create_rule("B", ["C"], rule_id="B_1")
     grammar.create_rule("B", ["number"], rule_id="B_2")
     grammar.create_rule("C", ["(", "E", ")"], rule_id="C_1")
-    grammar.create_rule("number", ["NUMBER"], rule_id="C_1")
+    grammar.create_rule("number", ["NUMBER"], rule_id="number")
     grammar.create_rule("operator", ["+"], rule_id="operator_1")
     grammar.create_rule("operator", ["-"], rule_id="operator_2")
     grammar.create_rule("operator", ["*"], rule_id="operator_3")
@@ -130,14 +130,12 @@ def init_grammar_9(grammar):
 
 def init_grammar_10(grammar):
     # Date grammar for parsing and facilitating the usage of date
-    grammar.create_rule("#", ["date"], rule_id="HASHTAG_END")
-    grammar.create_rule("date", ["date_unit", "date_delim", "date_unit", "date_delim", "date_unit"], rule_id="date")
-    grammar.create_rule("date_unit", ["month"], rule_id="month")
-    grammar.create_rule("date_unit", ["day"], rule_id="day")
-    grammar.create_rule("date_unit", ["year"], rule_id="year")
-    grammar.create_rule("date_delim", ["/"], rule_id="date_delim_slash")
-    grammar.create_rule("date_delim", ["-"], rule_id="date_delim_hyphen")
-    grammar.create_rule("date_delim", ["."], rule_id="date_delim_dot")
+    grammar.create_rule("#", ["date"], rule_id="INIT_RULE")
+    grammar.create_rule("date", ["month", "date_delim", "day", "date_delim", "year"], rule_id="date")
+    # grammar.create_rule("date", ["year", "date_delim", "month", "date_delim", "day"], rule_id="date")
+    grammar.create_rule("date_delim", ["/"], rule_id="slash_delim")
+    grammar.create_rule("date_delim", ["-"], rule_id="hyphen_delim")
+    grammar.create_rule("date_delim", ["."], rule_id="dot_delim")
 
 
 _grammar_initializers = {
