@@ -425,10 +425,10 @@ class Grammar8TableBuilder(TableBuilder):
 
 		# STATE 2:
 		table.add_action((2, _init_rule_head), (ParserActionType.ACCEPT, None))
-		table.add_action((2, "operator"), (ParserActionType.SHIFT, 7))
 		table.add_action((2, "+"), (ParserActionType.SHIFT, 7))
 		table.add_action((2, ")"), (ParserActionType.SHIFT, 14))
 		table.add_action((2, "*"), (ParserActionType.SHIFT, 7))
+		table.add_action((2, "/"), (ParserActionType.SHIFT, 7))
 		table.add_goto((2, "E"), (7, E_1.copy().advance_by(2)))
 
 
@@ -461,11 +461,13 @@ class Grammar8TableBuilder(TableBuilder):
 		# table.add_action((6, ")"), (ParserActionType.REDUCE, E_2.copy().advance_by(1)))
 
 		# STATE 7:
+		table.add_action((7, "("), (ParserActionType.SHIFT, 4))
 		table.add_action((7, "NUMBER"), (ParserActionType.SHIFT, 5))
 		table.add_action((7, "number"), (ParserActionType.SHIFT, 1))
 		table.add_goto((7, "number"), (14, E_2.copy().advance_by(1)))
 		table.add_goto((7, "B"), (13, E_2.copy().advance_by(1)))
 		table.add_goto((7, "E"), (12, E_2.copy().advance_by(1)))
+		table.add_goto((7, "C"), (12, E_2.copy().advance_by(1)))
 		table.add_goto((7, _init_rule_head), (ParserActionType.ERROR, None))
 
 		# STATE 8:
@@ -482,10 +484,15 @@ class Grammar8TableBuilder(TableBuilder):
 		# STATE 12:
 		table.add_action((12, "NUMBER"), (ParserActionType.ERROR, None))
 		table.add_action((12, "+"), (ParserActionType.REDUCE, B_2.copy().advance_by(1)))
+		table.add_action((12, "-"), (ParserActionType.REDUCE, B_2.copy().advance_by(1)))
+		table.add_action((12, "*"), (ParserActionType.REDUCE, B_2.copy().advance_by(1)))
+		table.add_action((12, "/"), (ParserActionType.REDUCE, B_2.copy().advance_by(1)))
 		table.add_action((12, ")"), (ParserActionType.REDUCE, E_1.copy().advance_by(1)))
+		table.add_action((12, _init_rule_head), (ParserActionType.REDUCE, B_1.copy().advance_by(1)))
 
 		# STATE 13:
-		# table.add_action((13, "+"), (ParserActionType.REDUCE, E_2.copy().advance_by(1)))
+		table.add_action((13, _init_rule_head), (ParserActionType.REDUCE, E_1.copy().advance_by(1)))
+		table.add_action((13, "+"), (ParserActionType.REDUCE, E_1.copy().advance_by(1)))
 		table.add_action((13, "NUMBER"), (ParserActionType.REDUCE, E_2.copy().advance_by(1)))
 		table.add_action((13, ")"), (ParserActionType.REDUCE, E_2.copy().advance_by(1)))
 		
