@@ -104,17 +104,30 @@ def init_grammar_7(grammar):
 
 def init_grammar_8(grammar):
     # Test arithmatic grammr
-    grammar.create_rule("$", ["E"], rule_id="INIT_RULE")
-    grammar.create_rule("E", ["E", "operator", "E"], rule_id="E_1")
-    grammar.create_rule("E", ["B"], rule_id="E_2")
-    grammar.create_rule("B", ["C"], rule_id="B_1")
-    grammar.create_rule("B", ["number"], rule_id="B_2")
-    grammar.create_rule("C", ["(", "E", ")"], rule_id="C_1")
-    grammar.create_rule("number", ["NUMBER"], rule_id="number")
-    grammar.create_rule("operator", ["+"], rule_id="operator_1")
-    grammar.create_rule("operator", ["-"], rule_id="operator_2")
-    grammar.create_rule("operator", ["*"], rule_id="operator_3")
-    grammar.create_rule("operator", ["/"], rule_id="operator_4")
+    # grammar.create_rule("$", ["E"], rule_id="INIT_RULE")
+    # grammar.create_rule("E", ["E", "operator", "E"], rule_id="E_1")
+    # grammar.create_rule("E", ["B"], rule_id="E_2")
+    # grammar.create_rule("E", ["(", ")"], rule_id="E_3")
+    # grammar.create_rule("B", ["C"], rule_id="B_1")
+    # grammar.create_rule("B", ["number"], rule_id="B_2")
+    # grammar.create_rule("C", ["(", "E", ")"], rule_id="C_1")
+    # grammar.create_rule("C", ["(", "C", ")"], rule_id="C_2")
+    # grammar.create_rule("number", ["NUMBER"], rule_id="number")
+    # grammar.create_rule("operator", ["+"], rule_id="operator_1")
+    # grammar.create_rule("operator", ["-"], rule_id="operator_2")
+    # grammar.create_rule("operator", ["*"], rule_id="operator_3")
+    # grammar.create_rule("operator", ["/"], rule_id="operator_4")
+    grammar.create_rule("$", ["expression"], rule_id="INIT_RULE")
+    grammar.create_rule("expression", ["term"], rule_id="exp_term")
+    grammar.create_rule("expression", ["expression", "+", "term"], rule_id="exp_plus_term")
+    grammar.create_rule("expression", ["expression", "-", "term"], rule_id="exp_minus_term")
+    grammar.create_rule("term", ["factor"], rule_id="term_factor")
+    grammar.create_rule("term", ["term", "*", "factor"], rule_id="term_mult_fact")
+    grammar.create_rule("term", ["term", "/", "factor"], rule_id="term_div_fact")
+    grammar.create_rule("factor", ["number"], rule_id="fact_num")
+    grammar.create_rule("factor", ["(", "expression", ")"], rule_id="fact_exp")
+    grammar.create_rule("factor", ["(", ")"], rule_id="fact_empty_exp")
+    grammar.create_rule("number", ["NUMBER"], rule_id="num")
 
     
 def init_grammar_9(grammar):
@@ -128,7 +141,7 @@ def init_grammar_9(grammar):
     grammar.create_rule("C", ["(", "S", ")"], rule_id="C_rule_1")
 
 
-def init_grammar_10(grammar):
+def init_dateLang_grammar_v0_0_1(grammar):
     # Date grammar for parsing and facilitating the usage of date
     grammar.create_rule("#", ["date"], rule_id="INIT_RULE")
     grammar.create_rule("date", ["month", "date_delim", "day", "date_delim", "year"], rule_id="date")
@@ -136,6 +149,38 @@ def init_grammar_10(grammar):
     grammar.create_rule("date_delim", ["/"], rule_id="slash_delim")
     grammar.create_rule("date_delim", ["-"], rule_id="hyphen_delim")
     grammar.create_rule("date_delim", ["."], rule_id="dot_delim")
+
+
+def init_simple_lang_grammar(grammar):
+    # Simple-lang grammar - a super small grammar spec to begin designing and
+    # building interpreter/compiler portions of this whole shebang
+    grammar.create_rule("#", ["prog"], rule_id="INIT_RULE")
+
+
+def init_todo_grammar_v0_0_1(grammar):
+    # First real use-case mini-language for building/constructing TO-DO lists by
+    # within a python project by embedding mini-language using comments.
+    #
+    # Since python disregards source text when it starts with a pound symbol (#),
+    # and since it allows mult-line text when surrounded by triple-quotes (also
+    # referred to as a 'docstring') we can easily embed the mini-language by
+    # prefixing every statement with the pound (#) symbol before adding whatever
+    # language specific qualifiers, declarations, expressions, etc.
+    #
+    # For example (NOTE: spacing only included to draw visual attention to the example text directly below):
+    # 
+    #         @TODO<Syntax for a 'TODO' data structure>
+    #         @NOTE<Syntax for a 'NOTE' data structure>
+    #
+    grammar.create_rule("#", ["todo_lang"], rule_id="INIT_RULE")
+    grammar.create_rule("todo_lang", ["todo_@_symbol", "todo_type", "todo_body"], rule_id="todo_lang")
+    grammar.create_rule("todo_type", ["TODO"], rule_id="todo_type_TODO")
+    grammar.create_rule("todo_type", ["NOTE"], rule_id="todo_type_NOTE")
+    grammar.create_rule("todo_body", ["todo_l_angle", "todo_body_text", "todo_r_angle"], rule_id="todo_body")
+    grammar.create_rule("todo_body_text", ["TEXT"], rule_id="todo_body_text")
+    grammar.create_rule("todo_l_angle", ["<"], rule_id="todo_l_angle")
+    grammar.create_rule("todo_r_angle", [">"], rule_id="todo_r_angle")
+    grammar.create_rule("todo_@_symbol", ["@"], rule_id="todo_@_symbol")
 
 
 _grammar_initializers = {
@@ -148,11 +193,15 @@ _grammar_initializers = {
     7: init_grammar_7,
     8: init_grammar_8,
     9: init_grammar_9,
-    10: init_grammar_10
+    # 10: init_grammar_10,
+    "dateLang_v0_0_1": init_dateLang_grammar_v0_0_1,
+    "todo_lang_v0_0_1": init_todo_grammar_v0_0_1
 }
 
 
-def init_grammar(grammar, initializer_key, initializers=_grammar_initializers):
+def init_grammar(grammar, initializer_key, initializers=None):
+    if initializers is None:
+        initializers = _grammar_initializers
     _initializer = initializers[initializer_key]
     _initializer(grammar)
 

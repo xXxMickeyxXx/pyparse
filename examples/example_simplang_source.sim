@@ -1,0 +1,14 @@
+# 'SIMPLE-LANG' EXAMPLE SOURCE
+
+
+type ThingType {
+	field_1: int
+	field_2: int
+}
+
+
+thing = ThingType(1, 2)
+
+
+def main():
+	pass

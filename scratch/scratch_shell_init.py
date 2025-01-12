@@ -98,6 +98,22 @@ def _set_use_debugger(callback_list):
     callback_list.append(_logging_callback)
 
 
+# def _set_run_profiler(callback_list):
+#     DEFAULT_PARSER.register_argument(
+#         "-profile",
+#         action="store_false",
+#         default=False,
+#         help="When this flag is included, debug statements and actions will run application-wide, i.e. if this flag is **NOT** included, then that means application will **NOT** perform associated application-wide profiling"
+#     )
+#     _logging_callback = lambda: _shell_init_logger.submit_log(
+#         message=f"Flag which, when included, will enable application-wide profiling",
+#         default=False,
+#         help=f"Include this flag to enable application-wide profiling",
+#         logger_id=f"{_shell_init_logger.logger_id}"
+#     )
+#     callback_list.append(_logging_callback)
+
+
 def initialize_shell():
     _callback_list = []
     _set_use_logging(_callback_list)
@@ -105,6 +121,7 @@ def initialize_shell():
     _set_logging_filename(_callback_list)
     _set_logging_level(_callback_list)
     _set_use_debugger(_callback_list)
+    # _set_run_profiler(_callback_list)
     return _callback_list
 
 

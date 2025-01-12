@@ -1,0 +1,52 @@
+# GRAMMAR ToDoLang 
+
+
+STATE: 0
+	# ---> [•, 'todo_lang']
+	todo_lang ---> [•, 'todo_@_symbol', 'todo_type', 'todo_body']
+	todo_@_symbol ---> [•, '@']
+
+STATE: 1
+	# ---> ['todo_lang', •]
+
+STATE: 2
+	todo_lang ---> ['todo_@_symbol', •, 'todo_type', 'todo_body']
+	todo_type ---> [•, 'TODO']
+	todo_type ---> [•, 'NOTE']
+
+STATE: 3
+	todo_@_symbol ---> ['@', •]
+
+STATE: 4
+	todo_type ---> ['NOTE', •]
+
+STATE: 5
+	todo_lang ---> ['todo_@_symbol', 'todo_type', •, 'todo_body']
+	todo_body ---> [•, 'todo_l_angle', 'todo_body_text', 'todo_r_angle']
+	todo_l_angle ---> [•, '<']
+
+STATE: 6
+	todo_type ---> ['TODO', •]
+
+STATE: 7
+	todo_l_angle ---> ['<', •]
+
+STATE: 8
+	todo_lang ---> ['todo_@_symbol', 'todo_type', 'todo_body', •]
+
+STATE: 9
+	todo_body ---> ['todo_l_angle', •, 'todo_body_text', 'todo_r_angle']
+	todo_body_text ---> [•, 'TEXT']
+
+STATE: 10
+	todo_body ---> ['todo_l_angle', 'todo_body_text', •, 'todo_r_angle']
+	todo_r_angle ---> [•, '>']
+
+STATE: 11
+	todo_body_text ---> ['TEXT', •]
+
+STATE: 12
+	todo_r_angle ---> ['>', •]
+
+STATE: 13
+	todo_body ---> ['todo_l_angle', 'todo_body_text', 'todo_r_angle', •]

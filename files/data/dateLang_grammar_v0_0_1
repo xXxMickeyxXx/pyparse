@@ -1,0 +1,39 @@
+# dateLang GRAMMAR [v0.0.1]
+
+
+STATE: 0
+	# ---> [•, 'date']
+	date ---> [•, 'month', 'date_delim', 'day', 'date_delim', 'year']
+
+STATE: 1
+	# ---> ['date', •]
+
+STATE: 2
+	date ---> ['month', •, 'date_delim', 'day', 'date_delim', 'year']
+	date_delim ---> [•, '/']
+	date_delim ---> [•, '-']
+	date_delim ---> [•, '.']
+
+STATE: 3
+	date_delim ---> ['-', •]
+
+STATE: 4
+	date_delim ---> ['/', •]
+
+STATE: 5
+	date ---> ['month', 'date_delim', •, 'day', 'date_delim', 'year']
+
+STATE: 6
+	date_delim ---> ['.', •]
+
+STATE: 7
+	date ---> ['month', 'date_delim', 'day', •, 'date_delim', 'year']
+	date_delim ---> [•, '/']
+	date_delim ---> [•, '-']
+	date_delim ---> [•, '.']
+
+STATE: 8
+	date ---> ['month', 'date_delim', 'day', 'date_delim', •, 'year']
+
+STATE: 9
+	date ---> ['month', 'date_delim', 'day', 'date_delim', 'year', •]

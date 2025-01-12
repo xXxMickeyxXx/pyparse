@@ -1,6 +1,8 @@
 from uuid import uuid1
 from pathlib import Path
 
+from pyprofiler import profile_callable, SortBy
+
 
 def generate_id(*, prefix=None, suffix=None, uuid_factory=uuid1, uuid_type=None):
     uuid_obj = uuid_factory()

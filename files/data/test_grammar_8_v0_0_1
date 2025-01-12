@@ -1,0 +1,109 @@
+# GRAMMAR 8 (REDUX)
+
+
+STATE: 0
+	$ ---> [•, 'expression']
+	expression ---> [•, 'term']
+	expression ---> [•, 'expression', '+', 'term']
+	expression ---> [•, 'expression', '-', 'term']
+	term ---> [•, 'factor']
+	term ---> [•, 'term', '*', 'factor']
+	term ---> [•, 'term', '/', 'factor']
+	factor ---> [•, 'number']
+	factor ---> [•, '(', 'expression', ')']
+	factor ---> [•, '(', ')']
+	number ---> [•, 'NUMBER']
+
+STATE: 1
+	factor ---> ['(', •, 'expression', ')']
+	expression ---> [•, 'term']
+	expression ---> [•, 'expression', '+', 'term']
+	expression ---> [•, 'expression', '-', 'term']
+	term ---> [•, 'factor']
+	term ---> [•, 'term', '*', 'factor']
+	term ---> [•, 'term', '/', 'factor']
+	factor ---> [•, 'number']
+	factor ---> [•, '(', 'expression', ')']
+	factor ---> [•, '(', ')']
+	number ---> [•, 'NUMBER']
+	factor ---> ['(', •, ')']
+
+STATE: 2
+	$ ---> ['expression', •]
+	expression ---> ['expression', •, '+', 'term']
+	expression ---> ['expression', •, '-', 'term']
+
+STATE: 3
+	factor ---> ['number', •]
+
+STATE: 4
+	term ---> ['factor', •]
+
+STATE: 5
+	expression ---> ['term', •]
+	term ---> ['term', •, '*', 'factor']
+	term ---> ['term', •, '/', 'factor']
+
+STATE: 6
+	number ---> ['NUMBER', •]
+
+STATE: 7
+	factor ---> ['(', 'expression', •, ')']
+	expression ---> ['expression', •, '+', 'term']
+	expression ---> ['expression', •, '-', 'term']
+
+STATE: 8
+	factor ---> ['(', ')', •]
+
+STATE: 9
+	expression ---> ['expression', '+', •, 'term']
+	term ---> [•, 'factor']
+	term ---> [•, 'term', '*', 'factor']
+	term ---> [•, 'term', '/', 'factor']
+	factor ---> [•, 'number']
+	factor ---> [•, '(', 'expression', ')']
+	factor ---> [•, '(', ')']
+	number ---> [•, 'NUMBER']
+
+STATE: 10
+	expression ---> ['expression', '-', •, 'term']
+	term ---> [•, 'factor']
+	term ---> [•, 'term', '*', 'factor']
+	term ---> [•, 'term', '/', 'factor']
+	factor ---> [•, 'number']
+	factor ---> [•, '(', 'expression', ')']
+	factor ---> [•, '(', ')']
+	number ---> [•, 'NUMBER']
+
+STATE: 11
+	term ---> ['term', '/', •, 'factor']
+	factor ---> [•, 'number']
+	factor ---> [•, '(', 'expression', ')']
+	factor ---> [•, '(', ')']
+	number ---> [•, 'NUMBER']
+
+STATE: 12
+	term ---> ['term', '*', •, 'factor']
+	factor ---> [•, 'number']
+	factor ---> [•, '(', 'expression', ')']
+	factor ---> [•, '(', ')']
+	number ---> [•, 'NUMBER']
+
+STATE: 13
+	factor ---> ['(', 'expression', ')', •]
+
+STATE: 14
+	expression ---> ['expression', '+', 'term', •]
+	term ---> ['term', •, '*', 'factor']
+	term ---> ['term', •, '/', 'factor']
+
+STATE: 15
+	expression ---> ['expression', '-', 'term', •]
+	term ---> ['term', •, '*', 'factor']
+	term ---> ['term', •, '/', 'factor']
+
+STATE: 16
+	term ---> ['term', '/', 'factor', •]
+
+STATE: 17
+	term ---> ['term', '*', 'factor', •]

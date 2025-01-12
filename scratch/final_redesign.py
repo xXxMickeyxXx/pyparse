@@ -1,3 +1,4 @@
+from collections import deque
 from typing import (
     Protocol,
     Callable,
@@ -35,7 +36,7 @@ from pyutils import (
     DEFAULT_PARSER as DEFAULT_CMD_LINE_PARSER
 )
 from pyprofiler import profile_callable, SortBy
-
+	
 from .scratch_runtime_setup import (
 	TestArithmaticGrammarTokenType,
 	TestArithmaticGrammarTokenizeHandler,
@@ -86,6 +87,8 @@ class CustomParserActionType(StrEnum):
 	__SHORTCUT_1__ = "__SHORTCUT_1__"
 	__SHORTCUT_2__ = "__SHORTCUT_2__"
 	__ALT__REDUCE__ = "__ALT__REDUCE__"
+	__ALT__SHIFT__ = "__ALT__SHIFT__"
+	__ALT__SHIFT_2__ = "__ALT__SHIFT_2__"
 
 
 class Grammar8TokenType(StrEnum):
@@ -99,6 +102,7 @@ class Grammar8TokenType(StrEnum):
 	RIGHT_PAREN = ")"
 	SKIP = ""
 	END_SYMBOL = "$"
+	OPERATOR = "OPERATOR"
 
 
 class Grammar8TokenizerHandler(LexHandler):
@@ -121,24 +125,29 @@ class Grammar8TokenizerHandler(LexHandler):
 				_tokenizer_advance_a()
 				continue
 
+			if _current_char in {"+", "-", "*", "/"}:
+				_add_token_alias(Grammar8TokenType.OPERATOR, _current_char, token_id=f"OPERATOR_{_counter}")
+				_tokenizer_advance_a()
+				continue
+
 			if _current_char:
 				match _current_char:
-					case "+":
-						_add_token_alias(Grammar8TokenType.PLUS_OP, "+", token_id=f"PLUS_OP_{_counter}")
-						_tokenizer_advance_a()
-						continue
-					case "-":
-						_add_token_alias(Grammar8TokenType.SUB_OP, "-", token_id=f"SUB_OP_{_counter}")
-						_tokenizer_advance_a()
-						continue
-					case "*":
-						_add_token_alias(Grammar8TokenType.MULT_OP, "*", token_id=f"MULT_OP_{_counter}")
-						_tokenizer_advance_a()
-						continue
-					case "/":
-						_add_token_alias(Grammar8TokenType.DIV_OP, "/", token_id=f"DIV_OP_{_counter}")
-						_tokenizer_advance_a()
-						continue
+					# case "+":
+					# 	_add_token_alias(Grammar8TokenType.PLUS_OP, "+", token_id=f"PLUS_OP_{_counter}")
+					# 	_tokenizer_advance_a()
+					# 	continue
+					# case "-":
+					# 	_add_token_alias(Grammar8TokenType.SUB_OP, "-", token_id=f"SUB_OP_{_counter}")
+					# 	_tokenizer_advance_a()
+					# 	continue
+					# case "*":
+					# 	_add_token_alias(Grammar8TokenType.MULT_OP, "*", token_id=f"MULT_OP_{_counter}")
+					# 	_tokenizer_advance_a()
+					# 	continue
+					# case "/":
+					# 	_add_token_alias(Grammar8TokenType.DIV_OP, "/", token_id=f"DIV_OP_{_counter}")
+					# 	_tokenizer_advance_a()
+					# 	continue
 					case "(":
 						_add_token_alias(Grammar8TokenType.LEFT_PAREN, "(", token_id=f"LEFT_PAREN_{_counter}")
 						_tokenizer_advance_a()
@@ -245,6 +254,7 @@ class DateGrammarTokenType(StrEnum):
 	DAY = "day"
 	YEAR = "year"
 	WS = "WS"
+	SKIP = "SKIP"
 	END_SYMBOL = "HASHTAG_END"
 
 
@@ -329,8 +339,11 @@ class DateGrammarTokenizerHandler(LexHandler):
 		_month_lexed = False
 		_day_lexed = False
 		_year_lexed = False
+		_counter = 0
 		while tokenizer.can_consume:
 			_current_char = tokenizer.current_char
+			_curr_count = _counter
+			_counter += 1
 			
 			if _current_char in {" ", "\n", "\t", "\r\n"}:
 				tokenizer.cond_consume(lambda curr_chr, lexeme, scanner: curr_chr not in {" ", "\n", "\t", "\r\n"})
@@ -354,15 +367,20 @@ class DateGrammarTokenizerHandler(LexHandler):
 					raise RuntimeError(_error_details)
 				continue
 
+			if _current_char.isalpha():
+				_add_token_alias(DateGrammarTokenType.SKIP, _current_char, token_id=f"SKIP_{_curr_count}")
+				_tokenizer_advance_a()
+
 			match _current_char:
 				case ".":
 					_add_token_alias(self._token_mapping[_current_char], _current_char, token_id=None)
 				case "/":
 					_add_token_alias(self._token_mapping[_current_char], _current_char, token_id=None)
 				case _:
-					_error_details = f"unexpected character: '{_current_char}'; handler is unable to determine how to tokenize character...please review and try again..."
-					raise RuntimeError(_error_details)
+					_add_token_alias(DateGrammarTokenType.SKIP, _current_char, token_id=f"SKIP_{_curr_count}")
+					_tokenizer_advance_a()
 			_tokenizer_advance_a()
+
 
 		_add_token_alias(self._token_mapping[self._end_symbol], self._end_symbol, token_id=None)
 
@@ -411,63 +429,91 @@ class Grammar8TableBuilder(TableBuilder):
 		# STATE 0:
 		table.add_action((0, "("), (ParserActionType.SHIFT, 4))
 		table.add_action((0, "NUMBER"), (ParserActionType.SHIFT, 5))
-		table.add_goto((0, "number"), (1, B_2.copy().advance_by(1)))
-		table.add_goto((0, "C"), (3, B_1.copy().advance_by(1)))
-		table.add_goto((0, "B"), (6, E_2.copy().advance_by(1)))
-		table.add_goto((0, "E"), (2, E_2.copy().advance_by(1)))
+		table.add_goto((0, "number"), (1, B_2))
+		table.add_goto((0, "C"), (3, B_1))
+		table.add_goto((0, "B"), (6, E_2))
+		table.add_goto((0, "E"), (2, E_2))
 
 		# STATE 1:
-		table.add_action((1, "number"), (ParserActionType.REDUCE, number.copy().advance_by(1)))
-		table.add_action((1, "+"), (ParserActionType.REDUCE, B_2.copy().advance_by(1)))
-		table.add_action((1, "-"), (ParserActionType.REDUCE, B_2.copy().advance_by(1)))
-		table.add_action((1, "*"), (ParserActionType.REDUCE, B_2.copy().advance_by(1)))
-		table.add_action((1, "/"), (ParserActionType.REDUCE, B_2.copy().advance_by(1)))
+		# table.add_action((1, "number"), (ParserActionType.REDUCE, B_2))
+		table.add_action((1, "+"), (ParserActionType.REDUCE, B_2))
+		table.add_action((1, "-"), (ParserActionType.REDUCE, B_2))
+		table.add_action((1, "*"), (ParserActionType.REDUCE, B_2))
+		table.add_action((1, "/"), (ParserActionType.REDUCE, B_2))
+		table.add_action((1, ")"), (ParserActionType.REDUCE, B_2))
 
 		# STATE 2:
 		table.add_action((2, _init_rule_head), (ParserActionType.ACCEPT, None))
-		table.add_action((2, "+"), (ParserActionType.SHIFT, 7))
-		table.add_action((2, ")"), (ParserActionType.SHIFT, 14))
-		table.add_action((2, "*"), (ParserActionType.SHIFT, 7))
+		# table.add_action((2, "+"), (ParserActionType.SHIFT, 7))
+		table.add_action((2, "+"), (CustomParserActionType.__ALT__SHIFT__, 7))
+		table.add_action((2, "-"), (ParserActionType.SHIFT, 7))
+		table.add_action((2, ")"), (CustomParserActionType.__ALT__SHIFT__, 14))
+		# table.add_action((2, ")"), (ParserActionType.REDUCE, E_1))
+		# table.add_action((2, "*"), (ParserActionType.SHIFT, 7))
+		table.add_action((2, "*"), (CustomParserActionType.__ALT__SHIFT__, 7))
 		table.add_action((2, "/"), (ParserActionType.SHIFT, 7))
-		table.add_goto((2, "E"), (7, E_1.copy().advance_by(2)))
+		table.add_goto((2, "E"), (7, E_1))
+		table.add_goto((2, "B"), (10, E_1))
 
 
 		# STATE 3:
-		table.add_action((3, _init_rule_head), (ParserActionType.REDUCE, B_1.copy().advance_by(1)))
+		table.add_action((3, _init_rule_head), (ParserActionType.REDUCE, B_1))
+		# table.add_action((3, "+"), (ParserActionType.REDUCE, B_1))
+		table.add_action((3, "+"), (ParserActionType.REDUCE, E_2))
+		table.add_action((3, "-"), (ParserActionType.REDUCE, B_1))
+		table.add_action((3, "/"), (ParserActionType.REDUCE, B_1))
+		table.add_action((3, ")"), (ParserActionType.REDUCE, B_2))
 
 
 		# STATE 4:
+		table.add_action((4, "*"), (ParserActionType.REDUCE, C_1))
+		table.add_action((4, "("), (ParserActionType.SHIFT, 12))
+		table.add_action((4, ")"), (ParserActionType.REDUCE, C_1))
+		# table.add_action((4, "+"), (ParserActionType.REDUCE, C_1))
+		table.add_action((4, "+"), (ParserActionType.REDUCE, E_2))
+		# table.add_action((4, "/"), (ParserActionType.REDUCE, C_1))
+		# table.add_action((4, "/"), (ParserActionType.REDUCE, C_1))
+		table.add_action((4, "/"), (ParserActionType.REDUCE, B_1))
 		table.add_action((4, "NUMBER"), (ParserActionType.SHIFT, 5))
 		# table.add_action((4, "NUMBER"), (CustomParserActionType.__SHORTCUT_2__, 2))
-		table.add_goto((4, "number"), (12, E_1.copy().advance_by(1)))
-		table.add_goto((4, "E"), (2, E_1.copy().advance_by(1)))
-		table.add_goto((4, "B"), (6, E_1.copy().advance_by(1)))
+		table.add_goto((4, "number"), (12, E_1))
+		table.add_goto((4, "E"), (2, E_1))
+		# table.add_goto((4, "E"), (7, E_1))
+		table.add_goto((4, "B"), (6, E_1))
+		table.add_goto((4, "C"), (14, E_1))
 
 		# STATE 5:
-		table.add_action((5, "*"), (ParserActionType.REDUCE, number.copy().advance_by(1)))
-		table.add_action((5, "/"), (ParserActionType.REDUCE, number.copy().advance_by(1)))
-		table.add_action((5, "+"), (ParserActionType.REDUCE, number.copy().advance_by(1)))
-		table.add_action((5, "-"), (ParserActionType.REDUCE, number.copy().advance_by(1)))
-		table.add_action((5, ")"), (ParserActionType.REDUCE, number.copy().advance_by(1)))
-		table.add_action((5, _init_rule_head), (ParserActionType.REDUCE, number.copy().advance_by(1)))
-		table.add_action((5, "NUMBER"), (ParserActionType.REDUCE, number.copy().advance_by(1)))
+		table.add_action((5, "*"), (ParserActionType.REDUCE, number))
+		table.add_action((5, "/"), (ParserActionType.REDUCE, number))
+		table.add_action((5, "+"), (ParserActionType.REDUCE, number))
+		table.add_action((5, "-"), (ParserActionType.REDUCE, number))
+		table.add_action((5, ")"), (ParserActionType.REDUCE, number))
+		table.add_action((5, _init_rule_head), (ParserActionType.REDUCE, number))
+		table.add_action((5, "NUMBER"), (ParserActionType.REDUCE, number))
+		table.add_action((5, Grammar8TokenType.OPERATOR), (CustomParserActionType.__ALT__REDUCE__, number))
 
 		# STATE 6:
-		table.add_action((6, "+"), (ParserActionType.REDUCE, E_2.copy().advance_by(1)))
-		table.add_action((6, "-"), (ParserActionType.REDUCE, E_2.copy().advance_by(1)))
-		table.add_action((6, "*"), (ParserActionType.REDUCE, E_2.copy().advance_by(1)))
-		table.add_action((6, "/"), (ParserActionType.REDUCE, E_2.copy().advance_by(1)))
-		table.add_action((6, _init_rule_head), (ParserActionType.REDUCE, E_2.copy().advance_by(1)))
-		# table.add_action((6, ")"), (ParserActionType.REDUCE, E_2.copy().advance_by(1)))
+		table.add_action((6, "+"), (ParserActionType.REDUCE, E_2))
+		# table.add_action((6, "+"), (ParserActionType.REDUCE, C_1))
+		table.add_action((6, "-"), (ParserActionType.REDUCE, E_2))
+		table.add_action((6, "*"), (ParserActionType.REDUCE, E_2))
+		table.add_action((6, "/"), (ParserActionType.REDUCE, E_2))
+		table.add_action((6, _init_rule_head), (ParserActionType.REDUCE, E_2))
+		# table.add_action((6, ")"), (ParserActionType.REDUCE, E_1))
+		table.add_action((6, ")"), (ParserActionType.REDUCE, E_2))
 
 		# STATE 7:
+		table.add_action((7, "*"), (ParserActionType.SHIFT, 7))
+		table.add_action((7, "/"), (ParserActionType.SHIFT, 4))
+		table.add_action((7, "+"), (ParserActionType.SHIFT, 4))
 		table.add_action((7, "("), (ParserActionType.SHIFT, 4))
+		table.add_action((7, ")"), (ParserActionType.REDUCE, E_1))
 		table.add_action((7, "NUMBER"), (ParserActionType.SHIFT, 5))
 		table.add_action((7, "number"), (ParserActionType.SHIFT, 1))
-		table.add_goto((7, "number"), (14, E_2.copy().advance_by(1)))
-		table.add_goto((7, "B"), (13, E_2.copy().advance_by(1)))
-		table.add_goto((7, "E"), (12, E_2.copy().advance_by(1)))
-		table.add_goto((7, "C"), (12, E_2.copy().advance_by(1)))
+		table.add_goto((7, "number"), (14, E_2))
+		table.add_goto((7, "B"), (13,))
+		table.add_goto((7, "E"), (13,))
+		table.add_goto((7, "C"), (12,))
 		table.add_goto((7, _init_rule_head), (ParserActionType.ERROR, None))
 
 		# STATE 8:
@@ -482,25 +528,45 @@ class Grammar8TableBuilder(TableBuilder):
 		# STATE 11:
 
 		# STATE 12:
-		table.add_action((12, "NUMBER"), (ParserActionType.ERROR, None))
-		table.add_action((12, "+"), (ParserActionType.REDUCE, B_2.copy().advance_by(1)))
-		table.add_action((12, "-"), (ParserActionType.REDUCE, B_2.copy().advance_by(1)))
-		table.add_action((12, "*"), (ParserActionType.REDUCE, B_2.copy().advance_by(1)))
-		table.add_action((12, "/"), (ParserActionType.REDUCE, B_2.copy().advance_by(1)))
-		table.add_action((12, ")"), (ParserActionType.REDUCE, E_1.copy().advance_by(1)))
-		table.add_action((12, _init_rule_head), (ParserActionType.REDUCE, B_1.copy().advance_by(1)))
+		table.add_action((12, "NUMBER"), (ParserActionType.SHIFT, 5))
+		table.add_action((12, "+"), (ParserActionType.REDUCE, E_2))
+		table.add_action((12, "-"), (ParserActionType.REDUCE, B_2))
+		table.add_action((12, "*"), (ParserActionType.REDUCE, B_2))
+		# table.add_action((12, "*"), (ParserActionType.REDUCE, E_1))  # Switched from B_2 -> E_1
+		table.add_action((12, "/"), (ParserActionType.REDUCE, B_2))
+		table.add_action((12, ")"), (ParserActionType.REDUCE, B_1))
+		table.add_action((12, _init_rule_head), (ParserActionType.REDUCE, B_1))
+		table.add_action((12, "("), (ParserActionType.SHIFT, 4))
+		table.add_goto((12, "number"), (1, number))
+		table.add_goto((12, "B"), (6, E_2))
+		table.add_goto((12, "E"), (7, C_1))
 
 		# STATE 13:
-		table.add_action((13, _init_rule_head), (ParserActionType.REDUCE, E_1.copy().advance_by(1)))
-		table.add_action((13, "+"), (ParserActionType.REDUCE, E_1.copy().advance_by(1)))
-		table.add_action((13, "NUMBER"), (ParserActionType.REDUCE, E_2.copy().advance_by(1)))
-		table.add_action((13, ")"), (ParserActionType.REDUCE, E_2.copy().advance_by(1)))
+		table.add_action((13, _init_rule_head), (ParserActionType.REDUCE, C_1))
+		table.add_action((13, "+"), (ParserActionType.REDUCE, C_1))
+		table.add_action((13, "-"), (ParserActionType.REDUCE, C_1))
+		table.add_action((13, "NUMBER"), (ParserActionType.REDUCE, E_2))
+		table.add_action((13, ")"), (ParserActionType.REDUCE, E_1))
+		# table.add_action((13, ")"), (ParserActionType.REDUCE, E_2))
+		# table.add_action((13, ")"), (ParserActionType.REDUCE, C_1))
+		table.add_action((13, "*"), (ParserActionType.REDUCE, E_2))
+		table.add_action((13, "/"), (ParserActionType.REDUCE, C_1))
 		
 		# STATE 14:
-		table.add_action((14, "+"), (ParserActionType.REDUCE, B_2.copy().advance_by(1)))
-		table.add_action((14, "NUMBER"), (ParserActionType.REDUCE, B_2.copy().advance_by(1)))
-		table.add_action((14, ")"), (ParserActionType.REDUCE, B_2.copy().advance_by(1)))
-		table.add_action((14, _init_rule_head), (ParserActionType.REDUCE, C_1.copy().advance_by(3)))
+		# table.add_action((14, "*"), (ParserActionType.REDUCE, B_2))
+		table.add_action((14, "*"), (ParserActionType.SHIFT, 5))
+		table.add_action((14, "-"), (ParserActionType.REDUCE, C_1))
+		# table.add_action((14, "+"), (ParserActionType.REDUCE, C_1))
+		table.add_action((14, "+"), (CustomParserActionType.__ALT__SHIFT_2__, 4, B_2))
+		# table.add_action((14, "/"), (ParserActionType.REDUCE, C_1))
+		table.add_action((14, "/"), (CustomParserActionType.__ALT__SHIFT_2__, 4, B_1))
+		# table.add_action((14, "NUMBER"), (ParserActionType.REDUCE, B_2))
+		table.add_action((14, "NUMBER"), (ParserActionType.SHIFT, 5))
+		table.add_action((14, ")"), (CustomParserActionType.__ALT__SHIFT_2__, 6, E_2))
+		table.add_action((14, _init_rule_head), (ParserActionType.REDUCE, C_1))
+		table.add_goto((14, "number"), (3, B_2))
+		table.add_goto((14, "B"), (6, B_2))
+		table.add_goto((14, "E"), (7,))
 
 
 class Grammar9TableBuilder(TableBuilder):
@@ -949,14 +1015,24 @@ class Grammar8Parser(CoreParser4):
 		self.register(CustomParserActionType.__CUSTOM_ACTION_1__, self.__CUSTOM_ACTION_1__)
 		self.register(CustomParserActionType.__SHORTCUT_1__, self.__SHORTCUT_1__)
 		self.register(CustomParserActionType.__SHORTCUT_2__, self.__SHORTCUT_2__)
+		self.register(CustomParserActionType.__ALT__REDUCE__, self.__ALT__REDUCE__)
+		self.register(CustomParserActionType.__ALT__SHIFT__, self.__ALT__SHIFT__)
+		self.register(CustomParserActionType.__ALT__SHIFT_2__, self.__ALT__SHIFT_2__)
+
+		# Token type Parser Actions (Syntactical/Semantical)
+		self.register(Grammar8TokenType.PLUS_OP, self.test_plus_op)
+		self.register(Grammar8TokenType.RIGHT_PAREN, self.test_right_paren)
+		self.register(Grammar8TokenType.END_SYMBOL, self.test_end_symbol)
 
 	def __REDUCE__(self, parse_context, action_info):
-		_reduce_item = action_info[1]
+		_reduce_item = action_info[0]
 		for _ in range(_reduce_item.rule_size):
 			_state = parse_context.pop_state()
 			_symbol = parse_context.pop_symbol()
 			print(f"POP STATE ---> {_state}")
 			print(f"POP SYMBOL ---> {_symbol}")
+		# print(parse_context.stack)
+		# print(parse_context.symbol_stack)
 		_goto_key = (parse_context.state(), _reduce_item.rule_head)
 		print(f"GOTO KEY ---> {underline_text(bold_text(_goto_key))}")
 		print()
@@ -966,7 +1042,7 @@ class Grammar8Parser(CoreParser4):
 		parse_context.append_symbol(_reduce_item.rule_head)
 
 	def __SHIFT__(self, parse_context, action_info):
-		parse_context.append_state(action_info[1])
+		parse_context.append_state(action_info[0])
 		parse_context.append_symbol(str(parse_context.current_symbol().token_type))
 		parse_context.advance()
 
@@ -982,41 +1058,138 @@ class Grammar8Parser(CoreParser4):
 
 	def __SHORTCUT_1__(self, parse_context, action_info):
 		_peeked_token = parse_context.peek()
-		print(apply_color(208, f"PEEKING:"))
-		print(apply_color(208, f"\tTOKEN TYPE ---> {_peeked_token.token_type}"))
-		print(apply_color(208, f"\tTOKEN VALUE ---> {_peeked_token.token_val}"))
-		print()
+		# print(apply_color(208, f"PEEKING:"))
+		# print(apply_color(208, f"\tTOKEN TYPE ---> {_peeked_token.token_type}"))
+		# print(apply_color(208, f"\tTOKEN VALUE ---> {_peeked_token.token_val}"))
 		print(f"PERFORMING REDUCE FOR TEST SHORTCUT ACTION 1")
+		print()
 		self.__REDUCE__(parse_context, action_info)
 
 	def __SHORTCUT_2__(self, parse_context, action_info):
 		_peeked_token = parse_context.peek()
-		print(apply_color(208, f"PEEKING:"))
-		print(apply_color(208, f"\tTOKEN TYPE ---> {_peeked_token.token_type}"))
-		print(apply_color(208, f"\tTOKEN VALUE ---> {_peeked_token.token_val}"))
-		print(apply_color(208, f"\tACTION INFO ---> {action_info}"))
+		# print(apply_color(208, f"PEEKING:"))
+		# print(apply_color(208, f"\tTOKEN TYPE ---> {_peeked_token.token_type}"))
+		# print(apply_color(208, f"\tTOKEN VALUE ---> {_peeked_token.token_val}"))
+		# print(apply_color(208, f"\tACTION INFO ---> {action_info}"))
+		print(f"PERFORMING REDUCE FOR TEST SHORTCUT ACTION 2")
 		print()
-		print(f"PERFORMING REDUCE FOR TEST SHORTCUT ACTION 1")
 		self.__SHIFT__(parse_context, (action_info[0], action_info[1]))
 		parse_context.pop_symbol()
 		parse_context.append_symbol("E")
+
+	def __ALT__REDUCE__(self, parse_context, action_info):
+		_peeked_token = parse_context.peek(offset=0)
+		# if _peeked_token == ")":
+		# 	parse_context
+		print(apply_color(208, f"PEEKING SHIT:"))
+		print(apply_color(208, f"\tTOKEN TYPE ---> {_peeked_token.token_type}"))
+		print(apply_color(208, f"\tTOKEN VALUE ---> {_peeked_token.token_val}"))
+		# print(apply_color(208, f"\tACTION INFO ---> {action_info}"))
+		print()
+		print(f"PERFORMING ALT REDUCE TEST ACTION 1")
+		print(f"ACTION INFO: {action_info}")
+		self.__REDUCE__(parse_context, action_info)
+		parse_context.pop_symbol()
+		parse_context.append_symbol("E")
+
+	def __ALT__SHIFT__(self, parse_context, action_info):
+		_peeked_token = parse_context.peek(offset=0)
+		# print(apply_color(208, f"\tTOKEN TYPE ---> {_peeked_token.token_type}"))
+		# print(apply_color(208, f"\tTOKEN VALUE ---> {_peeked_token.token_val}"))
+		# print(apply_color(208, f"\tACTION INFO ---> {action_info}"))
+		# print()
+		if parse_context.state() == 2 and len(parse_context.symbol_stack) >= 3 and [parse_context.symbol_stack[-3], parse_context.symbol_stack[-2], parse_context.symbol_stack[-1]] in [["E", "+", "E"], ["E", "-", "E"], ["E", "*", "E"], ["E", "/", "E"]]:
+			print(apply_color(208, f"PERFORMING ALT SHIFT TEST ACTION 1"))
+			for _ in range(3):
+				parse_context.pop_symbol()
+				parse_context.pop_state()
+			parse_context.append_state(action_info[0])
+			parse_context.append_symbol("E")
+		else:
+			self.__SHIFT__(parse_context, action_info)
+		# self.__SHIFT__(parse_context, action_info)
+		# print(f"STATE STACK AFTER ALT SHIFT TEST ACTION 1")
+
+	def __ALT__SHIFT_2__(self, parse_context, action_info):
+		_peeked_token = parse_context.peek(offset=0)
+		# print(apply_color(208, f"\tTOKEN TYPE ---> {_peeked_token.token_type}"))
+		# print(apply_color(208, f"\tTOKEN VALUE ---> {_peeked_token.token_val}"))
+		# print(apply_color(208, f"\tACTION INFO ---> {action_info}"))
+		# print()
+
+		if parse_context.state() == 14 and len(parse_context.symbol_stack) >= 1 and parse_context.symbol_stack[-1] in ("number", "C"):
+			print(apply_color(208, f"PERFORMING ALT SHIFT TEST ACTION 2.1"))
+			print(apply_color(208, f"ACTION INFO IN 2.1 ---> {action_info}"))
+			print()
+			for _ in range(1):
+				parse_context.pop_symbol()
+				parse_context.pop_state()
+			parse_context.append_state(action_info[0])
+			parse_context.append_symbol(action_info[1].rule_head)
+		elif parse_context.state() == 14 and len(parse_context.symbol_stack) >= 3 and [parse_context.symbol_stack[-3], parse_context.symbol_stack[-2], parse_context.symbol_stack[-1]] == ["(", "E", ")"]:
+			print(apply_color(208, f"PERFORMING ALT SHIFT TEST ACTION 2.2"))
+			print(apply_color(208, f"ACTION INFO IN 2.2 ---> {action_info}"))
+			print()
+			for _ in range(3):
+				parse_context.pop_symbol()
+				parse_context.pop_state()
+			parse_context.append_state(action_info[0])
+			parse_context.append_symbol("C")
+		elif parse_context.state() == 14 and len(parse_context.symbol_stack) >= 3 and [parse_context.symbol_stack[-3], parse_context.symbol_stack[-2], parse_context.symbol_stack[-1]] == ["(", "C", ")"]:
+			print(apply_color(208, f"PERFORMING ALT SHIFT TEST ACTION 2.3"))
+			print(apply_color(208, f"ACTION INFO IN 2.3 ---> {action_info}"))
+			print()
+			for _ in range(3):
+				parse_context.pop_symbol()
+				parse_context.pop_state()
+			parse_context.append_state(action_info[0])
+			parse_context.append_symbol("C")
+		elif parse_context.state() == 14 and len(parse_context.symbol_stack) >= 3 and (parse_context.symbol_stack[-3] == "C"):
+			print(apply_color(208, f"PERFORMING ALT SHIFT TEST ACTION 2.4"))
+			print(apply_color(208, f"ACTION INFO IN 2.4 ---> {action_info}"))
+			print()
+			parse_context.pop_symbol()
+			parse_context.pop_state()
+			parse_context.append_state(6)
+			parse_context.append_symbol("B")
+		else:
+			self.__SHIFT__(parse_context, action_info)
+		# self.__SHIFT__(parse_context, action_info)
+		# print(f"STATE STACK AFTER ALT SHIFT TEST ACTION 1")
+
+	def test_plus_op(self, parser, parse_context):
+		print(f"HELLO MOTO!!!")
+		print(f"CURRENT SYMBOL ---> {parse_context.current_symbol().token_type}")
+
+	def test_right_paren(self, parser, parse_context):
+		print(f"GOODBYE MOTO!!!")
+		print(f"CURRENT SYMBOL ---> {parse_context.current_symbol().token_type}")
+		if parse_context.state() == 2:
+			print(apply_color(9, f"SKIPPING CLOSING RIGHT PAREN IN STATE ---> 2"))
+			print(parse_context.action_info())
+			parse_context.advance()
+			if parse_context.current_symbol().token_type == Grammar8TokenType.END_SYMBOL:
+				parse_context.set_result(True)
+
+	def test_end_symbol(self, parser, parse_context):
+		print(f"SHITTTTT")
 
 	def parse(self, parse_context):
 		# NOTE: remove below (up unti' series of consecutive '#'s) code as it's for coloring terminal debug output		
 		parse_context.set_parser(self)
 		parse_context.append_state(self.init_state)
-		_action_type, _action_info = self.next_action(parse_context)
-		while True:
+		_action_type = self.next_action(parse_context)
+		while not parse_context.done_parsing:
+			_token_type = parse_context.current_symbol().token_type
 			print(f"STATE: {parse_context.state()}")
 			print(f"\tcurrent_symbol: {parse_context.current_symbol().token_type}")
 			print(f"\tACTION TYPE: {_action_type}")
 			print(f"\t\tSTACK ---> {parse_context.stack}")
 			print(f"\t\tSYMBOL STACK ---> {parse_context.symbol_stack}")
 			print()
+			# self._channel.emit(_token_type, self, parse_context)
 			self._channel.emit(_action_type, *parse_context.action_info())
-			_action_type, _action_info = self.next_action(parse_context)
-			if parse_context.done_parsing:
-				break
+			_action_type = self.next_action(parse_context)
 		return parse_context
 
 	def next_action(self, parse_context):
@@ -1024,8 +1197,133 @@ class Grammar8Parser(CoreParser4):
 		_current_symbol = parse_context.current_symbol().token_type
 		# _current_symbol = parse_context.current_symbol().token_val
 		_action_info = self.parse_table.action((_current_state, _current_symbol), default=(ParserActionType.ERROR, None))
-		parse_context.set_action(_action_info)
-		return _action_info
+		parse_context.set_action(_action_info[1:])
+		return _action_info[0]
+
+
+class Grammar8Parser2_0(CoreParser2):
+
+	__slots__ = ("_handlers", "_stop_flag")
+	def __init__(self, init_state=0, grammar=None, parse_table=None, debug_mode=False, parser_id=None):
+		super().__init__(init_state=init_state, grammar=grammar, parse_table=parse_table, debug_mode=debug_mode, parser_id=parser_id)
+		self._handlers = {}
+		self._stop_flag = False
+
+	def add_handler(self, handler, handler_id=None, overwrite=False):
+		_handler_id = handler.__name__ if handler_id is None else handler_id
+		if _handler_id not in self._handlers or overwrite:
+			self._handlers[_handler_id] = handler
+
+	def remove_handler(self, handler_id):
+		self._handlers.pop(handler_id)
+
+	def stop(self):
+		self._stop_flag = True
+
+	def parse(self, parse_context):
+		self._stop_flag = False
+		while not self._stop_flag:
+			for _, _handler in self._handlers.items():
+				_handler(self, parse_context)
+		return parse_context
+
+
+class Grammar8Parser2_1(Grammar8Parser2_0):
+
+	_test_buffer = []
+	_channel = PyChannel()
+
+	@classmethod
+	def _test_handler_1(cls, parser):
+		_test_buffer_len = len(cls._test_buffer)
+		if _test_buffer_len >= 9:
+			parser.stop()
+		else:
+			print(f"RUNNING HANDLER STEP: {_test_buffer_len}")
+			cls._test_buffer.append("")
+
+	@classmethod
+	def _test_handler_2(cls, parser):
+		parse_context = parser.parse_context()
+		if parse_context.done_parsing:
+			parser.stop()
+		_current_state = parse_context.state()
+		_current_symbol = parse_context.current_symbol().token_val
+		_action_info = parser.parse_table.action((_current_state, _current_symbol), default=(ParserActionType.ERROR, None))
+
+		_action = _action_info[0]
+		print(f"{_action}")
+
+		if _action == ParserActionType.ERROR:
+			parse_context.set_result(False)
+			parser.stop()
+		elif _action == ParserActionType.SHIFT:
+			if parser.debug_mode:
+				print(f"IN SHIFT ACTION:")
+			parse_context.append_state(_action_info[1])
+			parse_context.append_symbol(_current_symbol)
+			parser.logger.submit_log(
+				message=f"Performing SHIFT action",
+				new_state=f"PARSE CONTEXT ID: {parse_context.context_id} ---> ({_action_info[1]}/{_current_symbol})",
+				log_type=LogType.DEBUG
+				)
+
+			# TODO: create a new action, aside from SHIFT/REDUCE/ACCEPT/ERROR, which allows
+			# 		for this behaviour to be ran. Should also allow for other actions. NOTE:
+			# 		the actual layout for the function will completely change once all of the
+			# 		pieces are more glued together and it's more clear how I'm implementing it
+			# if _current_state == 0 and _current_symbol == "a":
+			# 	_next_input_char = parse_context.peek(offset=1)
+			# 	if _next_input_char == "b":
+			# 		parse_context.append_state(9)
+			# 		parse_context.append_symbol("A")
+			# 		parse_context.advance()
+
+			# 		self.logger.submit_log(
+			# 			message=f"Since the current state of the parser is 0/'a' (CURRENT-STATE/CURRENT-SYMBOL) and since the next input symbol is a 'b', Performing shortcut SHORTCUT SHIFT action",
+			# 			new_state=f"PARSE CONTEXT ID: {parse_context.context_id} ---> (9/A)",
+			# 			log_type=LogType.DEBUG
+			# 			)
+			parse_context.advance()
+		elif _action == ParserActionType.REDUCE:
+			_reduce_item = _action_info[1]
+			if parser.debug_mode:
+				print(f"IN REDUCE ACTION:")
+				for _ in range(_reduce_item.rule_size):
+					_popped_state = parse_context.pop_state()
+					_popped_symbol = parse_context.pop_symbol()
+					print(f"POPPED STATE: {_popped_state}")
+					print(f"POPPED SYMBOL: {_popped_symbol}")
+				print(f"REDUCE ACTION HANDLING COMPLETE; CALCULATING GOTO:")
+			else:
+				for _ in range(_reduce_item.rule_size):
+					parse_context.pop_state()
+					parse_context.pop_symbol()
+
+			if parser.debug_mode:
+				_goto_key = (parse_context.state(), _reduce_item.rule_head)
+				print(f"GOTO KEY ---> {_goto_key}")
+				_goto_state = parser.parse_table.goto(_goto_key)
+				_next_state = _goto_state[0]
+				parse_context.append_state(_next_state)
+				parse_context.append_symbol(_reduce_item.rule_head)
+				print(f"PARSE CONTEXT STATE UPDATED ---> {_next_state}")
+				print(f"PARSE CONTEXT SYMBOL STACK UPDATED---> {_reduce_item.rule_head}")
+			else:
+				_goto_key = (parse_context.state(), _reduce_item.rule_head)
+				_goto_state = parser.parse_table.goto(_goto_key)
+				_next_state = _goto_state[0]
+				parse_context.append_state(_next_state)
+				parse_context.append_symbol(_reduce_item.rule_head)
+		elif _action == ParserActionType.ACCEPT:
+			parse_context.set_result(True)
+
+	def parse(self, parse_context):
+		# self.add_handler(self._test_handler_1)
+		self.add_handler(self._test_handler_2)
+		parse_context.set_parser(self)
+		parse_context.append_state(self.init_state)
+		return super().parse(parse_context)
 
 
 class FinalRedesignEnv(ParserEnvironment):
@@ -1098,6 +1396,7 @@ class FinalRedesignEnv(ParserEnvironment):
 			LOG_FILENAME = cmd_argument("log_filename", parser=DEFAULT_CMD_LINE_PARSER)
 			LOGGING_LEVEL = "DEBUG" if DEBUG_MODE else cmd_argument("logging_level", parser=DEFAULT_CMD_LINE_PARSER)
 
+
 			init_logging(
 				use_logging=USE_LOGGING,
 				log_filename=LOG_FILENAME,
@@ -1108,11 +1407,10 @@ class FinalRedesignEnv(ParserEnvironment):
 			)
 			self._initialized = True
 
-	# @profile_callable(sort_by=SortBy.TIME)
 	def execute(self, input, context_id=None):
 		if not self.is_setup:
 			self.setup()
-		_parse_context = self.create_context(input, end_symbol=self.field("end_symbol", default="#"), context_id=context_id)
+		_parse_context = self.create_context(input, end_symbol=self.field("end_symbol", default="$"), context_id=context_id)
 		return self.parser.parse(_parse_context)
 
 	def create_context(self, *args, **kwargs):
