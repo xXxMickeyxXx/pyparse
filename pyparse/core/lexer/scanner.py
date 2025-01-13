@@ -67,10 +67,15 @@ class Scanner(ABC):
                 return self._input[_tmp_pointer]
         return None
 
-    def peek_range(self, start=0, until=-1, step=1):
-        if self.can_consume:
-            return self._input[self.pointer + start::step] if (until == -1 or until <=0) else self._input[self.pointer + start: until: step]
-        return None
+    def peek_range(self, offset=1, step=1):
+        return self._input[self.pointer: self.pointer + offset: step]
+        # if self.can_consume:
+        #     if isinstance(stop, int):
+        #         return self._input[self.pointer + start:stop:step]
+        #     return self._input[self.pointer + start::step]
+
+        #     return self._input[self.pointer + start::step] if (until == -1 or until <=0) else self._input[self.pointer + start: until: step]
+        # return None
 
     def advance(self):
         if self.can_consume:

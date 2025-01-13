@@ -36,14 +36,67 @@ class ToDoLangTokenType(StrEnum):
 	TEXT = "TEXT"
 	L_ANGLE = "<"
 	R_ANGLE = ">"
+	DOUBLE_QUOTE = "\""
+	SINGLE_QUOTE = "'"
+	COMMENT_ENTRY = "#"
 	SKIP = ""
-	END_SYMBOL = "#"
+	END_SYMBOL = "$"
 
 
 class ToDoLangTokenizerHandler(LexHandler):
 	
 	def handle(self, tokenizer):
-		pass
+		_add_token_alias = tokenizer.add_token
+		_tokenizer_advance = tokenizer.advance
+		_cond_consume = tokenizer.cond_consume
+		_counter = 1
+
+		_NOTE_OR_TODO_DECLARED = False
+		while tokenizer.can_consume:
+			_current_char = tokenizer.current_char
+			print(f"CURRENT CHAR ---> {_current_char}")
+			if _current_char.isalpha() and not _NOTE_OR_TODO_DECLARED:
+				_test_peek_range = tokenizer.peek_range(offset=4)
+				match _test_peek_range.upper():
+					case "TODO":
+						_add_token_alias(ToDoLangTokenType.TODO, "TODO", token_id=f"TODO_{_counter}")
+						for _ in range(4):
+							_tokenizer_advance()
+						_NOTE_OR_TODO_DECLARED = True
+					case "NOTE":
+						_add_token_alias(ToDoLangTokenType.NOTE, "NOTE", token_id=f"NOTE_{_counter}")
+						for _ in range(4):
+							_tokenizer_advance()
+						_NOTE_OR_TODO_DECLARED = True
+			else:
+				_peek_range = tokenizer.peek_range(3)
+				if _peek_range in {"'''", "\"\"\""}:
+					_add_token_alias(ToDoLangTokenType.COMMENT_ENTRY, "#", token_id=f"COMMENT_ENTRY_{_counter}")
+					for _ in range(3):
+						_tokenizer_advance()
+				elif _current_char == "#":
+					_add_token_alias(ToDoLangTokenType.COMMENT_ENTRY, "#", token_id=f"COMMENT_ENTRY_{_counter}")
+					_tokenizer_advance()
+				else:
+					if _current_char in {" ", "\n", "\t", "\r\n", "'", "\""}:
+						_add_token_alias(ToDoLangTokenType.SKIP, _current_char, token_id=f"SKIP_{_counter}")
+						_tokenizer_advance()
+					else:
+						match _current_char:
+							case "<":
+								_add_token_alias(ToDoLangTokenType.L_ANGLE, "<", token_id=f"L_ANGLE_{_counter}")
+								_tokenizer_advance()
+							case ">":
+								_add_token_alias(ToDoLangTokenType.R_ANGLE, ">", token_id=f"R_ANGLE_{_counter}")
+								_tokenizer_advance()
+							case "@":
+								_add_token_alias(ToDoLangTokenType.AT_SYM, "@", token_id=f"AT_SYM_{_counter}")
+								_tokenizer_advance()
+							case _:
+								_add_token_alias(ToDoLangTokenType.SKIP, _current_char, token_id=f"SKIP_{_counter}_INVALID_SYMBOL")
+								_tokenizer_advance()
+			_counter += 1
+		_add_token_alias(ToDoLangTokenType.END_SYMBOL, "$", token_id="END_SYMBOL")
 
 
 class ToDoLangTableBuilder(TableBuilder):
@@ -104,6 +157,9 @@ class PyParser:
 			for _state_handler in _state_handlers:
 				_state_handler(self, parse_context)
 			_state_handlers = self.state_handlers(default=[])
+
+			# @TODO<maybe state handler(s) and their invocation cause actions to be
+			# buffered, which get executed after state handler(s) take care of business>
 		return parse_context
 
 

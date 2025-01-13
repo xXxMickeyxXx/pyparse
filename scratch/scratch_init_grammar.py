@@ -172,7 +172,7 @@ def init_todo_grammar_v0_0_1(grammar):
     #         @TODO<Syntax for a 'TODO' data structure>
     #         @NOTE<Syntax for a 'NOTE' data structure>
     #
-    grammar.create_rule("#", ["todo_lang"], rule_id="INIT_RULE")
+    grammar.create_rule("$", ["todo_lang"], rule_id="INIT_RULE")
     grammar.create_rule("todo_lang", ["todo_@_symbol", "todo_type", "todo_body"], rule_id="todo_lang")
     grammar.create_rule("todo_type", ["TODO"], rule_id="todo_type_TODO")
     grammar.create_rule("todo_type", ["NOTE"], rule_id="todo_type_NOTE")

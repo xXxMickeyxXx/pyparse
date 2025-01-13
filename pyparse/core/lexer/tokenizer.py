@@ -17,6 +17,8 @@ class Tokens(ABC):
 
 class Tokenizer:
 
+	# @NOTE<update 'current_char' to 'current_symbol' or 'current_sym'; make sure to update everywhere applicable>
+
 	def __init__(self, input=None, handler=None, token_factory=Token, tokenizer_id=None):
 		self._tokenizer_id = tokenizer_id or generate_id()
 		self._scanner = None
@@ -96,8 +98,8 @@ class Tokenizer:
 	def peek(self, offset=1):
 		return self.scanner.peek(offset=offset)
 
-	def peek_range(self, start=0, until=-1, step=1):
-		return self.scanner.peek_range(start=start, until=until, step=step)
+	def peek_range(self, offset=1, step=1):
+		return self.scanner.peek_range(offset=offset, step=step)
 
 	def advance(self):
 		return self.scanner.advance()

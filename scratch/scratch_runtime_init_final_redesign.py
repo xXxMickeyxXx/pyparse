@@ -274,7 +274,18 @@ def final_main(debug_mode=True):
 		_char = repr(_todo_lang_input[_idx])
 
 
+	_symbol_stack = deque()
+	_state_stack = deque()
 	_test_list = []
+	_test_input = "@TODO<This is the body of a todo or note>"
+
+	_todo_lang_tokenizer_handler = ToDoLangTokenizerHandler()
+	__TOKENIZER__ = Tokenizer(handler=_todo_lang_tokenizer_handler)
+	_token_context = __TOKENIZER__.tokenize(_test_input)
+	print(f"TOKEN CONTEXT:")
+	for i in _token_context:
+		print(f"\t{i}")
+	print()
 	__PARSER__ = todo_lang_parser_factory(debug_mode=debug_mode)
 
 
@@ -296,11 +307,11 @@ def final_main(debug_mode=True):
 		_context_len = len(context)
 		_current_state = parser.state
 		print()
-		print(underline_text(bold_text(apply_color(172, f"ITERATION: {_context_len}"))))
+		print(underline_text(bold_text(apply_color(172, f"STATE: {_current_state}\nITERATION: {_context_len}"))))
 		print(f"  |")
 		print(f"  •--• ", end="")
 		print(apply_color(220, f"CURRENT STATE: {_current_state}"))
-		if _context_len <= 3:
+		if _context_len < 3:
 			context.append(None)
 			print()
 			print(f"SUCK IT YO!!!!")
@@ -324,7 +335,7 @@ def final_main(debug_mode=True):
 			print()
 			_context_len = len(context)
 			print()
-			print(underline_text(bold_text(apply_color(172, f"ITERATION: {_context_len}"))))
+			print(underline_text(bold_text(apply_color(172, f"STATE: {_current_state}\nITERATION: {_context_len}"))))
 			print(f"  |")
 			print(f"  •--• ", end="")
 			print(apply_color(220, f"CURRENT STATE: {_current_state}"))
@@ -363,8 +374,18 @@ def final_main(debug_mode=True):
 		print(f"UPDATING TO 'SUCK_IT'...")
 		print()
 		parser.update("SUCK_IT")
+	
+
+	def _init_state(parser, context):
+		_current_state = parser.state
 
 
+		parser.update("SUCK_IT")
+
+
+
+
+	__PARSER__.register_state(0, _init_state)
 	__PARSER__.register_state("SUCK_IT", _suck_it)
 	__PARSER__.register_state("SUCK_IT4", _suck_it_4)
 	__PARSER__.register_state((2, "*"), _2_and_multiply)
@@ -375,9 +396,14 @@ def final_main(debug_mode=True):
 	# Updating state to ensure parser's initial state prior to parse is
 	# "SUCK_IT"; parser defaults to a kwarg argument value of
 	# integer 0 (zero)
-	__PARSER__.update("SUCK_IT")
 	_result = __PARSER__.parse(_test_list)
+	print()
+	print(f"RESULT")
+	print(f"   |")
+	print(f"   |")
+	print(f"   • --- ", end="")
 	print(_result)
+	print()
 
 
 	# _example_grammar_8_src = None
