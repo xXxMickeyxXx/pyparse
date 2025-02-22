@@ -104,30 +104,30 @@ def init_grammar_7(grammar):
 
 def init_grammar_8(grammar):
     # Test arithmatic grammr
-    # grammar.create_rule("$", ["E"], rule_id="INIT_RULE")
-    # grammar.create_rule("E", ["E", "operator", "E"], rule_id="E_1")
-    # grammar.create_rule("E", ["B"], rule_id="E_2")
-    # grammar.create_rule("E", ["(", ")"], rule_id="E_3")
-    # grammar.create_rule("B", ["C"], rule_id="B_1")
-    # grammar.create_rule("B", ["number"], rule_id="B_2")
-    # grammar.create_rule("C", ["(", "E", ")"], rule_id="C_1")
-    # grammar.create_rule("C", ["(", "C", ")"], rule_id="C_2")
-    # grammar.create_rule("number", ["NUMBER"], rule_id="number")
-    # grammar.create_rule("operator", ["+"], rule_id="operator_1")
-    # grammar.create_rule("operator", ["-"], rule_id="operator_2")
-    # grammar.create_rule("operator", ["*"], rule_id="operator_3")
-    # grammar.create_rule("operator", ["/"], rule_id="operator_4")
-    grammar.create_rule("$", ["expression"], rule_id="INIT_RULE")
-    grammar.create_rule("expression", ["term"], rule_id="exp_term")
-    grammar.create_rule("expression", ["expression", "+", "term"], rule_id="exp_plus_term")
-    grammar.create_rule("expression", ["expression", "-", "term"], rule_id="exp_minus_term")
-    grammar.create_rule("term", ["factor"], rule_id="term_factor")
-    grammar.create_rule("term", ["term", "*", "factor"], rule_id="term_mult_fact")
-    grammar.create_rule("term", ["term", "/", "factor"], rule_id="term_div_fact")
-    grammar.create_rule("factor", ["number"], rule_id="fact_num")
-    grammar.create_rule("factor", ["(", "expression", ")"], rule_id="fact_exp")
-    grammar.create_rule("factor", ["(", ")"], rule_id="fact_empty_exp")
-    grammar.create_rule("number", ["NUMBER"], rule_id="num")
+    grammar.create_rule("$", ["E"], rule_id="INIT_RULE")
+    grammar.create_rule("E", ["E", "operator", "E"], rule_id="E_1")
+    grammar.create_rule("E", ["B"], rule_id="E_2")
+    grammar.create_rule("E", ["(", ")"], rule_id="E_3")
+    grammar.create_rule("B", ["C"], rule_id="B_1")
+    grammar.create_rule("B", ["number"], rule_id="B_2")
+    grammar.create_rule("C", ["(", "E", ")"], rule_id="C_1")
+    grammar.create_rule("C", ["(", "C", ")"], rule_id="C_2")
+    grammar.create_rule("number", ["NUMBER"], rule_id="number")
+    grammar.create_rule("operator", ["+"], rule_id="operator_1")
+    grammar.create_rule("operator", ["-"], rule_id="operator_2")
+    grammar.create_rule("operator", ["*"], rule_id="operator_3")
+    grammar.create_rule("operator", ["/"], rule_id="operator_4")
+    # grammar.create_rule("$", ["expression"], rule_id="INIT_RULE")
+    # grammar.create_rule("expression", ["term"], rule_id="exp_term")
+    # grammar.create_rule("expression", ["expression", "+", "term"], rule_id="exp_plus_term")
+    # grammar.create_rule("expression", ["expression", "-", "term"], rule_id="exp_minus_term")
+    # grammar.create_rule("term", ["factor"], rule_id="term_factor")
+    # grammar.create_rule("term", ["term", "*", "factor"], rule_id="term_mult_fact")
+    # grammar.create_rule("term", ["term", "/", "factor"], rule_id="term_div_fact")
+    # grammar.create_rule("factor", ["number"], rule_id="fact_num")
+    # grammar.create_rule("factor", ["(", "expression", ")"], rule_id="fact_exp")
+    # grammar.create_rule("factor", ["(", ")"], rule_id="fact_empty_exp")
+    # grammar.create_rule("number", ["NUMBER"], rule_id="num")
 
     
 def init_grammar_9(grammar):
@@ -152,9 +152,28 @@ def init_dateLang_grammar_v0_0_1(grammar):
 
 
 def init_simple_lang_grammar(grammar):
-    # Simple-lang grammar - a super small grammar spec to begin designing and
-    # building interpreter/compiler portions of this whole shebang
-    grammar.create_rule("#", ["prog"], rule_id="INIT_RULE")
+    # Simple-lang grammar - a super small grammar spec to truly begin
+    # designing and building the whole shebang
+
+    """
+    EXAMPLE VALID SENTENCES:
+
+        • 123
+        • 36
+        • 593
+        
+
+    """
+
+    grammar.create_rule("#", ["S"], rule_id="INIT_RULE")
+    grammar.create_rule("S", ["A"], rule_id="S_rule_1")
+    grammar.create_rule("A", ["B"], rule_id="A_rule_1")
+    grammar.create_rule("A", ["D"], rule_id="A_rule_2")
+    grammar.create_rule("B", ["C"], rule_id="B_rule_1")
+    grammar.create_rule("B", ["C", "DELIM", "C"], rule_id="B_rule_2")
+    grammar.create_rule("C", ["NUMBER"], rule_id="C_rule_1")
+    grammar.create_rule("D", ["A", "C"], rule_id="D_rule_1")
+    grammar.create_rule("D", ["A", "B"], rule_id="D_rule_2")
 
 
 def init_todo_grammar_v0_0_1(grammar):
@@ -195,7 +214,8 @@ _grammar_initializers = {
     9: init_grammar_9,
     # 10: init_grammar_10,
     "dateLang_v0_0_1": init_dateLang_grammar_v0_0_1,
-    "todo_lang_v0_0_1": init_todo_grammar_v0_0_1
+    "todo_lang_v0_0_1": init_todo_grammar_v0_0_1,
+    "simple_lang_v0_0_1": init_simple_lang_grammar
 }
 
 
@@ -204,6 +224,7 @@ def init_grammar(grammar, initializer_key, initializers=None):
         initializers = _grammar_initializers
     _initializer = initializers[initializer_key]
     _initializer(grammar)
+    return grammar
 
 
 if __name__ == "__main__":

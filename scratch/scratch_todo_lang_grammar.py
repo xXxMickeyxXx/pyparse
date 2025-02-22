@@ -33,7 +33,7 @@ class ToDoLangTokenType(StrEnum):
 	AT_SYM = "@"
 	TODO = "TODO"
 	NOTE = "NOTE"
-	TEXT = "TEXT"
+	BODY_TEXT = "BODY_TEXT"
 	L_ANGLE = "<"
 	R_ANGLE = ">"
 	DOUBLE_QUOTE = "\""
@@ -44,6 +44,9 @@ class ToDoLangTokenType(StrEnum):
 
 
 class ToDoLangTokenizerHandler(LexHandler):
+
+	def __init__(self, handler_id=None):
+		super().__init__(handler_id=handler_id)
 	
 	def handle(self, tokenizer):
 		_add_token_alias = tokenizer.add_token
@@ -52,10 +55,17 @@ class ToDoLangTokenizerHandler(LexHandler):
 		_counter = 1
 
 		_NOTE_OR_TODO_DECLARED = False
+		L_ANGLE_START = False
 		while tokenizer.can_consume:
 			_current_char = tokenizer.current_char
-			print(f"CURRENT CHAR ---> {_current_char}")
-			if _current_char.isalpha() and not _NOTE_OR_TODO_DECLARED:
+			# print(f"CURRENT CHAR ---> {_current_char}")
+
+			if L_ANGLE_START:
+				# _body_text = _cond_consume(lambda x, y, z: x == ">")
+				_body_text = _cond_consume(lambda x, y, z: z.peek(offset=0) == ">")
+				_add_token_alias(ToDoLangTokenType.BODY_TEXT, _body_text, token_id=f"BODY_TEXT_{_counter}")
+				L_ANGLE_START = False
+			elif _current_char.isalpha() and not _NOTE_OR_TODO_DECLARED:
 				_test_peek_range = tokenizer.peek_range(offset=4)
 				match _test_peek_range.upper():
 					case "TODO":
@@ -86,6 +96,7 @@ class ToDoLangTokenizerHandler(LexHandler):
 							case "<":
 								_add_token_alias(ToDoLangTokenType.L_ANGLE, "<", token_id=f"L_ANGLE_{_counter}")
 								_tokenizer_advance()
+								L_ANGLE_START = True
 							case ">":
 								_add_token_alias(ToDoLangTokenType.R_ANGLE, ">", token_id=f"R_ANGLE_{_counter}")
 								_tokenizer_advance()
@@ -142,12 +153,6 @@ class PyParser:
 	def submit_action(self, action, *args, **kwargs):
 		self._action_buffer.append((action, args, kwargs))
 
-	def next_action(self, default=None):
-		if not self._action_buffer:
-			return default
-		_action, _action_args, _action_kwargs = self._action_buffer.popleft()
-		return lambda: _action(*_action_args, **_action_kwargs)
-
 	def stop(self):
 		self._stop_flag = True
 
@@ -156,15 +161,22 @@ class PyParser:
 		while (len(_state_handlers) >= 1) and (not self._stop_flag):
 			for _state_handler in _state_handlers:
 				_state_handler(self, parse_context)
+				# while self._action_buffer:
+				# 	_action, _action_args, _action_kwargs = self._action_buffer.popleft()
+				# 	_action(*_action_args, **_action_kwargs)
 			_state_handlers = self.state_handlers(default=[])
-
+			while self._action_buffer:
+				_action, _action_args, _action_kwargs = self._action_buffer.popleft()
+				_action(*_action_args, **_action_kwargs)
 			# @TODO<maybe state handler(s) and their invocation cause actions to be
 			# buffered, which get executed after state handler(s) take care of business>
 		return parse_context
 
 
 class ToDoLangParser(PyParser):
-	pass
+
+	def __init__(self, init_state=0, parser_id=None):
+		super().__init__(init_state=init_state, parser_id=parser_id)
 
 
 if __name__ == "__main__":

@@ -9,6 +9,14 @@ from pyutils import (
 )
 from pyparse import Token
 
+from .scratch_simple_lang_grammar import (
+	SimpleLangTokenType,
+	SimpleLangTokenizerHandler,
+	SimpleLangTableBuilder,
+	SimpleLangParser
+	# __ADD_ACTION_HANDLER__,
+	# __SIMPLE_LANG_ACTION_HANDLER__
+	)
 from .scratch_todo_lang_grammar import (
 	ToDoLangTokenType,
 	ToDoLangTokenizerHandler,
@@ -258,217 +266,116 @@ def run_testing(test_inputs, environment):
 		print()
 
 
+def register_states(parser):
+	# parser.register_state(0, lambda _par_, _par_context_: print(f"HOLA!"))
+	# parser.register_state(1, lambda _par_, _par_context_: _par_.stop())
+	parser.register_state((1, "$"), lambda _par_, _par_context_: _par_.submit_action(lambda x: print("HEY YOU --->", x), "BILLY!"))
+	parser.register_state(0, lambda _par_, _par_context_: print(f"HOLA!"))
+	parser.register_state(0, lambda _par_, _par_context_: _par_.update(3))
+	parser.register_state(0, lambda _par_, _par_context_: print("IN STATE --->", 0, "TO STATE --->", 3))
+	parser.register_state(0, lambda _par_, _par_context_: _par_.submit_action(lambda x, y: print(f"Hell, yeah", x, y), "MICKEY", "and PIZZA!"))
+	parser.register_state(3, lambda _par_, _par_context_: _par_.update((1, "$")))
+	parser.register_state(3, lambda _par_, _par_context_: _par_.submit_action(lambda x: print(f"Hell yeah {x}!"), "TIMMY"))
+	parser.register_state(3, lambda _par_, _par_context_: print("\tIN STATE --->", _par_.state, "\n\tTO STATE --->", "(1, '$')"))
+	parser.register_state((1, "$"), lambda _par_, _par_context_: _par_.update(SimpleLangTokenType.END_SYMBOL))
+	parser.register_state((1, "$"), lambda _par_, _par_context_: print(f"IN STATE: (1, $) TO STATE: 1"))
+	parser.register_state(SimpleLangTokenType.END_SYMBOL, lambda _par_, _par_context_: print("STOPPING PARSER"))
+	parser.register_state(SimpleLangTokenType.END_SYMBOL, lambda _par_, _par_context_: _par_.stop())
+
+
 @profile_callable(sort_by=SortBy.TIME)
 def final_main(debug_mode=True):
-	_todo_lang_input = None
-	_todo_lang_input_filepath = r"/Users/mickey/Desktop/Python/custom_packages/pyparse/examples/example_ToDoLang_input.py"
-	with open(_todo_lang_input_filepath, "r", newline="") as _in_file:
-		_todo_lang_input = _in_file.read()
+	_simple_lang_input_filepath = r"/Users/mickey/Desktop/Python/custom_packages/pyparse/examples/example_simplang_input.sim"
+	with open(_simple_lang_input_filepath, "r", newline="") as _in_file:
+		_test_input = _in_file.read()
 
-	_counter = 0
-	_idx = 0
-	_len_input = len(_todo_lang_input)
-	while _counter < _len_input:
-		_idx = _counter
-		_counter += 1
-		_char = repr(_todo_lang_input[_idx])
+	__GRAMMAR__ = test_grammar_factory()
+	_GRAMMAR_VERSION_ = "simple_lang_v0_0_1"
+	init_grammar(__GRAMMAR__, _GRAMMAR_VERSION_)
 
-
-	_symbol_stack = deque()
-	_state_stack = deque()
-	_test_list = []
-	_test_input = "@TODO<This is the body of a todo or note>"
-
-	_todo_lang_tokenizer_handler = ToDoLangTokenizerHandler()
-	__TOKENIZER__ = Tokenizer(handler=_todo_lang_tokenizer_handler)
-	_token_context = __TOKENIZER__.tokenize(_test_input)
-	print(f"TOKEN CONTEXT:")
-	for i in _token_context:
-		print(f"\t{i}")
-	print()
-	__PARSER__ = todo_lang_parser_factory(debug_mode=debug_mode)
-
-
-	def _test_handler_1(parser, context):
+	for state, rule in __GRAMMAR__.generate_states().items():
+		print(bold_text(apply_color(214, f"STATE: {state}")))
 		print()
-		print(f"SHITTTT!!!!!!!!")
-		print(f"IN TEST HANDLER 1")
-		print(f"PARSER STATE:")
-		print(f"\t{parser.state}")
-		print()
-
-
-	def _stop(parser, context):
-		print(f"STOPPING!")
-		print(f"PARSER STATE ---> {parser.state}")
-
-
-	def _suck_it(parser, context):
-		_context_len = len(context)
-		_current_state = parser.state
-		print()
-		print(underline_text(bold_text(apply_color(172, f"STATE: {_current_state}\nITERATION: {_context_len}"))))
-		print(f"  |")
-		print(f"  •--• ", end="")
-		print(apply_color(220, f"CURRENT STATE: {_current_state}"))
-		if _context_len < 3:
-			context.append(None)
+		for i in rule:
+			_id = i.rule_id
+			_head = i.rule_head
+			_body = i.rule_body
+			_status = i.status()
+			print(f"\t • -------")
+			print(f"\t| RULE-ID:     {_id}")
+			print(f"\t| RULE-HEAD:   {_head}")
+			print(f"\t| RULE-BODY:   {_body}")
+			print(f"\t| AUG-RULE-:   {_status}")
+			print(f"\t • -------")
 			print()
-			print(f"SUCK IT YO!!!!")
-			print(f"UPDATING TO 'SUCK_IT4'")
-			parser.update("SUCK_IT4")
+		print()
+		print()
+
+	_simple_lang_tokenizer_handler = SimpleLangTokenizerHandler()
+	__TOKENIZER__ = Tokenizer(handler=_simple_lang_tokenizer_handler)
+	_token_context_ = __TOKENIZER__.tokenize(_test_input)
+	# _token_context_ = [i for i in _token_context_ if i.token_type != SimpleLangTokenType.SKIP]
+	print()
+	print(bold_text(apply_color(214, f" INPUT:")), end="\n")
+	print(f"    |")
+	print(f"    |")
+	print(f"    |")
+	for _idx_, _input_ in enumerate(_test_input.split("\n"), start=1):
+		_input_repr_ = repr(_input_)
+		if _idx_ == 1:
+			print(f"     • ---> {_input_repr_}")
 		else:
-			print()
-			print(f"STOPPING PARSER...")
-			parser.stop()
-			print(f"PARSER STOPPED...")
-			print()
-
-
-	def _suck_it_4(parser, context):
-		_context_len = len(context)
-		_context_len_is_even = (_context_len % 2) == 0
-		_current_state = parser.state
-		if _context_len_is_even and _context_len > 4:
-			parser.update((2, "*"))
+			print(f"            {_input_repr_}")
+	print()
+	print(bold_text(apply_color(204, " TOKEN CONTEXT:")))
+	print(f"    |")
+	print(f"    |")
+	print(f"    |")
+	for _idx, _token_ in enumerate(_token_context_, start=1):
+		if _idx == 1:
+			print(f"     • ---> {_token_}")
 		else:
-			print()
-			_context_len = len(context)
-			print()
-			print(underline_text(bold_text(apply_color(172, f"STATE: {_current_state}\nITERATION: {_context_len}"))))
-			print(f"  |")
-			print(f"  •--• ", end="")
-			print(apply_color(220, f"CURRENT STATE: {_current_state}"))
-			if _context_len_is_even + 3 == 3:
-				print()
-				print(f"STATE OF PARSER ID: '{parser.parser_id}' ---> '{_current_state}'...")
-				print(f"UPDATING TO STATE 'SUCK_IT''")
-				parser.update("SUCK_IT")
-			else:
-				_next_state = (2, "*")
-				print()
-				print(f"UPDATING TO ---> {_next_state}...")
-				print(apply_color(92, f"---------------"))
-				parser.update((2, "*"))
-
-
-	def _2_and_multiply(parser, context):
-		# print(bold_text(apply_color(9, f" •----------• STOPPING PARSE EARLY •----------• ")))
-		_context_len = len(context)
-		_current_state = parser.state
+			print(f"            {_token_}")	
+	for _ in range(2):
 		print()
-		print()
-		print(underline_text(bold_text(apply_color(172, f"ITERATION: {_context_len}"))))
-		print(f"  |")
-		print(f"  •--• ", end="")
-		print(apply_color(220, f"CURRENT STATE: {_current_state}"))
-		_next_state = (2, "+")
-		print()
-		print(f"UPDATING TO ---> {_next_state}...")
-		print()
-		parser.update(_next_state)
 
 
-	def _2_and_plus(parser, context):
-		print()
-		print(f"UPDATING TO 'SUCK_IT'...")
-		print()
-		parser.update("SUCK_IT")
-	
-
-	def _init_state(parser, context):
-		_current_state = parser.state
+	_INIT_STATE_ = 0
+	_PARSER_ID_ = "SimpleLang_v0_0_1"
+	__PARSER__ = SimpleLangParser(init_state=_INIT_STATE_, parser_id=_PARSER_ID_)
+	# register_states(__PARSER__)
 
 
-		parser.update("SUCK_IT")
-
-
-
-
-	__PARSER__.register_state(0, _init_state)
-	__PARSER__.register_state("SUCK_IT", _suck_it)
-	__PARSER__.register_state("SUCK_IT4", _suck_it_4)
-	__PARSER__.register_state((2, "*"), _2_and_multiply)
-	__PARSER__.register_state((2, "+"), _2_and_plus)
-	__PARSER__.register_state(ParserStateType.STOP, lambda parser, parse_context: parser.stop())
-
-
-	# Updating state to ensure parser's initial state prior to parse is
-	# "SUCK_IT"; parser defaults to a kwarg argument value of
-	# integer 0 (zero)
-	_result = __PARSER__.parse(_test_list)
+	_pretval = __PARSER__.parse(_token_context_)
 	print()
-	print(f"RESULT")
-	print(f"   |")
-	print(f"   |")
-	print(f"   • --- ", end="")
-	print(_result)
+	print(bold_text(apply_color(214, f"\tPARSE IS...")))
+	print(bold_text(apply_color(10, f"\t\t• --- VALID --- •")) if _pretval else bold_text(apply_color(9, f"\t\t• --- INVALID --- •")))
 	print()
+	# print()
+	# for i in _pretval:
+	# 	print(i)
 
 
-	# _example_grammar_8_src = None
-	# with open(r"/Users/mickey/Desktop/Python/custom_packages/pyparse/examples/example_grammar_8_v0_0_1.eight", 'r', newline="") as _in_file:
-	# 	_example_grammar_8_src = [i for i in _in_file.readlines() if i]
+	# _symbol_stack = deque()
+	# _state_stack = deque()
 
+	# _symbol_stack.append(_token_context_[0])
+	# _state_stack.append(_INIT_STATE_)
 
-	# for i in _example_grammar_8_src:
-	# 	print(f"•---> {i}")
-
-
-	# _TEST_INPUTS_1_ = [
-	# 	("10 + 10", True),
-	# 	("10 + 10 10", False),
-	# 	("10 + 10\n", True),
-	# 	("10 +", False),
-	# 	("10 + -", False),
-	# 	("(3 * 2 + 2) / 2", True),
-	# 	("(3 * 2 + 2) - (12 + 2 * 10)", True)
-	# ]
-
-	# _EXAMPLE_GRAMMAR_8_SOURCE_INPUT_ASSERTIONS = (True, False, True, False, False, True, True)
-	# _EXAMPLE_GRAMMAR_8_SOURCE_INPUT = [(_input_, _assert_) for _input_, _assert_ in zip(_example_grammar_8_src, _EXAMPLE_GRAMMAR_8_SOURCE_INPUT_ASSERTIONS)]
-
-
-	# # _test_grammar_8_env = G8_environment_factory(debug_mode=debug_mode)
-	# _test_grammar_8_env = G8_environment_factory_newest(debug_mode=debug_mode)
-	# run_testing(_TEST_INPUTS_1_, _test_grammar_8_env)
+	# parser.register_state(0, lambda _par_, _par_context_: _par_.submit_action)
 
 
 
-	# _TEST_INPUTS_1_ = [
-	# 	("ab", True),
-	# 	("ab!", True),
-	# 	("a!b", False),
-	# 	("ba!", False),
-	# 	("b!a", False),
-	# 	("!ab", False),
-	# 	("!ba", False),
-	# 	("(ab)", True),
-	# 	("(a!b)", False),
-	# 	("(ba!)", False),
-	# 	("(ab!)", True),
-	# 	("(b!a)", False),
-	# 	("(!ab)", False),
-	# 	("(!ba)", False),
-	# 	("aaaaaaaaaaaaaaaaaaabbbbbbbbbbbbb!!!!!!!!abbb!)", False)
-	# ]
 
-	# _test_grammar_9_env = G9_environment_factory(debug_mode=debug_mode)	
-	# run_testing(_TEST_INPUTS_1_, _test_grammar_9_env)
+	# _test_list = []
+	# _test_input = "@TODO<This is the body of a todo or note>"
+	# _token_context = __TOKENIZER__.tokenize(_test_input)
+	# print(f"TOKEN CONTEXT:")
+	# for i in _token_context:
+	# 	print(f"\t{i}")
+	# print()
+	# __PARSER__ = todo_lang_parser_factory(debug_mode=debug_mode)
 
-
-
-	# _example_datelang_source = None
-	# with open(r"/Users/mickey/Desktop/Python/custom_packages/pyparse/examples/example_datelang_source.dlang", "r", newline="") as _datelang_in_file:
-	# 	_example_datelang_source = [i for i in _datelang_in_file.readlines() if i]
-
-
-	# _EXAMPLE_DATELANG_SOURCE_INPUT_IS_VALID = (False, True, True, True, True, False, False, False, True, True, False, True)
-	# _EXAMPLE_DATELANG_SOURCE_INPUT = [(str(_input_).strip(), _is_valid) for _input_, _is_valid in zip(_example_datelang_source, _EXAMPLE_DATELANG_SOURCE_INPUT_IS_VALID)]
-
-
-	# _dateLang_environment_factory_v0_0_1 = dateLang_environment_factory_v0_0_1(debug_mode=debug_mode)
-	# return run_testing(_EXAMPLE_DATELANG_SOURCE_INPUT, _dateLang_environment_factory_v0_0_1)
 
 
 if __name__ == "__main__":
