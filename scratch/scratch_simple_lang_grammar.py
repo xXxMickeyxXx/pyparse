@@ -37,7 +37,7 @@ class SimpleLangHandlerID(IntEnum):
 class SimpleLangTokenType(StrEnum):
 	INVALID = "INVALID"
 	SKIP = ""
-	END_SYMBOL = "END_SYMBOL"
+	END_SYMBOL = "#"
 	S = "S"
 	A = "A"
 	C = "C"
@@ -171,7 +171,6 @@ class PyParser:
 		while not self._quit_flag:
 			for _handler in self._handlers:
 				_handler(self)
-		self.set_context(None)		
 		return self.result()
 
 
@@ -184,6 +183,10 @@ class SimpleLangParser(PyParser):
 		self._signals = {}
 		self._context_ptr = 0
 		self.init()
+
+
+		self._test_val = 0
+		self._target_stop = 10000
 
 	@property
 	def next_token(self):
@@ -201,6 +204,7 @@ class SimpleLangParser(PyParser):
 		self.register((4, "END_SYMBOL"), self.__number_state4)
 		self.register((5, "END_SYMBOL"), self.__number_state5)
 		self.register((2, "END_SYMBOL"), self.__END__)
+		self.register((7, SimpleLangTokenType.NUMBER), self.__number_state7)
 
 	def step(self, parser):
 		try:
@@ -236,6 +240,13 @@ class SimpleLangParser(PyParser):
 
 	@staticmethod
 	def _state_0(parser):
+		_next_token_type = parser.parse_context.popleft()
+		_next_token_type = _next_token_type.token_type
+		print(f"NEXT TOKEN TYPE: {_next_token_type}")
+		match _next_token_type:
+			case SimpleLangTokenType.NUMBER:
+				parser.update((7, SimpleLangTokenType.NUMBER))
+
 		print(f"I'm in state {parser.state}!!!!")
 		print(f"CHANGING TO STATE {1}")
 		parser.__SHIFT__()
@@ -258,8 +269,23 @@ class SimpleLangParser(PyParser):
 		parser.__REDUCE__("S", 1, (2, parser.parse_context[parser._context_ptr].token_type))
 
 	@staticmethod
-	def __invalid_parsse(parser):
+	def __number_state7(parser):
+		print(f"PARSER STATE 7")
 		parser.set_result(False)
+		parser.stop()
+		parser.__REDUCE__(SimpleLangTokenType.C, 1, (8, parser.parse_context[parser._context_ptr].token_type))
+
+	@staticmethod
+	def __invalid_parsse(parser):
+		# if parser._test_val < parser._target_stop:
+		# 	print(f"NOT ENOUGH")
+		# 	parser._test_val += 1
+		# 	return
+		print()
+		print(f"STOPPING PARSER...")
+		print()
+		parser.set_result(False)
+		# parser.submit_action(parser.stop)
 		parser.stop()
 
 

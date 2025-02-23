@@ -293,23 +293,23 @@ def final_main(debug_mode=True):
 	_GRAMMAR_VERSION_ = "simple_lang_v0_0_1"
 	init_grammar(__GRAMMAR__, _GRAMMAR_VERSION_)
 
-	for state, rule in __GRAMMAR__.generate_states().items():
-		print(bold_text(apply_color(214, f"STATE: {state}")))
-		print()
-		for i in rule:
-			_id = i.rule_id
-			_head = i.rule_head
-			_body = i.rule_body
-			_status = i.status()
-			print(f"\t • -------")
-			print(f"\t| RULE-ID:     {_id}")
-			print(f"\t| RULE-HEAD:   {_head}")
-			print(f"\t| RULE-BODY:   {_body}")
-			print(f"\t| AUG-RULE-:   {_status}")
-			print(f"\t • -------")
-			print()
-		print()
-		print()
+	# for state, rule in __GRAMMAR__.generate_states().items():
+	# 	print(bold_text(apply_color(214, f"STATE: {state}")))
+	# 	print()
+	# 	for i in rule:
+	# 		_id = i.rule_id
+	# 		_head = i.rule_head
+	# 		_body = i.rule_body
+	# 		_status = i.status()
+	# 		print(f"\t • -------")
+	# 		print(f"\t| RULE-ID:     {_id}")
+	# 		print(f"\t| RULE-HEAD:   {_head}")
+	# 		print(f"\t| RULE-BODY:   {_body}")
+	# 		print(f"\t| AUG-RULE-:   {_status}")
+	# 		print(f"\t • -------")
+	# 		print()
+	# 	print()
+	# 	print()
 
 	_simple_lang_tokenizer_handler = SimpleLangTokenizerHandler()
 	__TOKENIZER__ = Tokenizer(handler=_simple_lang_tokenizer_handler)
@@ -344,7 +344,6 @@ def final_main(debug_mode=True):
 	_PARSER_ID_ = "SimpleLang_v0_0_1"
 	__PARSER__ = SimpleLangParser(init_state=_INIT_STATE_, parser_id=_PARSER_ID_)
 	# register_states(__PARSER__)
-
 
 	_pretval = __PARSER__.parse(_token_context_)
 	print()
