@@ -28,10 +28,32 @@ from .scratch_cons import (
 )
 
 
-class SimpleLangHandlerID(IntEnum):
+class SimpleLangParserInstruction(IntEnum):
+	HALT = auto()
+	PRINT = auto()
+	ADD_OP = auto()
+	SUB_OP = auto()
+	MULT_OP = auto()
+	DIV_OP = auto()
+	INIT = auto()
+	CLEANUP = auto()
 
-	STEP_ONE = auto()
-	STEP_TWO = auto()
+	@classmethod
+	def INSTR(cls, *, int_val: int = 0, enum_name: str = ""):
+		if int_val is not None:
+			for _field in cls:
+				_intval = _field.value
+				if int_val == _intval:
+					return _field.name
+		elif enum_name is not None:
+			for _field in cls:
+				_enumname = _field.name
+				if enum_name == _enumname:
+					return _field.value
+		else:
+			# @TODO<Create and raise custom error here>
+			_error_details = f"null arguments received; must pass AT LEAST an 'int' value for the 'int_val' kwarg (in order to get the name of the instruction) OR a 'str' value for the 'enum_name' kwarg (in order to get the 'int' value associated with the enum name) - NOTE: if parameters receive a value, 'int_val' takes precedence"
+			raise ValueError(_error_details)
 
 
 class SimpleLangTokenType(StrEnum):
@@ -105,17 +127,19 @@ class SimpleLangTableBuilder(TableBuilder):
 
 class PyParser:
 
-	__slots__ = ("_parser_id", "_handlers", "_instructions", "_ip", "_parse_context", "_result", "_result_set", "_quit_flag")
+	__slots__ = ("_parser_id", "_handlers", "_instructions", "_curr_instruction", "_args", "_parse_context", "_result", "_result_set", "_quit_flag", "_invalid_instr")
 
-	def __init__(self, init_state=0, parser_id=None):
+	def __init__(self, invalid_instruction=SimpleLangParserInstruction.HALT, parser_id=None):
 		self._parser_id = parser_id or generate_id()
 		self._handlers = {}
-		self._instructions = []
-		self._ip = 0
+		self._instructions = deque()
+		self._curr_instruction = None
+		self._args = ((), {})
 		self._parse_context = None
 		self._result = None
 		self._result_set = False
 		self._quit_flag = False
+		self._invalid_instr = invalid_instruction
 
 	@property
 	def parser_id(self):
@@ -130,30 +154,43 @@ class PyParser:
 		return self._parse_context
 
 	@property
-	def current_instruction(self):
-		return self._instructions[self._ip][0]
+	def curr_instruction(self):
+		return self._curr_instruction
 
 	@property
-	def arg_count(self):
-		return self._instructions[self._ip][1]
+	def curr_args(self):
+		return self._args
 
-	def add_instruction(self, instruction_type, count, *args):
-		self._instructions.append((instruction_type, count))
-		self._instructions.extend(args)
+	@property
+	def instructions(self):
+		return self._instructions
 
-	def update_ip(self, ip):
-		self._ip = ip
+	@property
+	def invalid_instruction(self):
+		return self._invalid_instr
 
-	def args(self, count=1):
-		# @NOTE<'count' should be an integer of 1 or greater. If it is integer 0 then it will be an empty list>
-		return self._instructions[self._ip + 1: count + 1]
+	@property
+	def result_set(self):
+		return self._result_set
 
-	def result(self):
-		if not self._result_set:
-			# TODO: create and raise custom error here
-			_error_details = f"result has not yet been set...please set result via the 'set_result' method and then call this method..."
-			raise Exception(_error_details)
-		return self._result
+	def send(self, *args, **kwargs):
+		self._args = (args, kwargs)
+
+	def set_instruction(self, instruction_type):
+		self._curr_instruction = instruction_type
+
+	def add_instruction(self, instruction_type, *args, **kwargs):
+		self._instructions.append((instruction_type, args, kwargs))
+
+	def next_instruction(self, default=None):
+		return self._instructions.popleft() if self._instructions else default
+
+	def next_handler(self, default=None):
+		_instr_type, _args, _kwargs = self.next_instruction(default=(self.invalid_instruction, (), {}))  # @NOTE<'default' value of (None, (), {}) in order to allow tuple unpacking syntax, regardless if valid next instruction type (i.e. unsupportd)>
+		_handler = self._handlers.get(_instr_type, default)
+		self.set_instruction(_instr_type)
+		self.send(*_args, **_kwargs)
+		return _handler
 
 	def set_result(self, result):
 		self._result = result
@@ -165,54 +202,159 @@ class PyParser:
 	def add_handler(self, instruction_type, handler):
 		self._handlers[instruction_type] = handler
 	
-	def stop(self):
+	def halt(self):
 		self._quit_flag = True
 
 	def parse(self, parse_context):
 		self.set_context(deque(parse_context))
 		self._quit_flag = False
-		while self._ip:
-			_instruction_type, _arg_count = self.current_instruction, self.arg_count
-			_handler = self._handlers.get(_instruction_type, lambda *args, **kwargs: None)
-			_handler(*self.args(_arg_count))
-		return self.result()
+		while not self._quit_flag:
+			_handler = self.next_handler(default=None)
+			if _handler is None:
+				# @TODO<Create and raise custom error here>
+				_error_details = f"unable to find supported handler for NEXT INSTRUCTION TYPE: '{_instr_type}'...exiting with runtime-error..."
+				raise RuntimeError(_error_details)
+			_args, _kwargs = self._args
+			_handler(*_args, **_kwargs)
+		if not self._result_set:
+			# TODO: create and raise custom error here
+			_error_details = f"result has not yet been set...please set result via the 'set_result' method and then call this method..."
+			raise RuntimeError(_error_details)
+		return self._result
 
 
 class SimpleLangParser(PyParser):
 
-	def __init__(self, init_state=0, parser_id=None):
-		super().__init__(init_state=init_state, parser_id=parser_id)
+	def __init__(self, invalid_instruction=SimpleLangParserInstruction.HALT, parser_id=None):
+		super().__init__(invalid_instruction=invalid_instruction, parser_id=parser_id)
 		self.init()
-		self._bool_ = False
-		# self.set_result(False)
-		print(f"INSTRUCTIONS ---> {self._instructions}")
-		print(f"CURRENT INSTRUCTION ---> {self.current_instruction}")
-		print(f"CURRENT ARGS ---> {self.arg_count}")
-
-	@property
-	def next_token(self):
-		if self._context_ptr < len(self.parse_context):
-			return self.parse_context[self._context_ptr]
-		raise NotImplementedError("@TODO<Finish implementing 'next_token' property>")
+		self._instruction_counter = 1
+		self._valid_parse = 0
+		self._random_val = 10
+		self._instr_color_map = {
+			SimpleLangParserInstruction.HALT: 11,
+			SimpleLangParserInstruction.PRINT: 7,
+			SimpleLangParserInstruction.ADD_OP: 91,
+			SimpleLangParserInstruction.SUB_OP: 5,
+			SimpleLangParserInstruction.CLEANUP: 226
+		}
 
 	def init(self):
-		self.add_handler("ADD", self._add_tester_)
-		self.add_instruction("ADD", 3, 10, 3)
-		# self.add_instruction("ADD",3, 13, 2)
+		# @NOTE
+			# <Handlers for INSTRUCTION TYPE:
+			#	'HALT' (INSTR #: 1),
+			#	'PRINT' (INSTR #: 2),
+			#	'ADD_OP' (INSTR #: 3),
+			#	'SUB_OP' (INSTR #: 4),
+			# 	'CLEANUP' (INSTR #: 8>
+		self.add_handler(SimpleLangParserInstruction.HALT, self.__HALT__)
+		self.add_handler(SimpleLangParserInstruction.PRINT, self.__PRINT__)
+		self.add_handler(SimpleLangParserInstruction.ADD_OP, self._ADD_)
+		self.add_handler(SimpleLangParserInstruction.SUB_OP, self._SUB_)
+		self.add_handler(SimpleLangParserInstruction.CLEANUP, self.__CLEANUP__)
+		
+		# @NOTE<Test instructions to run first, upon calling of 'parse' runner method>
+		self.add_instruction(SimpleLangParserInstruction.ADD_OP, 10, 23)  # [RESULT: 33]
+		self.add_instruction(SimpleLangParserInstruction.ADD_OP, 12, 28)  # [RESULT: 17]
 
-	# def _add_tester_(self, parser):
-	def _add_tester_(self, x, y):
-		_next_inst_idx = len(_args) + 1
-		print(f"{x} + {y} = {x + y}")
-		self.update_ip(2)
-		print()
-		print(self._instructions)
-		if self._bool_:
-			parser.stop()
-			self.set_result(False)
+	def _ADD_(self, x: int, y: int) -> None:
+		print(bold_text(apply_color(208, f"START OF INSTRUCTION COUNT ---> {self._instruction_counter}")))
+		_instr_msg = f"PERFORMING '{SimpleLangParserInstruction.INSTR(int_val=3)}' INSTRUCTION..."
+		print(bold_text(apply_color(self._instr_color_map[SimpleLangParserInstruction.ADD_OP], _instr_msg)), end="\n\n")
+		_result = x + y
+		print(f"{x} + {y} = {_result}")
+		print(f"RESULT ---> {_result}")
+		if _result >= 25:
+			self.add_instruction(SimpleLangParserInstruction.SUB_OP, 39, 34)  # [RESULT: 5]
+			self.add_instruction(SimpleLangParserInstruction.SUB_OP, 39, 29)  # [RESULT: 10]
+			print()
+			_msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=4)}' INSTRUCTION --- •]"
+			print(bold_text(apply_color(self._instr_color_map[SimpleLangParserInstruction.SUB_OP], _msg)), end="\n\n")
+			_msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=4)}' INSTRUCTION --- •]"
+			print(bold_text(apply_color(self._instr_color_map[SimpleLangParserInstruction.SUB_OP], _msg)), end="\n\n")
 		else:
-			self._bool_ = True
+			self.add_instruction(SimpleLangParserInstruction.SUB_OP, 101, 42)  # [RESULT: 59]
+			print()
+			_msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=4)}' INSTRUCTION --- •]"
+			print(bold_text(apply_color(self._instr_color_map[SimpleLangParserInstruction.SUB_OP], _msg)), end="\n\n")
+		print(bold_text(apply_color(208, f"END OF INSTRUCTION COUNT ---> {self._instruction_counter}")), end="\n\n")
+		print(apply_color(190, f" ----- ================================================== "))
+		print()
+		self._instruction_counter += 1
 
+	def _SUB_(self, x: int, y:int) -> None:
+		print(bold_text(apply_color(208, f"START OF INSTRUCTION COUNT ---> {self._instruction_counter}")))
+		_instr_msg = f"PERFORMING '{SimpleLangParserInstruction.INSTR(int_val=4)}' INSTRUCTION..."
+		print(bold_text(apply_color(self._instr_color_map[SimpleLangParserInstruction.SUB_OP], _instr_msg)), end="\n\n")
+		_result = x - y
+		if _result < 7:
+			self.add_instruction(SimpleLangParserInstruction.PRINT, f"{x} - {y} = {_result}", end="\n\n")  # [RESULT: 'HELLO MOTO!!!']
+			_msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=2)}' INSTRUCTION --- •]"
+			print(bold_text(apply_color(self._instr_color_map[SimpleLangParserInstruction.PRINT], _msg)), end="\n\n")
+		else:
+			if not self._valid_parse and _result == 10:
+				self._valid_parse = 1
+				_msg = f"\nSETTING RESULT ---> {self._valid_parse if self._valid_parse == 1 else False}"
+			else:
+				self._valid_parse = 0
+				_msg = f"\nSETTING RESULT ---> {self._valid_parse if self._valid_parse == 1 else False}"
+			print(bold_text(apply_color(166, _msg)), end="\n\n")
+
+		print(bold_text(apply_color(208, f"END OF INSTRUCTION COUNT ---> {self._instruction_counter}")), end="\n\n")
+		print(apply_color(190, f" ----- ================================================== "))
+		print()
+		self._instruction_counter += 1
+		return None
+
+	def __PRINT__(self, *args, **kwargs):
+		print(bold_text(apply_color(208, f"START OF INSTRUCTION COUNT ---> {self._instruction_counter}")))
+		_instr_msg = f"PERFORMING '{SimpleLangParserInstruction.INSTR(int_val=2)}' INSTRUCTION..."
+		print(bold_text(apply_color(self._instr_color_map[SimpleLangParserInstruction.PRINT], _instr_msg)), end="\n\n")
+		print(*args, **kwargs)
+		print()
+		if self._random_val >= 10:
+			self.add_instruction(SimpleLangParserInstruction.PRINT, "HELLO MOTO!!!", end="\n\n")  # [RESULT: 'HELLO MOTO!!!']
+			_msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=3)}' INSTRUCTION --- •]"
+			print(bold_text(apply_color(self._instr_color_map[SimpleLangParserInstruction.ADD_OP], _msg)), end="\n\n")
+			self._random_val -= 1
+		print(bold_text(apply_color(208, f"END OF INSTRUCTION COUNT ---> {self._instruction_counter}")), end="\n\n")
+		print(apply_color(190, f" ----- ================================================== "))
+		print()
+		self._instruction_counter += 1
+
+	def __HALT__(self):
+		print(bold_text(apply_color(208, f"START OF INSTRUCTION COUNT ---> {self._instruction_counter}")))
+		_instr_msg = f"PERFORMING '{SimpleLangParserInstruction.HALT}' INSTRUCTION..."
+		print(underline_text(bold_text(apply_color(self._instr_color_map[SimpleLangParserInstruction.HALT], _instr_msg))), end="\n\n")
+		self.add_instruction(SimpleLangParserInstruction.CLEANUP)
+		_cleanup_msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=8)}' INSTRUCTION --- •]"
+		print(bold_text(apply_color(self._instr_color_map[SimpleLangParserInstruction.CLEANUP], _cleanup_msg)), end="\n\n")
+		print(bold_text(apply_color(208, f"END OF INSTRUCTION COUNT ---> {self._instruction_counter}")), end="\n\n")
+		print(apply_color(190, f" ----- ================================================== "))
+		print()
+		self._instruction_counter += 1
+
+	def __CLEANUP__(self):
+		print(bold_text(apply_color(208, f"START OF INSTRUCTION COUNT ---> {self._instruction_counter}")))
+		_instr_msg = f"CLEANING UP PARSE RUNTIME..."
+		print(bold_text(apply_color(self._instr_color_map[SimpleLangParserInstruction.HALT], _instr_msg)), end="\n")
+
+		_setting_res_msg = f"SETTING RESULT..."
+		print(bold_text(apply_color(self._instr_color_map[SimpleLangParserInstruction.HALT], _setting_res_msg)), end="\n\n")
+		if self._valid_parse >= 1:
+			self.set_result(True)
+			return
+		self.set_result(False)
+		self.halt()
+		print(bold_text(apply_color(160, f"HALTING PARSER...")))
+		print()
+		print(bold_text(apply_color(208, f"END OF INSTRUCTION COUNT ---> {self._instruction_counter}")), end="\n\n")
+		print(apply_color(190, f" ----- ================================================== "))
+		print()
+		self._instruction_counter += 1
+
+
+"""
 		# _args = parser.args(2)
 		# _next_inst_idx = len(_args)
 		# print(f"{_args[0]} + {_args[1]} = {sum(_args)}")
@@ -296,6 +438,7 @@ class SimpleLangParser(PyParser):
 
 # def __SIMPLE_LANG_ACTION_HANDLER__(action, default=None):
 # 	return __simple_lang_actions.get(action, default)
+"""
 
 
 if __name__ == "__main__":
