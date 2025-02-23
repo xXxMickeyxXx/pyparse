@@ -285,97 +285,143 @@ def register_states(parser):
 
 @profile_callable(sort_by=SortBy.TIME)
 def final_main(debug_mode=True):
-	_simple_lang_input_filepath = r"/Users/mickey/Desktop/Python/custom_packages/pyparse/examples/example_simplang_input.sim"
-	with open(_simple_lang_input_filepath, "r", newline="") as _in_file:
-		_test_input = _in_file.read()
+	try:
+		_simple_lang_input_filepath = r"/Users/mickey/Desktop/Python/custom_packages/pyparse/examples/example_simplang_input.sim"
+		with open(_simple_lang_input_filepath, "r", newline="") as _in_file:
+			_test_input = _in_file.read()
 
-	__GRAMMAR__ = test_grammar_factory()
-	_GRAMMAR_VERSION_ = "simple_lang_v0_0_1"
-	init_grammar(__GRAMMAR__, _GRAMMAR_VERSION_)
+		__GRAMMAR__ = test_grammar_factory()
+		_GRAMMAR_VERSION_ = "simple_lang_v0_0_1"
+		init_grammar(__GRAMMAR__, _GRAMMAR_VERSION_)
 
-	for state, rule in __GRAMMAR__.generate_states().items():
-		print(bold_text(apply_color(214, f"STATE: {state}")))
+		# for state, rule in __GRAMMAR__.generate_states().items():
+		# 	print(bold_text(apply_color(214, f"STATE: {state}")))
+		# 	print()
+		# 	for i in rule:
+		# 		_id = i.rule_id
+		# 		_head = i.rule_head
+		# 		_body = i.rule_body
+		# 		_status = i.status()
+		# 		print(f"\t • -------")
+		# 		print(f"\t| RULE-ID:     {_id}")
+		# 		print(f"\t| RULE-HEAD:   {_head}")
+		# 		print(f"\t| RULE-BODY:   {_body}")
+		# 		print(f"\t| AUG-RULE-:   {_status}")
+		# 		print(f"\t • -------")
+		# 		print()
+		# 	print()
+		# 	print()
+
+		_simple_lang_tokenizer_handler = SimpleLangTokenizerHandler()
+		__TOKENIZER__ = Tokenizer(handler=_simple_lang_tokenizer_handler)
+		_token_context_ = __TOKENIZER__.tokenize(_test_input)
+		# _token_context_ = [i for i in _token_context_ if i.token_type != SimpleLangTokenType.SKIP]
 		print()
-		for i in rule:
-			_id = i.rule_id
-			_head = i.rule_head
-			_body = i.rule_body
-			_status = i.status()
-			print(f"\t • -------")
-			print(f"\t| RULE-ID:     {_id}")
-			print(f"\t| RULE-HEAD:   {_head}")
-			print(f"\t| RULE-BODY:   {_body}")
-			print(f"\t| AUG-RULE-:   {_status}")
-			print(f"\t • -------")
+		print(bold_text(apply_color(214, f" INPUT:")), end="\n")
+		print(f"    |")
+		print(f"    |")
+		print(f"    |")
+		for _idx_, _input_ in enumerate(_test_input.split("\n"), start=1):
+			_input_repr_ = repr(_input_)
+			if _idx_ == 1:
+				print(f"     • ---> {_input_repr_}")
+			else:
+				print(f"            {_input_repr_}")
+		print()
+		print(bold_text(apply_color(204, " TOKEN CONTEXT:")))
+		print(f"    |")
+		print(f"    |")
+		print(f"    |")
+		for _idx, _token_ in enumerate(_token_context_, start=1):
+			if _idx == 1:
+				print(f"     • ---> {_token_}")
+			else:
+				print(f"            {_token_}")	
+		for _ in range(2):
 			print()
+
+
+		_INIT_STATE_ = 0
+		_PARSER_ID_ = "SimpleLang_v0_0_1"
+		__PARSER__ = SimpleLangParser(init_state=_INIT_STATE_, parser_id=_PARSER_ID_)
+		# register_states(__PARSER__)
+
+
+		_pretval = __PARSER__.parse(_token_context_)
 		print()
+		print(bold_text(apply_color(214, f"\tPARSE IS...")))
+		print(bold_text(apply_color(10, f"\t\t• --- VALID --- •")) if _pretval else bold_text(apply_color(9, f"\t\t• --- INVALID --- •")))
 		print()
+		# # print()
+		# # for i in _pretval:
+		# # 	print(i)
 
-	_simple_lang_tokenizer_handler = SimpleLangTokenizerHandler()
-	__TOKENIZER__ = Tokenizer(handler=_simple_lang_tokenizer_handler)
-	_token_context_ = __TOKENIZER__.tokenize(_test_input)
-	# _token_context_ = [i for i in _token_context_ if i.token_type != SimpleLangTokenType.SKIP]
-	print()
-	print(bold_text(apply_color(214, f" INPUT:")), end="\n")
-	print(f"    |")
-	print(f"    |")
-	print(f"    |")
-	for _idx_, _input_ in enumerate(_test_input.split("\n"), start=1):
-		_input_repr_ = repr(_input_)
-		if _idx_ == 1:
-			print(f"     • ---> {_input_repr_}")
-		else:
-			print(f"            {_input_repr_}")
-	print()
-	print(bold_text(apply_color(204, " TOKEN CONTEXT:")))
-	print(f"    |")
-	print(f"    |")
-	print(f"    |")
-	for _idx, _token_ in enumerate(_token_context_, start=1):
-		if _idx == 1:
-			print(f"     • ---> {_token_}")
-		else:
-			print(f"            {_token_}")	
-	for _ in range(2):
+
+		# _symbol_stack = deque()
+		# _state_stack = deque()
+
+		# _symbol_stack.append(_token_context_[0])
+		# _state_stack.append(_INIT_STATE_)
+
+		# parser.register_state(0, lambda _par_, _par_context_: _par_.submit_action)
+
+
+
+
+		# _test_list = []
+		# _test_input = "@TODO<This is the body of a todo or note>"
+		# _token_context = __TOKENIZER__.tokenize(_test_input)
+		# print(f"TOKEN CONTEXT:")
+		# for i in _token_context:
+		# 	print(f"\t{i}")
+		# print()
+		# __PARSER__ = todo_lang_parser_factory(debug_mode=debug_mode)
+		
+
+		# _handlers = {
+		# 	"ADD": lambda x, y: x + y,
+		# 	"SUB": lambda x, y: x - y,
+		# 	"SQUARE": lambda x: x * x
+		# }
+		# _test_list = ["SQUARE", 3, 77]
+
+		# _test_pointer = 0
+		# _test_instruction = _test_list[_test_pointer]
+		# _test_instruction_handler = _handlers[_test_instruction]
+
+		# if _test_instruction == "ADD":
+		# 	_until = 2
+		# elif _test_instruction == "SUB":
+		# 	_until = 2
+		# elif _test_instruction == "SQUARE":
+		# 	_until = 1
+		# else:
+		# 	_error_details = f"INVALID INSTRUCTION COMPOSITION; CHECK INSTRUCTIONS AND TRY AGAIN..."
+		# 	raise RuntimeError(_error_details)
+
+
+
+		# if _test_instruction == "ADD":
+		# 	# ADD
+		# 	_slice = slice(_test_pointer + 1, _until + 1)
+		# elif _test_instruction == "SUB":
+		# 	# SUBTRACT
+		# 	_slice = slice(_test_pointer + 1, _until + 1)
+		# elif _test_instruction == "SQUARE":
+		# 	# SQUARE
+		# 	_slice = slice(_test_pointer + 1, _until + 1)
+		# else:
+		# 	_error_details = f"INVALID INSTRUCTION COMPOSITION; CHECK INSTRUCTIONS AND TRY AGAIN..."
+		# 	raise RuntimeError(_error_details)
+
+		# _args = _test_list[_slice]
+		# print(f"'{_test_instruction}' RESULT ---> {_test_instruction_handler(*_args)}")
+	except (Exception, RuntimeError) as __ERROR__:
 		print()
-
-
-	_INIT_STATE_ = 0
-	_PARSER_ID_ = "SimpleLang_v0_0_1"
-	__PARSER__ = SimpleLangParser(init_state=_INIT_STATE_, parser_id=_PARSER_ID_)
-	# register_states(__PARSER__)
-
-
-	_pretval = __PARSER__.parse(_token_context_)
-	print()
-	print(bold_text(apply_color(214, f"\tPARSE IS...")))
-	print(bold_text(apply_color(10, f"\t\t• --- VALID --- •")) if _pretval else bold_text(apply_color(9, f"\t\t• --- INVALID --- •")))
-	print()
-	# print()
-	# for i in _pretval:
-	# 	print(i)
-
-
-	# _symbol_stack = deque()
-	# _state_stack = deque()
-
-	# _symbol_stack.append(_token_context_[0])
-	# _state_stack.append(_INIT_STATE_)
-
-	# parser.register_state(0, lambda _par_, _par_context_: _par_.submit_action)
-
-
-
-
-	# _test_list = []
-	# _test_input = "@TODO<This is the body of a todo or note>"
-	# _token_context = __TOKENIZER__.tokenize(_test_input)
-	# print(f"TOKEN CONTEXT:")
-	# for i in _token_context:
-	# 	print(f"\t{i}")
-	# print()
-	# __PARSER__ = todo_lang_parser_factory(debug_mode=debug_mode)
-
+		print(bold_text(apply_color(9, f"\t<'{__ERROR__.__class__.__name__}'> ERROR HAS OCCURRED...PLEASE CHECK AND TRY AGAIN...")))
+		print()
+		print(__ERROR__)
+		print()
 
 
 if __name__ == "__main__":

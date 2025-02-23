@@ -105,13 +105,13 @@ class SimpleLangTableBuilder(TableBuilder):
 
 class PyParser:
 
-	__slots__ = ("_parser_id", "_state", "_handlers", "_state_handlers", "_action_handlers", "_action_buffer", "_parse_context", "_result", "_result_set", "_quit_flag")
+	__slots__ = ("_parser_id", "_handlers", "_instructions", "_ip", "_parse_context", "_result", "_result_set", "_quit_flag")
 
 	def __init__(self, init_state=0, parser_id=None):
 		self._parser_id = parser_id or generate_id()
-		self._state = init_state or 0
-		self._handlers = []
-		self._action_buffer = deque()
+		self._handlers = {}
+		self._instructions = []
+		self._ip = 0
 		self._parse_context = None
 		self._result = None
 		self._result_set = False
@@ -122,16 +122,31 @@ class PyParser:
 		return self._parser_id
 
 	@property
-	def state(self):
-		return self._state
-
-	@property
 	def is_running(self):
 		return not self._quit_flag
 
 	@property
 	def parse_context(self):
 		return self._parse_context
+
+	@property
+	def current_instruction(self):
+		return self._instructions[self._ip][0]
+
+	@property
+	def arg_count(self):
+		return self._instructions[self._ip][1]
+
+	def add_instruction(self, instruction_type, count, *args):
+		self._instructions.append((instruction_type, count))
+		self._instructions.extend(args)
+
+	def update_ip(self, ip):
+		self._ip = ip
+
+	def args(self, count=1):
+		# @NOTE<'count' should be an integer of 1 or greater. If it is integer 0 then it will be an empty list>
+		return self._instructions[self._ip + 1: count + 1]
 
 	def result(self):
 		if not self._result_set:
@@ -147,31 +162,19 @@ class PyParser:
 	def set_context(self, parse_context):
 		self._parse_context = parse_context
 
-	def add_handler(self, handler):
-		self._handlers.append(handler)
-
-	def register(self, state, handler):
-		_signals = self._signals
-		if state not in _signals:
-			_signals[state] = []
-		_signals[state].append(handler)
-
-	def submit_action(self, action, *args, **kwargs):
-		self._action_buffer.append((action, args, kwargs))
-
-	def update(self, state):
-		self._state = state
-
+	def add_handler(self, instruction_type, handler):
+		self._handlers[instruction_type] = handler
+	
 	def stop(self):
 		self._quit_flag = True
 
 	def parse(self, parse_context):
 		self.set_context(deque(parse_context))
 		self._quit_flag = False
-		while not self._quit_flag:
-			for _handler in self._handlers:
-				_handler(self)
-		self.set_context(None)		
+		while self._ip:
+			_instruction_type, _arg_count = self.current_instruction, self.arg_count
+			_handler = self._handlers.get(_instruction_type, lambda *args, **kwargs: None)
+			_handler(*self.args(_arg_count))
 		return self.result()
 
 
@@ -179,11 +182,12 @@ class SimpleLangParser(PyParser):
 
 	def __init__(self, init_state=0, parser_id=None):
 		super().__init__(init_state=init_state, parser_id=parser_id)
-		self._state_stack = deque()
-		self._symbol_stack = deque()
-		self._signals = {}
-		self._context_ptr = 0
 		self.init()
+		self._bool_ = False
+		# self.set_result(False)
+		print(f"INSTRUCTIONS ---> {self._instructions}")
+		print(f"CURRENT INSTRUCTION ---> {self.current_instruction}")
+		print(f"CURRENT ARGS ---> {self.arg_count}")
 
 	@property
 	def next_token(self):
@@ -192,75 +196,94 @@ class SimpleLangParser(PyParser):
 		raise NotImplementedError("@TODO<Finish implementing 'next_token' property>")
 
 	def init(self):
-		self.add_handler(self.step)
-		# self.register(None, self.__END__)
-		self.register((None, None), self.__invalid_parsse)
-		self.register(0, self._state_0)
-		self.register((1, "NUMBER"), self.__number_state1)
-		self.register((1, "END_SYMBOL"), self.__invalid_parsse)
-		self.register((4, "END_SYMBOL"), self.__number_state4)
-		self.register((5, "END_SYMBOL"), self.__number_state5)
-		self.register((2, "END_SYMBOL"), self.__END__)
+		self.add_handler("ADD", self._add_tester_)
+		self.add_instruction("ADD", 3, 10, 3)
+		# self.add_instruction("ADD",3, 13, 2)
 
-	def step(self, parser):
-		try:
-			for _handler in self._signals[self._state]:
-				_handler(self)
-		except KeyError as key_err:
-			parser.update((None, None))
-
-	def register(self, state, handler):
-		_signals = self._signals
-		if state not in _signals:
-			_signals[state] = []
-		_signals[state].append(handler)
-
-	def __SHIFT__(self):
-		self._symbol_stack.append((self.parse_context[self._context_ptr].token_type))
-		self._context_ptr += 1
-
-	def __REDUCE__(self, new_symbol, pop_count, state=(None, None)):
-		for _ in range(pop_count):
-			self._symbol_stack.pop()
-		self._symbol_stack.append(new_symbol)
-		self.update(state)
-
-	@staticmethod
-	def __END__(parser):
+	# def _add_tester_(self, parser):
+	def _add_tester_(self, x, y):
+		_next_inst_idx = len(_args) + 1
+		print(f"{x} + {y} = {x + y}")
+		self.update_ip(2)
 		print()
-		print(f"STOPPING PARSER...")
-		print()
-		parser.set_result(True)
-		# parser.submit_action(parser.stop)
-		parser.stop()
+		print(self._instructions)
+		if self._bool_:
+			parser.stop()
+			self.set_result(False)
+		else:
+			self._bool_ = True
 
-	@staticmethod
-	def _state_0(parser):
-		print(f"I'm in state {parser.state}!!!!")
-		print(f"CHANGING TO STATE {1}")
-		parser.__SHIFT__()
+		# _args = parser.args(2)
+		# _next_inst_idx = len(_args)
+		# print(f"{_args[0]} + {_args[1]} = {sum(_args)}")
+		# self.update_ip(_next_inst_idx)
+		# print()
+		# print(f)
+		# print(self._instructions)
+		# if self._bool_:
+		# 	parser.stop()
+		# else:
+		# 	self._bool_ = True
 
-		parser.update((1, parser._symbol_stack[-1]))
+	# def step(self, parser):
+	# 	try:
+	# 		for _handler in self._signals[self._state]:
+	# 			_handler(self)
+	# 	except KeyError as key_err:
+	# 		parser.update((None, None))
 
-	@staticmethod
-	def __number_state1(parser):
-		_parse_context = parser.parse_context
-		print(_parse_context)
-		parser.__REDUCE__("B", 1, (4, _parse_context[parser._context_ptr].token_type))
-		print(f"SHIT")
+	# def register(self, state, handler):
+	# 	_signals = self._signals
+	# 	if state not in _signals:
+	# 		_signals[state] = []
+	# 	_signals[state].append(handler)
 
-	@staticmethod
-	def __number_state4(parser):
-		parser.__REDUCE__("A", 1, (5, parser.parse_context[parser._context_ptr].token_type))
+	# def __SHIFT__(self):
+	# 	self._symbol_stack.append((self.parse_context[self._context_ptr].token_type))
+	# 	self._context_ptr += 1
 
-	@staticmethod
-	def __number_state5(parser):
-		parser.__REDUCE__("S", 1, (2, parser.parse_context[parser._context_ptr].token_type))
+	# def __REDUCE__(self, new_symbol, pop_count, state=(None, None)):
+	# 	for _ in range(pop_count):
+	# 		self._symbol_stack.pop()
+	# 	self._symbol_stack.append(new_symbol)
+	# 	self.update(state)
 
-	@staticmethod
-	def __invalid_parsse(parser):
-		parser.set_result(False)
-		parser.stop()
+	# @staticmethod
+	# def __END__(parser):
+	# 	print()
+	# 	print(f"STOPPING PARSER...")
+	# 	print()
+	# 	parser.set_result(True)
+	# 	# parser.submit_action(parser.stop)
+	# 	parser.stop()
+
+	# @staticmethod
+	# def _state_0(parser):
+	# 	print(f"I'm in state {parser.state}!!!!")
+	# 	print(f"CHANGING TO STATE {1}")
+	# 	parser.__SHIFT__()
+
+	# 	parser.update((1, parser._symbol_stack[-1]))
+
+	# @staticmethod
+	# def __number_state1(parser):
+	# 	_parse_context = parser.parse_context
+	# 	print(_parse_context)
+	# 	parser.__REDUCE__("B", 1, (4, _parse_context[parser._context_ptr].token_type))
+	# 	print(f"SHIT")
+
+	# @staticmethod
+	# def __number_state4(parser):
+	# 	parser.__REDUCE__("A", 1, (5, parser.parse_context[parser._context_ptr].token_type))
+
+	# @staticmethod
+	# def __number_state5(parser):
+	# 	parser.__REDUCE__("S", 1, (2, parser.parse_context[parser._context_ptr].token_type))
+
+	# @staticmethod
+	# def __invalid_parsse(parser):
+	# 	parser.set_result(False)
+	# 	parser.stop()
 
 
 # __simple_lang_actions = {}
