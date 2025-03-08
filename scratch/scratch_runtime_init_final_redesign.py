@@ -14,9 +14,7 @@ from .scratch_simple_lang_grammar import (
 	SimpleLangTokenType,
 	SimpleLangTokenizerHandler,
 	SimpleLangTableBuilder,
-	SimpleLangParser,
-	# __ADD_ACTION_HANDLER__,
-	# __SIMPLE_LANG_ACTION_HANDLER__
+	SimpleLangParser
 	)
 from .scratch_todo_lang_grammar import (
 	ToDoLangTokenType,
@@ -284,7 +282,7 @@ def register_states(parser):
 	parser.register_state(SimpleLangTokenType.END_SYMBOL, lambda _par_, _par_context_: _par_.stop())
 
 
-# @profile_callable(sort_by=SortBy.TIME)
+@profile_callable(sort_by=SortBy.TIME)
 def final_main(debug_mode=True):
 	_simple_lang_input_filepath = r"/Users/mickey/Desktop/Python/custom_packages/pyparse/examples/example_simplang_input.sim"
 	with open(_simple_lang_input_filepath, "r", newline="") as _in_file:
@@ -343,6 +341,7 @@ def final_main(debug_mode=True):
 
 	__INVALID_INSTR_TYPE__ = SimpleLangParserInstruction.HALT
 	_PARSER_ID_ = "SimpleLang_v0_0_1"
+	# __PARSER__ = SimpleLangParser(init_state=0, invalid_instruction=__INVALID_INSTR_TYPE__, parser_id=_PARSER_ID_)
 	__PARSER__ = SimpleLangParser(invalid_instruction=__INVALID_INSTR_TYPE__, parser_id=_PARSER_ID_)
 	# register_states(__PARSER__)
 

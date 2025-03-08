@@ -30,14 +30,22 @@ from .scratch_cons import (
 
 
 class SimpleLangParserInstruction(IntEnum):
+	# Shift/reduce parser instructions
 	HALT = auto()
+	INIT = auto()
+	SHIFT = auto()
+	REDUCE = auto()
+	ACCEPT = auto()
+	ERROR = auto()
+
+	# Test instructions
 	PRINT = auto()
 	ADD_OP = auto()
 	SUB_OP = auto()
-	MULT_OP = auto()
-	DIV_OP = auto()
-	INIT = auto()
 	CLEANUP = auto()
+
+	# Test mainloop instruction
+	MAIN_LOOP = auto()
 
 	@classmethod
 	def INSTR(cls, *, int_val: int = 0, enum_name: str = ""):
@@ -126,7 +134,7 @@ class SimpleLangTableBuilder(TableBuilder):
 		pass
 
 
-class PyParser:
+"""class PyParser:
 
 	__slots__ = ("_parser_id", "_handlers", "_instructions", "_curr_instruction", "_args", "_parse_context", "_result", "_result_set", "_quit_flag", "_invalid_instr")
 
@@ -218,10 +226,233 @@ class PyParser:
 				raise RuntimeError(_error_details)
 			_args, _kwargs = self._args
 			_handler(*_args, **_kwargs)
+		return self._result"""
+
+
+class PyParser:
+
+	__slots__ = ("_executor", "_parser_id", "_args", "_context", "_result", "_result_set", "_quit_flag")
+
+	def __init__(self, executor, parser_id=None):
+		self._parser_id = parser_id or generate_id()
+		self._executor = executor
+		self._context = None
+		self._result = None
+		self._result_set = False
+		self._quit_flag = False
+
+	@property
+	def parser_id(self):
+		return self._parser_id
+
+	@property
+	def is_running(self):
+		return not self._quit_flag
+
+	@property
+	def context(self):
+		return self._context
+
+	@property
+	def state(self):
+		return self._state
+
+	@property
+	def result_set(self):
+		return self._result_set
+
+	@property
+	def result(self):
+		if not self._result_set:
+			_error_details = f"unable to access parse 'result' as one has not yet been set..."
+			raise RuntimeError(_error_details)
 		return self._result
+
+	def set_result(self, result):
+		self._result = result
+		self._result_set = True
+
+	def set_context(self, context):
+		self._context = context
+
+	def add_handler(self, instruction_type, handler):
+		self._handlers[instruction_type] = handler
+	
+	def halt(self):
+		self._quit_flag = True
+
+	# def parse(self, context):
+	# 	self.set_context(context)
+	# 	self._quit_flag = False
+	# 	while self._instructions and (not self._quit_flag):
+	# 		_handler = self.next_handler(default=None)
+	# 		if _handler is None:
+	# 			# @TODO<Create and raise custom error here>
+	# 			_error_details = f"unable to find supported handler for NEXT INSTRUCTION TYPE: '{self.curr_instruction}'...exiting with runtime-error..."
+	# 			raise RuntimeError(_error_details)
+	# 		_args, _kwargs = self._args
+	# 		_handler(*_args, **_kwargs)
+	# 	return self._result
+
+	def parse(self, context):
+		self._quit_flag = False
+		self.set_context(context)
+		return self._executor(self)
 
 
 class SimpleLangParser(PyParser):
+
+	def __init__(self, init_state=0, invalid_instruction=SimpleLangParserInstruction.HALT, parser_id=None):
+		super().__init__(self.__EXECUTOR__, parser_id=parser_id)
+		self._init_state = init_state
+		self._handlers = {}
+		self._instructions = deque()
+		self._curr_instruction = None
+		self._args = ((), {})
+		self._invalid_instr = invalid_instruction
+
+		self._delim = ","
+		self._state = (None, None)
+		self._state_stack = []
+		self._symbol_stack = []
+		self.init()
+
+	@property
+	def curr_instruction(self):
+		return self._curr_instruction
+
+	@property
+	def curr_args(self):
+		return self._args
+
+	@property
+	def instructions(self):
+		return self._instructions
+
+	@property
+	def invalid_instruction(self):
+		return self._invalid_instr
+
+	@property
+	def state(self):
+		return self._state
+
+	def set_state(self, state):
+		self._state = state
+
+	@staticmethod
+	def __EXECUTOR__(parser):
+		while parser.instructions and (parser.is_running):
+			_handler = parser.next_handler(default=None)
+			if _handler is None:
+				# @TODO<Create and raise custom error here>
+				_error_details = f"unable to find supported handler for NEXT INSTRUCTION TYPE: '{parser.curr_instruction}'...exiting with runtime-error..."
+				raise RuntimeError(_error_details)
+			_args, _kwargs = parser.curr_args
+			_handler(*_args, **_kwargs)
+		return parser.result
+
+	def send(self, *args, **kwargs):
+		self._args = (args, kwargs)
+
+	def set_instruction(self, instruction_type):
+		self._curr_instruction = instruction_type
+
+	def add_instruction(self, instruction_type, *args, **kwargs):
+		self._instructions.append((instruction_type, args, kwargs))
+
+	def next_instruction(self, default=None):
+		return self._instructions.popleft() if self._instructions else default
+
+	def next_handler(self, default=None):
+		_instr_type, _args, _kwargs = self.next_instruction(default=(self.invalid_instruction, (), {}))  # @NOTE<'default' value of (None, (), {}) in order to allow tuple unpacking syntax, regardless if valid next instruction type (i.e. unsupportd)>
+		_handler = self._handlers.get(_instr_type, default)
+		self.set_instruction(_instr_type)
+		self.send(*_args, **_kwargs)
+		return _handler
+
+	def init(self):
+		# @NOTE
+			# <Handlers for INSTRUCTION TYPE:
+			#	'HALT' (INSTR #: 1),
+			#	'PRINT' (INSTR #: 2),
+			#	'ADD_OP' (INSTR #: 3),
+			#	'SUB_OP' (INSTR #: 4),
+			# 	'CLEANUP' (INSTR #: 8>
+		
+
+		self.init_parse_table()
+
+		# Instruction handler(s)
+		self.add_handler(SimpleLangParserInstruction.HALT, self.__HALT__)
+		self.add_handler(SimpleLangParserInstruction.INIT, self.__INIT__)
+		self.add_handler(SimpleLangParserInstruction.SHIFT, self.__SHIFT__)
+		self.add_handler(SimpleLangParserInstruction.MAIN_LOOP, self.__MAIN_LOOP__)
+
+
+		# Initial instruction(s)
+		self.add_instruction(SimpleLangParserInstruction.INIT)
+		# self.add_instruction(__MAIN_LOOP__)
+
+		# _msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=1)}' INSTRUCTION --- •]"
+		# print(bold_text(apply_color(220, _msg)), end="\n")
+
+	def init_parse_table(self):
+		pass
+
+	def calculate_state(self, symbol=None):
+		self._state = (self._state_stack[-1], self._symbol_stack[-1] if symbol is None else symbol)
+
+	def __INIT__(self):
+		self._symbol_stack.append(self.context.pop(0).token_type)
+		self._state_stack.append(self._init_state)
+		self.calculate_state(symbol=None)
+		self.add_instruction(SimpleLangParserInstruction.MAIN_LOOP)
+		# self.add_instruction(SimpleLangParserInstruction.HALT)  # @NOTE<Submit SimpleLangParserInstruction.HALT instruction to quickly halt the parser -- for use halting parser after it runs testing instructions, such as parser initialization via the SimpleLangParserInstruction.INIT>
+
+	def __SHIFT__(self, state_int):
+		_next_token = self.context.pop(0)
+		_next_token_type = _next_token.token_type
+		self._state_stack.append(state_int)
+		self._symbol_stack.append(_next_token_types)
+		self.calculate_state()
+
+	def __REDUCE__(self, rule_head, pop_count):
+		for _ in range(pop_count):
+			self._symbol_stack.pop(0)
+			self._state_stack.pop(0)
+		self._symbol_stack.append(rule_head)
+		self.calculate_state()
+
+	def __MAIN_LOOP__(self):
+		print(f"CURRENT INSTRUCTION ---> {self.curr_instruction}")
+		print(f"CONTEXT:")
+		for i in self.context:
+			print(i)
+		print()
+
+		match self._state:
+			case (5, "S"):
+				self.set_result(True)
+				self.add_instruction(SimpleLangParserInstruction.HALT)
+			case (-1, -1):
+				self.set_result(False)
+				self.add_instruction(SimpleLangParserInstruction.HALT)
+			case None:
+				self.add_instruction(SimpleLangParserInstruction.HALT)
+			case _:
+				self.add_instruction(SimpleLangParserInstruction.HALT)
+				# self.add_instruction(SimpleLangParserInstruction.MAIN_LOOP)
+
+	def __HALT__(self):
+		print(f"STATE ---> {self.state}")
+		self.set_result(False)
+		if self.state == (0, SimpleLangTokenType.NUMBER):
+			self.set_result(True)
+		self.halt()
+
+
+"""class SimpleLangParser(PyParser):
 
 	def __init__(self, invalid_instruction=SimpleLangParserInstruction.HALT, parser_id=None):
 		super().__init__(invalid_instruction=invalid_instruction, parser_id=parser_id)
@@ -242,10 +473,10 @@ class SimpleLangParser(PyParser):
 		# @NOTE
 			# <Handlers for INSTRUCTION TYPE:
 			#	'HALT' (INSTR #: 1),
-			#	'PRINT' (INSTR #: 2),
-			#	'ADD_OP' (INSTR #: 3),
-			#	'SUB_OP' (INSTR #: 4),
-			# 	'CLEANUP' (INSTR #: 8>
+			#	'PRINT' (INSTR #: 7),
+			#	'ADD_OP' (INSTR #: 8),
+			#	'SUB_OP' (INSTR #: 9),
+			# 	'CLEANUP' (INSTR #: 10>
 		self.add_handler(SimpleLangParserInstruction.INSTR(int_val=1), self.__HALT__)
 		self.add_handler(SimpleLangParserInstruction.HALT, self.__HALT__)
 		self.add_handler(SimpleLangParserInstruction.PRINT, self.__PRINT__)
@@ -256,13 +487,13 @@ class SimpleLangParser(PyParser):
 		# @NOTE<Test instructions to run first, upon calling of 'parse' runner method>
 		self.add_instruction(SimpleLangParserInstruction.ADD_OP, randrange(100), randrange(100))
 		self.add_instruction(SimpleLangParserInstruction.ADD_OP, randrange(100), randrange(100))
-		_msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=3)}' INSTRUCTION --- •]"
+		_msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=8)}' INSTRUCTION --- •]"
 		print(bold_text(apply_color(self._instr_color_map[SimpleLangParserInstruction.ADD_OP], _msg)), end="\n")
 		print(bold_text(apply_color(self._instr_color_map[SimpleLangParserInstruction.ADD_OP], _msg)), end="\n\n")
 
 	def _ADD_(self, x: int, y: int) -> None:
 		print(bold_text(apply_color(208, f"START OF INSTRUCTION COUNT ---> {self._instruction_counter}")))
-		_instr_msg = f"PERFORMING '{SimpleLangParserInstruction.INSTR(int_val=3)}' INSTRUCTION..."
+		_instr_msg = f"PERFORMING '{SimpleLangParserInstruction.INSTR(int_val=8)}' INSTRUCTION..."
 		print(bold_text(apply_color(self._instr_color_map[SimpleLangParserInstruction.ADD_OP], _instr_msg)), end="\n\n")
 		_result = x + y
 		print(f"{x} + {y} = {_result}")
@@ -270,12 +501,12 @@ class SimpleLangParser(PyParser):
 		if _result >= 25:
 			self.add_instruction(SimpleLangParserInstruction.SUB_OP, randrange(100), randrange(100))
 			print()
-			_msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=4)}' INSTRUCTION --- •]"
+			_msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=9)}' INSTRUCTION --- •]"
 			print(bold_text(apply_color(self._instr_color_map[SimpleLangParserInstruction.SUB_OP], _msg)), end="\n\n")
 		else:
 			self.add_instruction(SimpleLangParserInstruction.SUB_OP, randrange(100), randrange(100))
 			print()
-			_msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=4)}' INSTRUCTION --- •]"
+			_msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=9)}' INSTRUCTION --- •]"
 			print(bold_text(apply_color(self._instr_color_map[SimpleLangParserInstruction.SUB_OP], _msg)), end="\n\n")
 		print(bold_text(apply_color(208, f"END OF INSTRUCTION COUNT ---> {self._instruction_counter}")), end="\n\n")
 		print(apply_color(190, f" ----- ================================================== "))
@@ -284,12 +515,12 @@ class SimpleLangParser(PyParser):
 
 	def _SUB_(self, x: int, y:int) -> None:
 		print(bold_text(apply_color(208, f"START OF INSTRUCTION COUNT ---> {self._instruction_counter}")))
-		_instr_msg = f"PERFORMING '{SimpleLangParserInstruction.INSTR(int_val=4)}' INSTRUCTION..."
+		_instr_msg = f"PERFORMING '{SimpleLangParserInstruction.INSTR(int_val=9)}' INSTRUCTION..."
 		print(bold_text(apply_color(self._instr_color_map[SimpleLangParserInstruction.SUB_OP], _instr_msg)), end="\n\n")
 		_result = x - y
 		self.add_instruction(SimpleLangParserInstruction.PRINT, f"{x} - {y} = {_result}")
 		if _result < 7:
-			_msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=2)}' INSTRUCTION --- •]"
+			_msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=7)}' INSTRUCTION --- •]"
 			print(bold_text(apply_color(self._instr_color_map[SimpleLangParserInstruction.PRINT], _msg)), end="\n\n")
 		else:
 			if not self._valid_parse_set:
@@ -311,19 +542,19 @@ class SimpleLangParser(PyParser):
 
 	def __PRINT__(self, *args, **kwargs):
 		print(bold_text(apply_color(208, f"START OF INSTRUCTION COUNT ---> {self._instruction_counter}")))
-		_instr_msg = f"PERFORMING '{SimpleLangParserInstruction.INSTR(int_val=2)}' INSTRUCTION..."
+		_instr_msg = f"PERFORMING '{SimpleLangParserInstruction.INSTR(int_val=7)}' INSTRUCTION..."
 		print(bold_text(apply_color(self._instr_color_map[SimpleLangParserInstruction.PRINT], _instr_msg)), end="\n\n")
 		print(*args, **kwargs)
 		print()
 		if self._random_val >= 10:
-			_msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=3)}' INSTRUCTION --- •]"
+			_msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=8)}' INSTRUCTION --- •]"
 			print(bold_text(apply_color(self._instr_color_map[SimpleLangParserInstruction.ADD_OP], _msg)), end="\n\n")
 			self.add_instruction(SimpleLangParserInstruction.ADD_OP, randrange(1000), randrange(1000))
 			self._random_val -= 1
 		else:
 			_PRINT_CONCAT = underline_text(bold_text(apply_color(randrange(256), "YOU STUPID SON OF A BITCH!")))
 			self.add_instruction(SimpleLangParserInstruction.PRINT, _PRINT_CONCAT, end="\n")
-			_msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=2)}' INSTRUCTION --- •]"
+			_msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=7)}' INSTRUCTION --- •]"
 			print(bold_text(apply_color(self._instr_color_map[SimpleLangParserInstruction.PRINT], _msg)), end="\n\n")
 
 			self.add_instruction(SimpleLangParserInstruction.HALT)
@@ -360,94 +591,7 @@ class SimpleLangParser(PyParser):
 			self.set_result(False)
 		print(apply_color(190, f" ----- ================================================== "))
 		print()
-		self._instruction_counter += 1
-
-
-"""
-		# _args = parser.args(2)
-		# _next_inst_idx = len(_args)
-		# print(f"{_args[0]} + {_args[1]} = {sum(_args)}")
-		# self.update_ip(_next_inst_idx)
-		# print()
-		# print(f)
-		# print(self._instructions)
-		# if self._bool_:
-		# 	parser.stop()
-		# else:
-		# 	self._bool_ = True
-
-	# def step(self, parser):
-	# 	try:
-	# 		for _handler in self._signals[self._state]:
-	# 			_handler(self)
-	# 	except KeyError as key_err:
-	# 		parser.update((None, None))
-
-	# def register(self, state, handler):
-	# 	_signals = self._signals
-	# 	if state not in _signals:
-	# 		_signals[state] = []
-	# 	_signals[state].append(handler)
-
-	# def __SHIFT__(self):
-	# 	self._symbol_stack.append((self.parse_context[self._context_ptr].token_type))
-	# 	self._context_ptr += 1
-
-	# def __REDUCE__(self, new_symbol, pop_count, state=(None, None)):
-	# 	for _ in range(pop_count):
-	# 		self._symbol_stack.pop()
-	# 	self._symbol_stack.append(new_symbol)
-	# 	self.update(state)
-
-	# @staticmethod
-	# def __END__(parser):
-	# 	print()
-	# 	print(f"STOPPING PARSER...")
-	# 	print()
-	# 	parser.set_result(True)
-	# 	# parser.submit_action(parser.stop)
-	# 	parser.stop()
-
-	# @staticmethod
-	# def _state_0(parser):
-	# 	print(f"I'm in state {parser.state}!!!!")
-	# 	print(f"CHANGING TO STATE {1}")
-	# 	parser.__SHIFT__()
-
-	# 	parser.update((1, parser._symbol_stack[-1]))
-
-	# @staticmethod
-	# def __number_state1(parser):
-	# 	_parse_context = parser.parse_context
-	# 	print(_parse_context)
-	# 	parser.__REDUCE__("B", 1, (4, _parse_context[parser._context_ptr].token_type))
-	# 	print(f"SHIT")
-
-	# @staticmethod
-	# def __number_state4(parser):
-	# 	parser.__REDUCE__("A", 1, (5, parser.parse_context[parser._context_ptr].token_type))
-
-	# @staticmethod
-	# def __number_state5(parser):
-	# 	parser.__REDUCE__("S", 1, (2, parser.parse_context[parser._context_ptr].token_type))
-
-	# @staticmethod
-	# def __invalid_parsse(parser):
-	# 	parser.set_result(False)
-	# 	parser.stop()
-
-
-# __simple_lang_actions = {}
-
-
-# def __ADD_ACTION_HANDLER__(action, handler):
-# 	__simple_lang_actions[action] = handler
-# 	return True
-
-
-# def __SIMPLE_LANG_ACTION_HANDLER__(action, default=None):
-# 	return __simple_lang_actions.get(action, default)
-"""
+		self._instruction_counter += 1"""
 
 
 if __name__ == "__main__":
