@@ -43,6 +43,7 @@ class SimpleLangParserInstruction(IntEnum):
 	ADD_OP = auto()
 	SUB_OP = auto()
 	CLEANUP = auto()
+	CALC_STATE = auto()
 
 	# Test mainloop instruction
 	MAIN_LOOP = auto()
@@ -373,39 +374,28 @@ class SimpleLangParser(PyParser):
 		return _handler
 
 	def init(self):
-		# @NOTE
-			# <Handlers for INSTRUCTION TYPE:
-			#	'HALT' (INSTR #: 1),
-			#	'PRINT' (INSTR #: 2),
-			#	'ADD_OP' (INSTR #: 3),
-			#	'SUB_OP' (INSTR #: 4),
-			# 	'CLEANUP' (INSTR #: 8>
-		
-
 		self.init_parse_table()
 
-		# Instruction handler(s)
+		# Add instruction handler(s)
 		self.add_handler(SimpleLangParserInstruction.HALT, self.__HALT__)
 		self.add_handler(SimpleLangParserInstruction.INIT, self.__INIT__)
 		self.add_handler(SimpleLangParserInstruction.MAIN_LOOP, self.__MAIN_LOOP__)
-		self.add_handler("CALC_STATE", self.calculate_state)
+		self.add_handler(SimpleLangParserInstruction.SHIFT, self.__SHIFT__)
+		self.add_handler(SimpleLangParserInstruction.REDUCE, self.__REDUCE__)
+		self.add_handler(SimpleLangParserInstruction.CALC_STATE, self.calculate_state)
 
 
-		# Initial instruction(s)
+		# Add initial instruction(s)
 		self.add_instruction(SimpleLangParserInstruction.INIT)
-		# self.add_instruction(__MAIN_LOOP__)
 
-		# _msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=1)}' INSTRUCTION --- •]"
-		# print(bold_text(apply_color(220, _msg)), end="\n")
+		_msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=SimpleLangParserInstruction.INIT)}' INSTRUCTION --- •]"
+		print(bold_text(apply_color(211, _msg)), end="\n")
 
 	def init_parse_table(self):
 		pass
 
-	def calculate_state(self, token=None):
-		self._state = (self._state_stack[-1], self._symbol_stack[-1] if token is None else token.token_type)
-		print(f"STATE ---> {self.state}")
-		print(f"STATE STACK ---> {self._state_stack}")
-		print(f"SYMBOL STACK ---> {self._symbol_stack}")
+	def calculate_state(self, symbol=None):
+		self._state = (self._state_stack[-1], self._symbol_stack[-1] if symbol is None else symbol)
 
 	def peek(self, offset=0):
 		return self.context[offset]
@@ -420,13 +410,6 @@ class SimpleLangParser(PyParser):
 
 		_state_int = self._init_state
 		_type_ = self.context[0].token_type
-		self._state_stack.append(_state_int)
-		# self._symbol_stack.append(_type_)
-		# self.calculate_state(token=None)
-		self.add_instruction("CALC_STATE", token=self.context[0])
-		self.add_instruction(SimpleLangParserInstruction.MAIN_LOOP)
-		# self.__SHIFT__(self._init_state)
-		self._instr_counter += 1
 		_print_text = f"\t   |\n"
 		_print_text += f"\t   |\n"
 		_print_text += f"\t   |\n"
@@ -435,6 +418,10 @@ class SimpleLangParser(PyParser):
 		_print_text += apply_color(226, f"\tSTATE #        •---> {_state_int}\n")
 		_print_text += apply_color(226, f"\tNEXT TOKEN     •---> {_type_}\n")
 		print(_print_text)
+		self._state_stack.append(self._init_state)
+		self.add_instruction(SimpleLangParserInstruction.CALC_STATE, symbol=self.peek(offset=0))
+		self.add_instruction(SimpleLangParserInstruction.MAIN_LOOP)
+		self._instr_counter += 1
 
 	def __SHIFT__(self, state_int):
 		_next_token = self.context.pop(0)
@@ -445,11 +432,10 @@ class SimpleLangParser(PyParser):
 
 	def __REDUCE__(self, rule_head, pop_count, goto):
 		for _ in range(pop_count):
-			self._symbol_stack.pop(0)
-			self._state_stack.pop(0)
+			_sym_pop = self._symbol_stack.pop(-1)
+			_state_pop = self._state_stack.pop(-1)
 		self._symbol_stack.append(rule_head)
 		self._state_stack.append(goto)
-		# self.calculate_state(token=None)
 		self.add_instruction(SimpleLangParserInstruction.MAIN_LOOP)
 
 	def __MAIN_LOOP__(self):
@@ -457,49 +443,111 @@ class SimpleLangParser(PyParser):
 		print(f"    |" + underline_text(bold_text(apply_color(214, f"CURRENT INSTRUCTION"))) + bold_text(apply_color(168, f" • --- • {SimpleLangParserInstruction.INSTR(int_val=self.curr_instruction)} <iCOUNT: {self._instr_counter}>")))
 		print()
 		_state_int = self.state[0]
-		_type_ = self.state[1]
-		_print_text = apply_color(226, f"\tSTATE #        •---> {_state_int}\n")
-		_print_text += apply_color(226, f"\tNEXT TOKEN     •---> {_type_}\n")
+		_type_ = self.peek(0).token_type
+		# _print_text = apply_color(226, f"\tSTATE #        •---> {_state_int}\n")
+		# _print_text += apply_color(226, f"\tNEXT TOKEN     •---> {_type_}\n")
+
+		print()
+		print(f"\t• STATE STACK  ---> {self._state_stack}")
+		print(f"\t• SYMBOL STACK ---> {self._symbol_stack}")
+		print(f"\t• NEXT:\n             |\n             • {self.peek(offset=0)}\n             |\n             • {_type_}")
+		print()
+
 		match _state_int:
 			case None:
 				self.__SHIFT__(self._init_state)
 			case 0:
 				match _type_:
 					case SimpleLangTokenType.NUMBER:
-						_print_text += f"\tTEXT           •---> \"CHECK IT OUT!\"\n"
-						# self.set_result(False)
-						self.__SHIFT__(6)
-						self.add_instruction("CALC_STATE", token=None)
-						# self.__REDUCE__("C", 1, 6)
+						self.add_instruction(SimpleLangParserInstruction.SHIFT, 6)
+						self.add_instruction(SimpleLangParserInstruction.CALC_STATE, symbol=None)
 					case _:
 						self.set_result(False)
 						self.add_instruction(SimpleLangParserInstruction.HALT)
 			case 4:
 				match _type_:
 					case "C":
-						_print_text += f"\tTEXT           •---> \"HEY IT'S BEEN REDUCED TO A 'C' AND IS NOW IN STATE #: 4!\"\n"
 						self.set_result(False)
 						self.add_instruction(SimpleLangParserInstruction.HALT)
+						# _msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=SimpleLangParserInstruction.HALT)}' INSTRUCTION --- •]"
+						# print(bold_text(apply_color(211, _msg)), end="\n")
 					case _:
 						self.set_result(False)
 						self.add_instruction(SimpleLangParserInstruction.HALT)
+						# _msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=SimpleLangParserInstruction.HALT)}' INSTRUCTION --- •]"
+						# print(bold_text(apply_color(211, _msg)), end="\n")
 			case 6:
+				if len(self._symbol_stack) == 3 and self._symbol_stack[-1] == SimpleLangTokenType.NUMBER:
+					self.add_instruction(SimpleLangParserInstruction.REDUCE, "C", 1, 10)
+					# _msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=SimpleLangParserInstruction.REDUCE)}' INSTRUCTION --- •]"
+					# print(bold_text(apply_color(211, _msg)), end="\n")
+
+					self.add_instruction(SimpleLangParserInstruction.CALC_STATE, symbol=None)
+					# _msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=SimpleLangParserInstruction.CALC_STATE)}' INSTRUCTION --- •]"
+					# print(bold_text(apply_color(211, _msg)), end="\n")
+				else:
+					match _type_:
+						case SimpleLangTokenType.DELIM:
+							self.add_instruction(SimpleLangParserInstruction.REDUCE, "C", 1, 8)
+							# _msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=SimpleLangParserInstruction.REDUCE)}' INSTRUCTION --- •]"
+							# print(bold_text(apply_color(211, _msg)), end="\n")
+
+							self.add_instruction(SimpleLangParserInstruction.CALC_STATE, symbol=None)
+							# _msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=SimpleLangParserInstruction.CALC_STATE)}' INSTRUCTION --- •]"
+							# print(bold_text(apply_color(211, _msg)), end="\n")
+						case _:
+							self.set_result(False)
+							self.add_instruction(SimpleLangParserInstruction.HALT)
+							# _msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=SimpleLangParserInstruction.HALT)}' INSTRUCTION --- •]"
+							# print(bold_text(apply_color(211, _msg)), end="\n")
+			case 7:
+				match _type_:
+					case SimpleLangTokenType.NUMBER:
+						self.add_instruction(SimpleLangParserInstruction.SHIFT, 6)
+						# _msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=SimpleLangParserInstruction.SHIFT)}' INSTRUCTION --- •]"
+						# print(bold_text(apply_color(211, _msg)), end="\n")
+
+						self.add_instruction(SimpleLangParserInstruction.CALC_STATE, symbol=None)
+						# _msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=SimpleLangParserInstruction.CALC_STATE)}' INSTRUCTION --- •]"
+						# print(bold_text(apply_color(211, _msg)), end="\n")
+					case _:
+						self.set_result(False)
+						self.add_instruction(SimpleLangParserInstruction.HALT)
+						# _msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=SimpleLangParserInstruction.HALT)}' INSTRUCTION --- •]"
+						# print(bold_text(apply_color(211, _msg)), end="\n")
+			case 8:
 				match _type_:
 					case SimpleLangTokenType.DELIM:
-						_print_text += f"\tTEXT           •---> \"HEY A 'DELIM' IS COMING UP AND WE ARE NOW IN STATE #: 6!\"\n"
-						# self.set_result(False)
-						# self.add_instruction(SimpleLangParserInstruction.HALT)
-						self.__REDUCE__("C", 1, 8)
-						self.add_instruction("CALC_STATE", token=self.peek(offset=0))
-					case _:
+						self.add_instruction(SimpleLangParserInstruction.SHIFT, 7)
+						# _msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=SimpleLangParserInstruction.SHIFT)}' INSTRUCTION --- •]"
+						# print(bold_text(apply_color(211, _msg)), end="\n")
+
+						self.add_instruction(SimpleLangParserInstruction.CALC_STATE, symbol=None)
+						# _msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=SimpleLangParserInstruction.CALC_STATE)}' INSTRUCTION --- •]"
+						# print(bold_text(apply_color(211, _msg)), end="\n")
+					case _:						
 						self.set_result(False)
 						self.add_instruction(SimpleLangParserInstruction.HALT)
+						# _msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=SimpleLangParserInstruction.HALT)}' INSTRUCTION --- •]"
+						# print(bold_text(apply_color(211, _msg)), end="\n")
+			case 10:
+				if ("C", SimpleLangTokenType.DELIM, "C") == tuple(self._symbol_stack):
+					self.add_instruction(SimpleLangParserInstruction.REDUCE, "B", 3, 3)
+					# _msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=SimpleLangParserInstruction.REDUCE)}' INSTRUCTION --- •]"
+					# print(bold_text(apply_color(211, _msg)), end="\n")
+
+					self.add_instruction(SimpleLangParserInstruction.CALC_STATE, symbol=None)
+					# _msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=SimpleLangParserInstruction.CALC_STATE)}' INSTRUCTION --- •]"
+					# print(bold_text(apply_color(211, _msg)), end="\n")
+
+					print(bold_text(apply_color(9, f"HEEEY MUST BE THE MONAYYY!")))
+					# self.set_result(False)
+					# self.add_instruction(SimpleLangParserInstruction.HALT)
 			case _:
 				self.set_result(False)
 				self.add_instruction(SimpleLangParserInstruction.HALT)
-				# self.add_instruction(SimpleLangParserInstruction.MAIN_LOOP)
-		# _print_text += apply_color(226, f"\tSTATE          •---> {self.state}")
-		print(_print_text)
+				# _msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=SimpleLangParserInstruction.HALT)}' INSTRUCTION --- •]"
+				# print(bold_text(apply_color(211, _msg)), end="\n")
 		self._instr_counter += 1
 
 	def __HALT__(self):
