@@ -156,11 +156,20 @@ def init_simple_lang_grammar(grammar):
     # designing and building the whole shebang
 
     """
-    EXAMPLE VALID SENTENCES:
+    EXAMPLE VALID SENTENCES (each enumerated line number is followed by '.)'
+                             meaning the first byte at index zero of the input
+                             occurs directly after the ')'  within an input
+                             text):
 
-        • 123
-        • 36
-        • 593
+        1.)123
+        2.)36
+        3.)593
+
+    OR
+
+        1.)123,
+        2.)36,
+        3.)593
         
 
     """
