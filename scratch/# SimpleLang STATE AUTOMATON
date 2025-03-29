@@ -1,240 +1,282 @@
-# SimpleLang STATE AUTOMATON [v0.0.1]
+• -- SimpleLang STATE AUTOMATON [v0.0.1] -- •
 
-	
-STATE: 0
+	 ___________
+    |           |
+	•__GRAMMAR__•
 
-	 • -------
-	| RULE-ID:     INIT_RULE
-	| RULE-HEAD:   #
-	| RULE-BODY:   ['S']
-	| AUG-RULE-:   [•, 'S']
-	 • -------
+		S  ::= A           (S_rule_1)
+		A  ::= B           (A_rule_1)
+		A  ::= D           (A_rule_2)
+	    B  ::= C           (B_rule_1)
+	    B  ::= C DELIM C   (B_rule_2)
+	    C  ::= NUMBER      (C_rule_1)
+	    D  ::= A C         (D_rule_1)
+	    D  ::= A B         (D_rule_2)
+	    D  ::= B DELIM     (D_rule_3)	    
 
-	 • -------
-	| RULE-ID:     S_rule_1
-	| RULE-HEAD:   S
-	| RULE-BODY:   ['A']
-	| AUG-RULE-:   [•, 'A']
-	 • -------
+	 __________
+    |          |
+    •__STATES__•
 
-	 • -------
-	| RULE-ID:     A_rule_1
-	| RULE-HEAD:   A
-	| RULE-BODY:   ['B']
-	| AUG-RULE-:   [•, 'B']
-	 • -------
+		STATE: 0
 
-	 • -------
-	| RULE-ID:     A_rule_2
-	| RULE-HEAD:   A
-	| RULE-BODY:   ['D']
-	| AUG-RULE-:   [•, 'D']
-	 • -------
+			 • -------
+			| RULE-ID:     INIT_RULE
+			| RULE-HEAD:   #
+			| RULE-BODY:   ['S']
+			| AUG-RULE-:   [•, 'S']
+			 • -------
 
-	 • -------
-	| RULE-ID:     B_rule_1
-	| RULE-HEAD:   B
-	| RULE-BODY:   ['C']
-	| AUG-RULE-:   [•, 'C']
-	 • -------
+			 • -------
+			| RULE-ID:     S_rule_1
+			| RULE-HEAD:   S
+			| RULE-BODY:   ['A']
+			| AUG-RULE-:   [•, 'A']
+			 • -------
 
-	 • -------
-	| RULE-ID:     B_rule_2
-	| RULE-HEAD:   B
-	| RULE-BODY:   ['C', 'DELIM', 'C']
-	| AUG-RULE-:   [•, 'C', 'DELIM', 'C']
-	 • -------
+			 • -------
+			| RULE-ID:     A_rule_1
+			| RULE-HEAD:   A
+			| RULE-BODY:   ['B']
+			| AUG-RULE-:   [•, 'B']
+			 • -------
 
-	 • -------
-	| RULE-ID:     D_rule_1
-	| RULE-HEAD:   D
-	| RULE-BODY:   ['A', 'C']
-	| AUG-RULE-:   [•, 'A', 'C']
-	 • -------
+			 • -------
+			| RULE-ID:     A_rule_2
+			| RULE-HEAD:   A
+			| RULE-BODY:   ['D']
+			| AUG-RULE-:   [•, 'D']
+			 • -------
 
-	 • -------
-	| RULE-ID:     D_rule_2
-	| RULE-HEAD:   D
-	| RULE-BODY:   ['A', 'B']
-	| AUG-RULE-:   [•, 'A', 'B']
-	 • -------
+			 • -------
+			| RULE-ID:     B_rule_1
+			| RULE-HEAD:   B
+			| RULE-BODY:   ['C']
+			| AUG-RULE-:   [•, 'C']
+			 • -------
 
-	 • -------
-	| RULE-ID:     C_rule_1
-	| RULE-HEAD:   C
-	| RULE-BODY:   ['NUMBER']
-	| AUG-RULE-:   [•, 'NUMBER']
-	 • -------
+			 • -------
+			| RULE-ID:     B_rule_2
+			| RULE-HEAD:   B
+			| RULE-BODY:   ['C', 'DELIM', 'C']
+			| AUG-RULE-:   [•, 'C', 'DELIM', 'C']
+			 • -------
 
+			 • -------
+			| RULE-ID:     D_rule_1
+			| RULE-HEAD:   D
+			| RULE-BODY:   ['A', 'C']
+			| AUG-RULE-:   [•, 'A', 'C']
+			 • -------
 
+			 • -------
+			| RULE-ID:     D_rule_2
+			| RULE-HEAD:   D
+			| RULE-BODY:   ['A', 'B']
+			| AUG-RULE-:   [•, 'A', 'B']
+			 • -------
 
-STATE: 1
+			 • -------
+			| RULE-ID:     D_rule_3
+			| RULE-HEAD:   D
+			| RULE-BODY:   ['B', 'DELIM']
+			| AUG-RULE-:   [•, 'B', 'DELIM']
+			 • -------
 
-	 • -------
-	| RULE-ID:     B_rule_1
-	| RULE-HEAD:   B
-	| RULE-BODY:   ['C']
-	| AUG-RULE-:   ['C', •]
-	 • -------
-
-	 • -------
-	| RULE-ID:     B_rule_2
-	| RULE-HEAD:   B
-	| RULE-BODY:   ['C', 'DELIM', 'C']
-	| AUG-RULE-:   ['C', •, 'DELIM', 'C']
-	 • -------
-
-
-
-STATE: 2
-
-	 • -------
-	| RULE-ID:     A_rule_2
-	| RULE-HEAD:   A
-	| RULE-BODY:   ['D']
-	| AUG-RULE-:   ['D', •]
-	 • -------
+			 • -------
+			| RULE-ID:     C_rule_1
+			| RULE-HEAD:   C
+			| RULE-BODY:   ['NUMBER']
+			| AUG-RULE-:   [•, 'NUMBER']
+			 • -------
 
 
 
-STATE: 3
+		STATE: 1
 
-	 • -------
-	| RULE-ID:     A_rule_1
-	| RULE-HEAD:   A
-	| RULE-BODY:   ['B']
-	| AUG-RULE-:   ['B', •]
-	 • -------
-
-
-
-STATE: 4
-
-	 • -------
-	| RULE-ID:     S_rule_1
-	| RULE-HEAD:   S
-	| RULE-BODY:   ['A']
-	| AUG-RULE-:   ['A', •]
-	 • -------
-
-	 • -------
-	| RULE-ID:     D_rule_1
-	| RULE-HEAD:   D
-	| RULE-BODY:   ['A', 'C']
-	| AUG-RULE-:   ['A', •, 'C']
-	 • -------
-
-	 • -------
-	| RULE-ID:     C_rule_1
-	| RULE-HEAD:   C
-	| RULE-BODY:   ['NUMBER']
-	| AUG-RULE-:   [•, 'NUMBER']
-	 • -------
-
-	 • -------
-	| RULE-ID:     D_rule_2
-	| RULE-HEAD:   D
-	| RULE-BODY:   ['A', 'B']
-	| AUG-RULE-:   ['A', •, 'B']
-	 • -------
-
-	 • -------
-	| RULE-ID:     B_rule_1
-	| RULE-HEAD:   B
-	| RULE-BODY:   ['C']
-	| AUG-RULE-:   [•, 'C']
-	 • -------
-
-	 • -------
-	| RULE-ID:     B_rule_2
-	| RULE-HEAD:   B
-	| RULE-BODY:   ['C', 'DELIM', 'C']
-	| AUG-RULE-:   [•, 'C', 'DELIM', 'C']
-	 • -------
+			 • -------
+			| RULE-ID:     INIT_RULE
+			| RULE-HEAD:   #
+			| RULE-BODY:   ['S']
+			| AUG-RULE-:   ['S', •]
+			 • -------
 
 
 
-STATE: 5
+		STATE: 2
 
-	 • -------
-	| RULE-ID:     INIT_RULE
-	| RULE-HEAD:   #
-	| RULE-BODY:   ['S']
-	| AUG-RULE-:   ['S', •]
-	 • -------
-
-
-
-STATE: 6
-
-	 • -------
-	| RULE-ID:     C_rule_1
-	| RULE-HEAD:   C
-	| RULE-BODY:   ['NUMBER']
-	| AUG-RULE-:   ['NUMBER', •]
-	 • -------
+			 • -------
+			| RULE-ID:     C_rule_1
+			| RULE-HEAD:   C
+			| RULE-BODY:   ['NUMBER']
+			| AUG-RULE-:   ['NUMBER', •]
+			 • -------
 
 
 
-STATE: 7
+		STATE: 3
 
-	 • -------
-	| RULE-ID:     B_rule_2
-	| RULE-HEAD:   B
-	| RULE-BODY:   ['C', 'DELIM', 'C']
-	| AUG-RULE-:   ['C', 'DELIM', •, 'C']
-	 • -------
-
-	 • -------
-	| RULE-ID:     C_rule_1
-	| RULE-HEAD:   C
-	| RULE-BODY:   ['NUMBER']
-	| AUG-RULE-:   [•, 'NUMBER']
-	 • -------
+			 • -------
+			| RULE-ID:     A_rule_2
+			| RULE-HEAD:   A
+			| RULE-BODY:   ['D']
+			| AUG-RULE-:   ['D', •]
+			 • -------
 
 
 
-STATE: 8
+		STATE: 4
 
-	 • -------
-	| RULE-ID:     D_rule_1
-	| RULE-HEAD:   D
-	| RULE-BODY:   ['A', 'C']
-	| AUG-RULE-:   ['A', 'C', •]
-	 • -------
+			 • -------
+			| RULE-ID:     A_rule_1
+			| RULE-HEAD:   A
+			| RULE-BODY:   ['B']
+			| AUG-RULE-:   ['B', •]
+			 • -------
 
-	 • -------
-	| RULE-ID:     B_rule_1
-	| RULE-HEAD:   B
-	| RULE-BODY:   ['C']
-	| AUG-RULE-:   ['C', •]
-	 • -------
-
-	 • -------
-	| RULE-ID:     B_rule_2
-	| RULE-HEAD:   B
-	| RULE-BODY:   ['C', 'DELIM', 'C']
-	| AUG-RULE-:   ['C', •, 'DELIM', 'C']
-	 • -------
+			 • -------
+			| RULE-ID:     D_rule_3
+			| RULE-HEAD:   D
+			| RULE-BODY:   ['B', 'DELIM']
+			| AUG-RULE-:   ['B', •, 'DELIM']
+			 • -------
 
 
 
-STATE: 9
+		STATE: 5
 
-	 • -------
-	| RULE-ID:     D_rule_2
-	| RULE-HEAD:   D
-	| RULE-BODY:   ['A', 'B']
-	| AUG-RULE-:   ['A', 'B', •]
-	 • -------
+			 • -------
+			| RULE-ID:     B_rule_1
+			| RULE-HEAD:   B
+			| RULE-BODY:   ['C']
+			| AUG-RULE-:   ['C', •]
+			 • -------
+
+			 • -------
+			| RULE-ID:     B_rule_2
+			| RULE-HEAD:   B
+			| RULE-BODY:   ['C', 'DELIM', 'C']
+			| AUG-RULE-:   ['C', •, 'DELIM', 'C']
+			 • -------
 
 
 
-STATE: 10
+		STATE: 6
 
-	 • -------
-	| RULE-ID:     B_rule_2
-	| RULE-HEAD:   B
-	| RULE-BODY:   ['C', 'DELIM', 'C']
-	| AUG-RULE-:   ['C', 'DELIM', 'C', •]
-	 • -------
+			 • -------
+			| RULE-ID:     S_rule_1
+			| RULE-HEAD:   S
+			| RULE-BODY:   ['A']
+			| AUG-RULE-:   ['A', •]
+			 • -------
+
+			 • -------
+			| RULE-ID:     D_rule_1
+			| RULE-HEAD:   D
+			| RULE-BODY:   ['A', 'C']
+			| AUG-RULE-:   ['A', •, 'C']
+			 • -------
+
+			 • -------
+			| RULE-ID:     C_rule_1
+			| RULE-HEAD:   C
+			| RULE-BODY:   ['NUMBER']
+			| AUG-RULE-:   [•, 'NUMBER']
+			 • -------
+
+			 • -------
+			| RULE-ID:     D_rule_2
+			| RULE-HEAD:   D
+			| RULE-BODY:   ['A', 'B']
+			| AUG-RULE-:   ['A', •, 'B']
+			 • -------
+
+			 • -------
+			| RULE-ID:     B_rule_1
+			| RULE-HEAD:   B
+			| RULE-BODY:   ['C']
+			| AUG-RULE-:   [•, 'C']
+			 • -------
+
+			 • -------
+			| RULE-ID:     B_rule_2
+			| RULE-HEAD:   B
+			| RULE-BODY:   ['C', 'DELIM', 'C']
+			| AUG-RULE-:   [•, 'C', 'DELIM', 'C']
+			 • -------
+
+
+
+		STATE: 7
+
+			 • -------
+			| RULE-ID:     D_rule_3
+			| RULE-HEAD:   D
+			| RULE-BODY:   ['B', 'DELIM']
+			| AUG-RULE-:   ['B', 'DELIM', •]
+			 • -------
+
+
+
+		STATE: 8
+
+			 • -------
+			| RULE-ID:     B_rule_2
+			| RULE-HEAD:   B
+			| RULE-BODY:   ['C', 'DELIM', 'C']
+			| AUG-RULE-:   ['C', 'DELIM', •, 'C']
+			 • -------
+
+			 • -------
+			| RULE-ID:     C_rule_1
+			| RULE-HEAD:   C
+			| RULE-BODY:   ['NUMBER']
+			| AUG-RULE-:   [•, 'NUMBER']
+			 • -------
+
+
+
+		STATE: 9
+
+			 • -------
+			| RULE-ID:     D_rule_2
+			| RULE-HEAD:   D
+			| RULE-BODY:   ['A', 'B']
+			| AUG-RULE-:   ['A', 'B', •]
+			 • -------
+
+
+
+		STATE: 10
+
+			 • -------
+			| RULE-ID:     D_rule_1
+			| RULE-HEAD:   D
+			| RULE-BODY:   ['A', 'C']
+			| AUG-RULE-:   ['A', 'C', •]
+			 • -------
+
+			 • -------
+			| RULE-ID:     B_rule_1
+			| RULE-HEAD:   B
+			| RULE-BODY:   ['C']
+			| AUG-RULE-:   ['C', •]
+			 • -------
+
+			 • -------
+			| RULE-ID:     B_rule_2
+			| RULE-HEAD:   B
+			| RULE-BODY:   ['C', 'DELIM', 'C']
+			| AUG-RULE-:   ['C', •, 'DELIM', 'C']
+			 • -------
+
+
+
+		STATE: 11
+
+			 • -------
+			| RULE-ID:     B_rule_2
+			| RULE-HEAD:   B
+			| RULE-BODY:   ['C', 'DELIM', 'C']
+			| AUG-RULE-:   ['C', 'DELIM', 'C', •]
+			 • -------

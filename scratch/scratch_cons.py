@@ -1,6 +1,13 @@
 from enum import StrEnum, IntEnum, auto
 
 
+class LanguageType(StrEnum):
+
+    SIMPLE_LANG = "SIMPLE_LANG"
+    DATE_LANG = "DATE_LANG"
+    TODO_LANG = "TODO_LANG"
+
+
 class PyParseLogName(StrEnum):
 
     SCRATCH_FILENAME = "scratch_logfile.log"

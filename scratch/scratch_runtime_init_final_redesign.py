@@ -68,7 +68,11 @@ from .scratch_runtime_setup import (
 )
 from .scratch_shell_init import initialize_shell
 from .scratch_logging_init import init_logging
-from .scratch_cons import PyParseLoggerID, ParserActionType
+from .scratch_cons import (
+	LanguageType,
+	PyParseLoggerID,
+	ParserActionType
+)
 from .utils import (
 	display_result,
 	display_item_states,
@@ -288,9 +292,12 @@ def final_main(debug_mode=True):
 	with open(_simple_lang_input_filepath, "r", newline="") as _in_file:
 		_test_input = _in_file.read()
 
+
+	__LANG_TYPE__ = LanguageType.SIMPLE_LANG
+	__GRAMMAR_VERSION__ = "v0_0_1"
+	__LANG_INFO__ = f"{__LANG_TYPE__.lower()}_{__GRAMMAR_VERSION__}"
 	__GRAMMAR__ = test_grammar_factory()
-	_GRAMMAR_VERSION_ = "simple_lang_v0_0_1"
-	init_grammar(__GRAMMAR__, _GRAMMAR_VERSION_)
+	init_grammar(__GRAMMAR__, __LANG_INFO__)
 
 	# for state, rule in __GRAMMAR__.generate_states().items():
 	# 	print(bold_text(apply_color(214, f"STATE: {state}")))
@@ -352,75 +359,6 @@ def final_main(debug_mode=True):
 	print(center_text(bold_text(apply_color(214, f"PARSE IS...\n"))))
 	print(center_text(bold_text(apply_color(10, f"• --- VALID --- •")) if _pretval else bold_text(apply_color(9, f"• --- INVALID --- •"))))
 	print()
-
-
-	"""
-	# # print()
-	# # for i in _pretval:
-	# # 	print(i)
-
-
-	# _symbol_stack = deque()
-	# _state_stack = deque()
-
-	# _symbol_stack.append(_token_context_[0])
-	# _state_stack.append(_ERROR_STATE_)
-
-	# parser.register_state(0, lambda _par_, _par_context_: _par_.submit_action)
-
-
-
-
-	# _test_list = []
-	# _test_input = "@TODO<This is the body of a todo or note>"
-	# _token_context = __TOKENIZER__.tokenize(_test_input)
-	# print(f"TOKEN CONTEXT:")
-	# for i in _token_context:
-	# 	print(f"\t{i}")
-	# print()
-	# __PARSER__ = todo_lang_parser_factory(debug_mode=debug_mode)
-	
-
-	# _handlers = {
-	# 	"ADD": lambda x, y: x + y,
-	# 	"SUB": lambda x, y: x - y,
-	# 	"SQUARE": lambda x: x * x
-	# }
-	# _test_list = ["SQUARE", 3, 77]
-
-	# _test_pointer = 0
-	# _test_instruction = _test_list[_test_pointer]
-	# _test_instruction_handler = _handlers[_test_instruction]
-
-	# if _test_instruction == "ADD":
-	# 	_until = 2
-	# elif _test_instruction == "SUB":
-	# 	_until = 2
-	# elif _test_instruction == "SQUARE":
-	# 	_until = 1
-	# else:
-	# 	_error_details = f"INVALID INSTRUCTION COMPOSITION; CHECK INSTRUCTIONS AND TRY AGAIN..."
-	# 	raise RuntimeError(_error_details)
-
-
-
-	# if _test_instruction == "ADD":
-	# 	# ADD
-	# 	_slice = slice(_test_pointer + 1, _until + 1)
-	# elif _test_instruction == "SUB":
-	# 	# SUBTRACT
-	# 	_slice = slice(_test_pointer + 1, _until + 1)
-	# elif _test_instruction == "SQUARE":
-	# 	# SQUARE
-	# 	_slice = slice(_test_pointer + 1, _until + 1)
-	# else:
-	# 	_error_details = f"INVALID INSTRUCTION COMPOSITION; CHECK INSTRUCTIONS AND TRY AGAIN..."
-	# 	raise RuntimeError(_error_details)
-
-	# _args = _test_list[_slice]
-	# print(f"'{_test_instruction}' RESULT ---> {_test_instruction_handler(*_args)}")
-	print()
-	"""
 
 
 if __name__ == "__main__":

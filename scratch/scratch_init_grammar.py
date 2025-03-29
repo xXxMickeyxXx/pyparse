@@ -1,5 +1,6 @@
 from .grammar_rule import GrammarRule
 from .grammar_designing import Grammar
+from .scratch_cons import LanguageType
 
 
 def test_grammar_factory():
@@ -152,10 +153,15 @@ def init_dateLang_grammar_v0_0_1(grammar):
 
 
 def init_simple_lang_grammar(grammar):
-    # Simple-lang grammar - a super small grammar spec to truly begin
-    # designing and building the whole shebang
-
     """
+    Simple-lang grammar - a super small grammar spec to truly begin
+    designing and building this whole shebang. This language is essentialy
+    a summation language where each number, separated by a (consistent)
+    delimiter (either a newline, '\\n', or a comma, ',') gets added to a
+    running total, wich gets printed out at program exit (NOTE: language
+    is left-associative).
+    
+
     EXAMPLE VALID SENTENCES (each enumerated line number is followed by '.)'
                              meaning the first byte at index zero of the input
                              occurs directly after the ')'  within an input
@@ -165,12 +171,24 @@ def init_simple_lang_grammar(grammar):
         2.)36
         3.)593
 
+    which prints out upon exit:
+        
+        #(EMPTY LINE)
+        #TOTAL: 752
+        #(EMPTY LINE)
+
     OR
 
         1.)123,
-        2.)36,
+        2.)1034,
         3.)593
+
+    which prints out upon exit:
         
+        #(EMPTY LINE)
+        #TOTAL: 1750
+        #(EMPTY LINE)
+
 
     """
 
@@ -183,6 +201,7 @@ def init_simple_lang_grammar(grammar):
     grammar.create_rule("C", ["NUMBER"], rule_id="C_rule_1")
     grammar.create_rule("D", ["A", "C"], rule_id="D_rule_1")
     grammar.create_rule("D", ["A", "B"], rule_id="D_rule_2")
+    grammar.create_rule("D", ["B", "DELIM"], rule_id="D_rule_3")
 
 
 def init_todo_grammar_v0_0_1(grammar):
