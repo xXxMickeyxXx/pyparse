@@ -320,7 +320,7 @@ def final_main(debug_mode=True):
 	_simple_lang_tokenizer_handler = SimpleLangTokenizerHandler()
 	__TOKENIZER__ = Tokenizer(handler=_simple_lang_tokenizer_handler)
 	_token_context_ = __TOKENIZER__.tokenize(_test_input)
-	# _token_context_ = [i for i in _token_context_ if i.token_type != SimpleLangTokenType.SKIP]
+	_token_context_ = [i for i in _token_context_ if i.token_type != SimpleLangTokenType.SKIP]
 	print()
 	print(bold_text(apply_color(214, f" INPUT:")), end="\n")
 	print(f"    |")
@@ -354,8 +354,8 @@ def final_main(debug_mode=True):
 
 
 	_pretval = __PARSER__.parse(_token_context_)
-	for _ in range(3):
-		print()
+	print()
+	print()
 	print(center_text(bold_text(apply_color(214, f"PARSE IS...\n"))))
 	print(center_text(bold_text(apply_color(10, f"• --- VALID --- •")) if _pretval else bold_text(apply_color(9, f"• --- INVALID --- •"))))
 	print()

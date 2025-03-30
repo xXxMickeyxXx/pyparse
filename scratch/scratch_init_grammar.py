@@ -195,13 +195,10 @@ def init_simple_lang_grammar(grammar):
     grammar.create_rule("#", ["S"], rule_id="INIT_RULE")
     grammar.create_rule("S", ["A"], rule_id="S_rule_1")
     grammar.create_rule("A", ["B"], rule_id="A_rule_1")
-    grammar.create_rule("A", ["D"], rule_id="A_rule_2")
     grammar.create_rule("B", ["C"], rule_id="B_rule_1")
     grammar.create_rule("B", ["C", "DELIM", "C"], rule_id="B_rule_2")
     grammar.create_rule("C", ["NUMBER"], rule_id="C_rule_1")
-    grammar.create_rule("D", ["A", "C"], rule_id="D_rule_1")
-    grammar.create_rule("D", ["A", "B"], rule_id="D_rule_2")
-    grammar.create_rule("D", ["B", "DELIM"], rule_id="D_rule_3")
+    grammar.create_rule("C", ["B", "DELIM"], rule_id="C_rule_2")
 
 
 def init_todo_grammar_v0_0_1(grammar):

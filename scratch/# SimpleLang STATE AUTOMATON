@@ -42,13 +42,6 @@
 			 • -------
 
 			 • -------
-			| RULE-ID:     A_rule_2
-			| RULE-HEAD:   A
-			| RULE-BODY:   ['D']
-			| AUG-RULE-:   [•, 'D']
-			 • -------
-
-			 • -------
 			| RULE-ID:     B_rule_1
 			| RULE-HEAD:   B
 			| RULE-BODY:   ['C']
@@ -63,69 +56,22 @@
 			 • -------
 
 			 • -------
-			| RULE-ID:     D_rule_1
-			| RULE-HEAD:   D
-			| RULE-BODY:   ['A', 'C']
-			| AUG-RULE-:   [•, 'A', 'C']
-			 • -------
-
-			 • -------
-			| RULE-ID:     D_rule_2
-			| RULE-HEAD:   D
-			| RULE-BODY:   ['A', 'B']
-			| AUG-RULE-:   [•, 'A', 'B']
-			 • -------
-
-			 • -------
-			| RULE-ID:     D_rule_3
-			| RULE-HEAD:   D
-			| RULE-BODY:   ['B', 'DELIM']
-			| AUG-RULE-:   [•, 'B', 'DELIM']
-			 • -------
-
-			 • -------
 			| RULE-ID:     C_rule_1
 			| RULE-HEAD:   C
 			| RULE-BODY:   ['NUMBER']
 			| AUG-RULE-:   [•, 'NUMBER']
 			 • -------
 
+			 • -------
+			| RULE-ID:     C_rule_2
+			| RULE-HEAD:   C
+			| RULE-BODY:   ['B', 'DELIM']
+			| AUG-RULE-:   [•, 'B', 'DELIM']
+			 • -------
+
 
 
 		STATE: 1
-
-			 • -------
-			| RULE-ID:     INIT_RULE
-			| RULE-HEAD:   #
-			| RULE-BODY:   ['S']
-			| AUG-RULE-:   ['S', •]
-			 • -------
-
-
-
-		STATE: 2
-
-			 • -------
-			| RULE-ID:     C_rule_1
-			| RULE-HEAD:   C
-			| RULE-BODY:   ['NUMBER']
-			| AUG-RULE-:   ['NUMBER', •]
-			 • -------
-
-
-
-		STATE: 3
-
-			 • -------
-			| RULE-ID:     A_rule_2
-			| RULE-HEAD:   A
-			| RULE-BODY:   ['D']
-			| AUG-RULE-:   ['D', •]
-			 • -------
-
-
-
-		STATE: 4
 
 			 • -------
 			| RULE-ID:     A_rule_1
@@ -135,15 +81,15 @@
 			 • -------
 
 			 • -------
-			| RULE-ID:     D_rule_3
-			| RULE-HEAD:   D
+			| RULE-ID:     C_rule_2
+			| RULE-HEAD:   C
 			| RULE-BODY:   ['B', 'DELIM']
 			| AUG-RULE-:   ['B', •, 'DELIM']
 			 • -------
 
 
 
-		STATE: 5
+		STATE: 2
 
 			 • -------
 			| RULE-ID:     B_rule_1
@@ -161,7 +107,7 @@
 
 
 
-		STATE: 6
+		STATE: 3
 
 			 • -------
 			| RULE-ID:     S_rule_1
@@ -170,55 +116,42 @@
 			| AUG-RULE-:   ['A', •]
 			 • -------
 
+
+
+		STATE: 4
+
 			 • -------
-			| RULE-ID:     D_rule_1
-			| RULE-HEAD:   D
-			| RULE-BODY:   ['A', 'C']
-			| AUG-RULE-:   ['A', •, 'C']
+			| RULE-ID:     INIT_RULE
+			| RULE-HEAD:   #
+			| RULE-BODY:   ['S']
+			| AUG-RULE-:   ['S', •]
 			 • -------
+
+
+
+		STATE: 5
 
 			 • -------
 			| RULE-ID:     C_rule_1
 			| RULE-HEAD:   C
 			| RULE-BODY:   ['NUMBER']
-			| AUG-RULE-:   [•, 'NUMBER']
-			 • -------
-
-			 • -------
-			| RULE-ID:     D_rule_2
-			| RULE-HEAD:   D
-			| RULE-BODY:   ['A', 'B']
-			| AUG-RULE-:   ['A', •, 'B']
-			 • -------
-
-			 • -------
-			| RULE-ID:     B_rule_1
-			| RULE-HEAD:   B
-			| RULE-BODY:   ['C']
-			| AUG-RULE-:   [•, 'C']
-			 • -------
-
-			 • -------
-			| RULE-ID:     B_rule_2
-			| RULE-HEAD:   B
-			| RULE-BODY:   ['C', 'DELIM', 'C']
-			| AUG-RULE-:   [•, 'C', 'DELIM', 'C']
+			| AUG-RULE-:   ['NUMBER', •]
 			 • -------
 
 
 
-		STATE: 7
+		STATE: 6
 
 			 • -------
-			| RULE-ID:     D_rule_3
-			| RULE-HEAD:   D
+			| RULE-ID:     C_rule_2
+			| RULE-HEAD:   C
 			| RULE-BODY:   ['B', 'DELIM']
 			| AUG-RULE-:   ['B', 'DELIM', •]
 			 • -------
 
 
 
-		STATE: 8
+		STATE: 7
 
 			 • -------
 			| RULE-ID:     B_rule_2
@@ -234,26 +167,47 @@
 			| AUG-RULE-:   [•, 'NUMBER']
 			 • -------
 
+			 • -------
+			| RULE-ID:     C_rule_2
+			| RULE-HEAD:   C
+			| RULE-BODY:   ['B', 'DELIM']
+			| AUG-RULE-:   [•, 'B', 'DELIM']
+			 • -------
+
+			 • -------
+			| RULE-ID:     B_rule_1
+			| RULE-HEAD:   B
+			| RULE-BODY:   ['C']
+			| AUG-RULE-:   [•, 'C']
+			 • -------
+
+			 • -------
+			| RULE-ID:     B_rule_2
+			| RULE-HEAD:   B
+			| RULE-BODY:   ['C', 'DELIM', 'C']
+			| AUG-RULE-:   [•, 'C', 'DELIM', 'C']
+			 • -------
+
+
+
+		STATE: 8
+
+			 • -------
+			| RULE-ID:     C_rule_2
+			| RULE-HEAD:   C
+			| RULE-BODY:   ['B', 'DELIM']
+			| AUG-RULE-:   ['B', •, 'DELIM']
+			 • -------
+
 
 
 		STATE: 9
 
 			 • -------
-			| RULE-ID:     D_rule_2
-			| RULE-HEAD:   D
-			| RULE-BODY:   ['A', 'B']
-			| AUG-RULE-:   ['A', 'B', •]
-			 • -------
-
-
-
-		STATE: 10
-
-			 • -------
-			| RULE-ID:     D_rule_1
-			| RULE-HEAD:   D
-			| RULE-BODY:   ['A', 'C']
-			| AUG-RULE-:   ['A', 'C', •]
+			| RULE-ID:     B_rule_2
+			| RULE-HEAD:   B
+			| RULE-BODY:   ['C', 'DELIM', 'C']
+			| AUG-RULE-:   ['C', 'DELIM', 'C', •]
 			 • -------
 
 			 • -------
@@ -268,15 +222,4 @@
 			| RULE-HEAD:   B
 			| RULE-BODY:   ['C', 'DELIM', 'C']
 			| AUG-RULE-:   ['C', •, 'DELIM', 'C']
-			 • -------
-
-
-
-		STATE: 11
-
-			 • -------
-			| RULE-ID:     B_rule_2
-			| RULE-HEAD:   B
-			| RULE-BODY:   ['C', 'DELIM', 'C']
-			| AUG-RULE-:   ['C', 'DELIM', 'C', •]
 			 • -------

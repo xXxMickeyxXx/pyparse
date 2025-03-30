@@ -1,3 +1,17 @@
+"""
+	 ____________
+    |            |
+	•__THOUGHTS__•
+
+		A.) Create and use a data structure which represents the graph of the grammar
+		 	and it's various state transitions (perhaps something like an DFA)
+
+
+
+
+"""
+
+
 from random import randrange
 from enum import StrEnum, IntEnum, auto
 from collections import deque
@@ -39,6 +53,7 @@ class SimpleLangParserInstruction(IntEnum):
 	REDUCE = auto()
 	ACCEPT = auto()
 	ERROR = auto()
+	CONFLICT = auto()
 
 	# Test instructions
 	PRINT = auto()
@@ -71,7 +86,7 @@ class SimpleLangParserInstruction(IntEnum):
 class SimpleLangTokenType(StrEnum):
 	INVALID = "INVALID"
 	SKIP = ""
-	END_SYMBOL = "END_SYMBOL"
+	END_SYMBOL = "#"
 	NUMBER = "NUMBER"
 	DELIM = "DELIM"
 
@@ -95,11 +110,15 @@ class SimpleLangTokenizerHandler(LexHandler):
 			else:
 				match _current_char:
 					case "\n":
-						_add_token_alias(SimpleLangTokenType.DELIM, r"\n", token_id=f"NEWLINE_DLIM_{_counter}")
+						_add_token_alias(SimpleLangTokenType.SKIP, "", token_id=f"NEWLINE_DLIM_{_counter}")
 						_tokenizer_advance()
+						# _add_token_alias(SimpleLangTokenType.DELIM, r"\n", token_id=f"NEWLINE_DLIM_{_counter}")
+						# _tokenizer_advance()
 					case "\t":
-						_add_token_alias(SimpleLangTokenType.DELIM, r"\t", token_id=f"TAB_DLIM_{_counter}")
+						_add_token_alias(SimpleLangTokenType.SKIP, "", token_id=f"TAB_DLIM_	{_counter}")
 						_tokenizer_advance()
+						# _add_token_alias(SimpleLangTokenType.DELIM, r"\t", token_id=f"TAB_DLIM_{_counter}")
+						# _tokenizer_advance()
 					case ",":
 						_add_token_alias(SimpleLangTokenType.DELIM, ",", token_id=f"COMMA_DLIM_{_counter}")
 						_tokenizer_advance()
@@ -123,7 +142,7 @@ class SimpleLangTokenizerHandler(LexHandler):
 						_add_token_alias(SimpleLangTokenType.INVALID, _current_char, token_id=f"INVALID ---> {_counter}")
 						_tokenizer_advance()
 			_counter += 1
-		_add_token_alias(SimpleLangTokenType.END_SYMBOL, "$", token_id="END_SYMBOL")
+		_add_token_alias(SimpleLangTokenType.END_SYMBOL, "#", token_id="END_SYMBOL")
 
 
 class SimpleLangTableBuilder(TableBuilder):
@@ -227,6 +246,29 @@ class SimpleLangTableBuilder(TableBuilder):
 		return self._result"""
 
 
+class SimpleLangParseTable(ParseTable):
+
+	def __init__(self):
+		super().__init__(table_id=LanguageType.SIMPLE_LANG)
+		self.add_action((0, SimpleLangTokenType.NUMBER), (SimpleLangParserInstruction.SHIFT, 5))
+		self.add_action((0, SimpleLangTokenType.DELIM), (SimpleLangParserInstruction.ERROR, None))
+		
+
+		self.add_action((2, SimpleLangTokenType.DELIM), (SimpleLangParserInstruction.CONFLICT, (7, ("B", 3, 8))))
+
+
+		self.add_action((5, SimpleLangTokenType.DELIM), (SimpleLangParserInstruction.REDUCE, "C", 1, 2))
+		
+
+		self.add_action((6, SimpleLangTokenType.NUMBER), (SimpleLangParserInstruction.REDUCE, "B", 2, 8))
+
+
+		self.add_action((7, SimpleLangTokenType.NUMBER), (SimpleLangParserInstruction.SHIFT, 5))
+		
+
+		self.add_action((8, SimpleLangTokenType.DELIM), (SimpleLangParserInstruction.SHIFT, 6))
+
+
 class PyParser:
 
 	__slots__ = ("_executor", "_parser_id", "_args", "_context", "_result", "_result_set", "_quit_flag")
@@ -298,12 +340,6 @@ class PyParser:
 		return self._executor(self)
 
 
-class SimpleLangParseTable(ParseTable):
-
-	def __init__(self):
-		super().__init__(table_id=LanguageType.SIMPLE_LANG)
-
-
 class SimpleLangParser(PyParser):
 
 	def __init__(self, executor=None, delim="\n", init_state=0, invalid_instruction=SimpleLangParserInstruction.HALT, parser_id=None):
@@ -315,6 +351,7 @@ class SimpleLangParser(PyParser):
 		self._args = ((), {})
 		self._invalid_instr = invalid_instruction
 
+		self._parse_table = SimpleLangParseTable()
 		self._delim = delim
 		self._state = (None, None)
 		self._state_stack = []
@@ -345,6 +382,10 @@ class SimpleLangParser(PyParser):
 	@property
 	def state(self):
 		return self._state
+
+	@property
+	def parse_table(self):
+		return self._parse_table
 
 	@staticmethod
 	def __EXECUTOR__(parser):
@@ -387,11 +428,12 @@ class SimpleLangParser(PyParser):
 		self.add_handler(SimpleLangParserInstruction.HALT, self.__HALT__)
 		self.add_handler(SimpleLangParserInstruction.INIT, self.__INIT__)
 		self.add_handler(SimpleLangParserInstruction.MAIN_LOOP, self.__MAIN_LOOP__)
+		self.add_handler(SimpleLangParserInstruction.ERROR, self.__ERROR__)
 		self.add_handler(SimpleLangParserInstruction.SHIFT, self.__SHIFT__)
 		self.add_handler(SimpleLangParserInstruction.REDUCE, self.__REDUCE__)
 		self.add_handler(SimpleLangParserInstruction.CALC_STATE, self.calculate_state)
 		self.add_handler(SimpleLangParserInstruction.PRINT, self.__PRINT__)
-
+		self.add_handler(SimpleLangParserInstruction.CONFLICT, self.__CONFLICT__)
 
 		# Add initial instruction(s)
 		self.add_instruction(SimpleLangParserInstruction.INIT)
@@ -407,6 +449,9 @@ class SimpleLangParser(PyParser):
 
 	def peek(self, offset=0):
 		return self.context[offset]
+
+	def __ERROR__(self, *args, **kwargs):
+		raise RuntimeError(*args, **kwargs)
 
 	def __PRINT__(self, *args, **kwargs):
 		print(*args, **kwargs)
@@ -435,6 +480,14 @@ class SimpleLangParser(PyParser):
 		self.add_instruction(SimpleLangParserInstruction.MAIN_LOOP)
 		self._instr_counter += 1
 
+	def __CONFLICT__(self, logic):
+		print(f"SHIFT LOGIC   ---> {logic[0]}")
+		print(f"REDUCE LOGIC  ---> {logic[1]}")
+		if len(self._symbol_stack) <= 1 and self._symbol_stack[-1] == "C":
+			self.add_instruction(SimpleLangParserInstruction.SHIFT, logic[0])
+		elif len(self._symbol_stack) >= 3:
+			self.add_instruction(SimpleLangParserInstruction.REDUCE, *logic[1])
+		
 	def __SHIFT__(self, state_int):
 		_next_token = self.context.pop(0)
 		_next_token_type = _next_token.token_type
@@ -469,128 +522,145 @@ class SimpleLangParser(PyParser):
 		print(f"\t• STATE STACK  ---> {self._state_stack}")
 		print(f"\t• SYMBOL STACK ---> {self._symbol_stack}")
 		print(f"\t• NEXT:\n             |\n             • {self.peek(offset=0)}\n             |\n             • {_type_}")
+
+		_action, *args = self.parse_table.action((_state_int, _type_), default=(SimpleLangParserInstruction.ERROR, None))
+		print()
+		print(f"\t• ACTION ---> {SimpleLangParserInstruction.INSTR(int_val=_action)}")
+		print(f"\t• ARGS   ---> {args}")
 		print()
 
-		# if _type_ == SimpleLangTokenType.END_SYMBOL:
-		# 	self.set_result(False)
-		# 	self.add_instruction(SimpleLangParserInstruction.HALT)
-		# 	return
-
-		match _state_int:
-			case None:
-				self.__SHIFT__(self._init_state)
-			case 0:
-				match _type_:
-					case SimpleLangTokenType.NUMBER:
-						self.add_instruction(SimpleLangParserInstruction.SHIFT, 2)
-					case _:
-						self.set_result(False)
-						self.add_instruction(SimpleLangParserInstruction.HALT)
-			case 1:
-				match _type_:
-					case SimpleLangTokenType.END_SYMBOL:
-						self.set_result(True)
-						self.add_instruction(SimpleLangParserInstruction.HALT)
-			case 2:
-				if self._symbol_stack[-1] == SimpleLangTokenType.NUMBER:
-					
-				match _type_:
-					case SimpleLangTokenType.DELIM:
-						self.add_instruction(SimpleLangParserInstruction.REDUCE, "C", 1, 5)
-					case SimpleLangTokenType.END_SYMBOL:
-						self.add_instruction(SimpleLangParserInstruction.REDUCE, "C", 1, 5)
-					case _:
-						self.set_result(False)
-						self.add_instruction(SimpleLangParserInstruction.HALT)
-			case 3:
-				match _type_:
-					case SimpleLangTokenType.DELIM:
-						if self._symbol_stack[-1] == "B":
-							self.add_instruction(SimpleLangParserInstruction.SHIFT, 7)
-							self.add_instruction(SimpleLangParserInstruction.REDUCE, "D", 2, 3)
-						else:
-							self.set_result(False)
-							self.add_instruction(SimpleLangParserInstruction.HALT)
-
-					case _:
-						self.set_result(False)
-						self.add_instruction(SimpleLangParserInstruction.HALT)
-			case 4:
-				match _type_:
-					case SimpleLangTokenType.NUMBER:
-						self.set_result(False)
-						self.add_instruction(SimpleLangParserInstruction.HALT)
-					case "C":
-						self.set_result(False)
-						self.add_instruction(SimpleLangParserInstruction.HALT)
-					case SimpleLangTokenType.DELIM:
-						if self._symbol_stack[-1] == "B":
-							self.add_instruction(SimpleLangParserInstruction.SHIFT, 7)
-						# self.set_result(False)
-						# self.add_instruction(SimpleLangParserInstruction.HALT)
-					case SimpleLangTokenType.END_SYMBOL:
-						self.add_instruction(SimpleLangParserInstruction.REDUCE, "A", 1, 6)
-					case _:
-						self.set_result(False)
-						self.add_instruction(SimpleLangParserInstruction.HALT)
-			case 5:
-				match _type_:
-					case SimpleLangTokenType.DELIM:
-						if tuple(self._symbol_stack) == ("C", SimpleLangTokenType.DELIM, "C"):
-							self.add_instruction(SimpleLangParserInstruction.REDUCE, "C", 3, 5)
-						else:
-							self.add_instruction(SimpleLangParserInstruction.SHIFT, 11)
-					case SimpleLangTokenType.END_SYMBOL:
-						self.add_instruction(SimpleLangParserInstruction.REDUCE, "B", 3, 4)
-					case _:
-						self.set_result(False)
-						self.add_instruction(SimpleLangParserInstruction.HALT)
-			case 6:
-				if len(self._symbol_stack) == 3 and self._symbol_stack[-1] == SimpleLangTokenType.NUMBER:
-					self.add_instruction(SimpleLangParserInstruction.REDUCE, "C", 1, 10)
-				else:
-					match _type_:
-						case SimpleLangTokenType.DELIM:
-							self.add_instruction(SimpleLangParserInstruction.REDUCE, "C", 1, 8)
-						case SimpleLangTokenType.END_SYMBOL:
-							self.add_instruction(SimpleLangParserInstruction.REDUCE, "S", 1, 1)
-						case _:
-							self.set_result(False)
-							self.add_instruction(SimpleLangParserInstruction.HALT)
-			case 7:
-				match _type_:
-					case SimpleLangTokenType.NUMBER:
-						self.add_instruction(SimpleLangParserInstruction.REDUCE, "B", 2, 4)
-						# self.add_instruction(SimpleLangParserInstruction.SHIFT, 6)
-					case _:
-						self.set_result(False)
-						self.add_instruction(SimpleLangParserInstruction.HALT)
-			case 8:
-				match _type_:
-					case SimpleLangTokenType.DELIM:
-						self.add_instruction(SimpleLangParserInstruction.SHIFT, 7)
-					case _:						
-						self.set_result(False)
-						self.add_instruction(SimpleLangParserInstruction.HALT)
-			case 10:
-				match tuple(self._symbol_stack):
-					case ("C", SimpleLangTokenType.DELIM, "C"):
-						self.add_instruction(SimpleLangParserInstruction.REDUCE, "B", 3, 11)
-					case _:
-						self.set_result(False)
-						self.add_instruction(SimpleLangParserInstruction.HALT)
-			case 11:
-				match _type_:
-					case SimpleLangTokenType.NUMBER:
-						self.add_instruction(SimpleLangParserInstruction.SHIFT, 2)
-					# case SimpleLangTokenType.DELIM:
-					# 	self.add_instruction(SimpleLangParserInstruction.SHIFT, 7)
-					case _:
-						self.set_result(False)
-						self.add_instruction(SimpleLangParserInstruction.HALT)
+		match _action:
+			case SimpleLangParserInstruction.SHIFT:
+				self.add_instruction(SimpleLangParserInstruction.SHIFT, *args)
+			case SimpleLangParserInstruction.REDUCE:
+				self.add_instruction(SimpleLangParserInstruction.REDUCE, *args)
+			case SimpleLangParserInstruction.CONFLICT:
+				self.add_instruction(SimpleLangParserInstruction.CONFLICT, *args)
+			case SimpleLangParserInstruction.ERROR:
+				self.set_result(False)
+				self.add_instruction(SimpleLangParserInstruction.HALT)
+			case SimpleLangParserInstruction.ACCEPT:
+				self.set_result(True)
+				self.add_instruction(SimpleLangParserInstruction.HALT)
 			case _:
 				self.set_result(False)
 				self.add_instruction(SimpleLangParserInstruction.HALT)
+
+		# match _state_int:
+		# 	case None:
+		# 		self.__SHIFT__(self._init_state)
+		# 	case 0:
+		# 		match _type_:
+		# 			case SimpleLangTokenType.NUMBER:
+		# 				self.add_instruction(SimpleLangParserInstruction.SHIFT, 2)
+		# 			case _:
+		# 				self.set_result(False)
+		# 				self.add_instruction(SimpleLangParserInstruction.HALT)
+		# 	case 1:
+		# 		match _type_:
+		# 			case SimpleLangTokenType.END_SYMBOL:
+		# 				self.set_result(True)
+		# 				self.add_instruction(SimpleLangParserInstruction.HALT)
+		# 	case 2:
+		# 		# if self._symbol_stack[-1] == SimpleLangTokenType.NUMBER:
+					
+		# 		match _type_:
+		# 			case SimpleLangTokenType.DELIM:
+		# 				self.add_instruction(SimpleLangParserInstruction.REDUCE, "C", 1, 5)
+		# 			case SimpleLangTokenType.END_SYMBOL:
+		# 				self.add_instruction(SimpleLangParserInstruction.REDUCE, "C", 1, 5)
+		# 			case _:
+		# 				self.set_result(False)
+		# 				self.add_instruction(SimpleLangParserInstruction.HALT)
+		# 	case 3:
+		# 		match _type_:
+		# 			case SimpleLangTokenType.DELIM:
+		# 				if self._symbol_stack[-1] == "B":
+		# 					self.add_instruction(SimpleLangParserInstruction.SHIFT, 7)
+		# 					self.add_instruction(SimpleLangParserInstruction.REDUCE, "D", 2, 3)
+		# 				else:
+		# 					self.set_result(False)
+		# 					self.add_instruction(SimpleLangParserInstruction.HALT)
+
+		# 			case _:
+		# 				self.set_result(False)
+		# 				self.add_instruction(SimpleLangParserInstruction.HALT)
+		# 	case 4:
+		# 		match _type_:
+		# 			case SimpleLangTokenType.NUMBER:
+		# 				self.set_result(False)
+		# 				self.add_instruction(SimpleLangParserInstruction.HALT)
+		# 			case "C":
+		# 				self.set_result(False)
+		# 				self.add_instruction(SimpleLangParserInstruction.HALT)
+		# 			case SimpleLangTokenType.DELIM:
+		# 				if self._symbol_stack[-1] == "B":
+		# 					self.add_instruction(SimpleLangParserInstruction.SHIFT, 7)
+		# 				# self.set_result(False)
+		# 				# self.add_instruction(SimpleLangParserInstruction.HALT)
+		# 			case SimpleLangTokenType.END_SYMBOL:
+		# 				self.add_instruction(SimpleLangParserInstruction.REDUCE, "A", 1, 6)
+		# 			case _:
+		# 				self.set_result(False)
+		# 				self.add_instruction(SimpleLangParserInstruction.HALT)
+		# 	case 5:
+		# 		match _type_:
+		# 			case SimpleLangTokenType.DELIM:
+		# 				if tuple(self._symbol_stack) == ("C", SimpleLangTokenType.DELIM, "C"):
+		# 					self.add_instruction(SimpleLangParserInstruction.REDUCE, "C", 3, 5)
+		# 				else:
+		# 					self.add_instruction(SimpleLangParserInstruction.SHIFT, 11)
+		# 			case SimpleLangTokenType.END_SYMBOL:
+		# 				self.add_instruction(SimpleLangParserInstruction.REDUCE, "B", 3, 4)
+		# 			case _:
+		# 				self.set_result(False)
+		# 				self.add_instruction(SimpleLangParserInstruction.HALT)
+		# 	case 6:
+		# 		if len(self._symbol_stack) == 3 and self._symbol_stack[-1] == SimpleLangTokenType.NUMBER:
+		# 			self.add_instruction(SimpleLangParserInstruction.REDUCE, "C", 1, 10)
+		# 		else:
+		# 			match _type_:
+		# 				case SimpleLangTokenType.DELIM:
+		# 					self.add_instruction(SimpleLangParserInstruction.REDUCE, "C", 1, 8)
+		# 				case SimpleLangTokenType.END_SYMBOL:
+		# 					self.add_instruction(SimpleLangParserInstruction.REDUCE, "S", 1, 1)
+		# 				case _:
+		# 					self.set_result(False)
+		# 					self.add_instruction(SimpleLangParserInstruction.HALT)
+		# 	case 7:
+		# 		match _type_:
+		# 			case SimpleLangTokenType.NUMBER:
+		# 				self.add_instruction(SimpleLangParserInstruction.REDUCE, "B", 2, 4)
+		# 				# self.add_instruction(SimpleLangParserInstruction.SHIFT, 6)
+		# 			case _:
+		# 				self.set_result(False)
+		# 				self.add_instruction(SimpleLangParserInstruction.HALT)
+		# 	case 8:
+		# 		match _type_:
+		# 			case SimpleLangTokenType.DELIM:
+		# 				self.add_instruction(SimpleLangParserInstruction.SHIFT, 7)
+		# 			case _:						
+		# 				self.set_result(False)
+		# 				self.add_instruction(SimpleLangParserInstruction.HALT)
+		# 	case 10:
+		# 		match tuple(self._symbol_stack):
+		# 			case ("C", SimpleLangTokenType.DELIM, "C"):
+		# 				self.add_instruction(SimpleLangParserInstruction.REDUCE, "B", 3, 11)
+		# 			case _:
+		# 				self.set_result(False)
+		# 				self.add_instruction(SimpleLangParserInstruction.HALT)
+		# 	case 11:
+		# 		match _type_:
+		# 			case SimpleLangTokenType.NUMBER:
+		# 				self.add_instruction(SimpleLangParserInstruction.SHIFT, 2)
+		# 			# case SimpleLangTokenType.DELIM:
+		# 			# 	self.add_instruction(SimpleLangParserInstruction.SHIFT, 7)
+		# 			case _:
+		# 				self.set_result(False)
+		# 				self.add_instruction(SimpleLangParserInstruction.HALT)
+		# 	case _:
+		# 		self.set_result(False)
+		# 		self.add_instruction(SimpleLangParserInstruction.HALT)
 		self._instr_counter += 1
 
 	def __HALT__(self):
@@ -602,4 +672,69 @@ class SimpleLangParser(PyParser):
 
 
 if __name__ == "__main__":
-	pass
+	from pyevent import PyChannel
+
+
+	class MaybeParserImp:
+		
+		__slots__ = ("_parser_id", "_channel", "_state", "_quit_flag")
+
+		def __init__(self, init_state=0, parser_id=None):
+			self._parser_id = parser_id or generate_id()
+			self._channel = PyChannel(channel_id=self._parser_id)
+			self._state = init_state
+			self._quit_flag = True
+
+		@property
+		def parser_id(self):
+			return self._parser_id
+
+		@property
+		def state(self):
+			return self._state
+
+		@property
+		def is_running(self):
+			return not self._quit_flag
+
+		def __str__(self):
+			return self.__repr__()
+
+		def __repr__(self):
+			return f"{self.__class__.__name__}(parser_id='{self.parser_id}')"
+
+		def set_state(self, state):
+			self._state = state
+
+		def halt(self):
+			self._quit_flag =True
+
+		def signal(self, signal_id=None):
+			return self._channel.signal(signal_id=signal_id)
+
+		def register(self, signal_id, receiver=None, receiver_id=None):
+			# _signal = self.signal(signal_id=signal_id)
+			# _signal.register(receiver, receiver_id=receiver_id)
+			self._channel.register(signal_id, receiver=receiver, receiver_id=receiver_id)
+			# return _signal
+
+		def parse(self, context):
+			self._quit_flag = False
+			while not self._quit_flag:
+				self._channel.emit(self.state, self)
+			assert self._quit_flag, f"ERROR HAS OCCURRED ASSERTING '_quit_flag'; please verify logic in 'parse' method within instance of '{self.__class_.__name__}'..."
+
+
+	class TestParserImp(MaybeParserImp):
+		
+		def __init__(self):
+			super().__init__(init_state=0, parser_id="HOPEFULLY_THIS_PARSER_DESIGN_STICKS")
+
+
+	_test_parser_imp = TestParserImp()
+	_test_parser_imp.register(0, receiver=lambda _parser_: _parser_.set_state(1), receiver_id=1)
+	_test_parser_imp.register(1, receiver=lambda _parser_: print(f"\n{_test_parser_imp}"), receiver_id=2)
+	_test_parser_imp.register(1, receiver=lambda _parser_: _parser_.set_state(2), receiver_id=3)
+	_test_parser_imp.register(2, receiver=lambda _parser_: _parser_.halt(), receiver_id=4)
+	_test_parser_imp.register(2, receiver=lambda _parser_: print(f"I'M DONE FOR RIGHT NOW (as of 5:27pm, Sunday, March 30th, 2025...until next time...)"), receiver_id=5)
+	_test_parser_imp.parse(["SHIT", "ON", "MY", "FACE"])
