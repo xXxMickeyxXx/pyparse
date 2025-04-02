@@ -337,11 +337,16 @@ def final_main(debug_mode=True):
 	print(f"    |")
 	print(f"    |")
 	print(f"    |")
+	_total_tokens = 0
 	for _idx, _token_ in enumerate(_token_context_, start=1):
 		if _idx == 1:
 			print(f"     • ---> {_token_}")
 		else:
-			print(f"            {_token_}")	
+			print(f"            {_token_}")
+		_total_tokens += 1
+	print()
+	print()
+	print(bold_text(apply_color(214, f" TOTAL TOKENS: {_total_tokens}")))
 	for _ in range(2):
 		print()
 

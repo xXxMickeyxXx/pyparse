@@ -138,8 +138,8 @@ class SimpleLangTokenizerHandler(LexHandler):
 					# 	_add_token_alias(SimpleLangTokenType.a, "a", token_id=f"a_{_counter}")
 					# 	_tokenizer_advance()
 					case _:
-						# _add_token_alias(SimpleLangTokenType.SKIP, _current_char, token_id=f"SKIP_{_counter}")
-						_add_token_alias(SimpleLangTokenType.INVALID, _current_char, token_id=f"INVALID ---> {_counter}")
+						_add_token_alias(SimpleLangTokenType.SKIP, _current_char, token_id=f"SKIP_{_counter}")
+						# _add_token_alias(SimpleLangTokenType.INVALID, _current_char, token_id=f"INVALID ---> {_counter}")
 						_tokenizer_advance()
 			_counter += 1
 		_add_token_alias(SimpleLangTokenType.END_SYMBOL, "#", token_id="END_SYMBOL")
@@ -450,8 +450,8 @@ class SimpleLangParser(PyParser):
 		# Add initial instruction(s)
 		self.add_instruction(SimpleLangParserInstruction.INIT)
 
-		_msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=SimpleLangParserInstruction.INIT)}' INSTRUCTION --- •]"
-		print(bold_text(apply_color(211, _msg)), end="\n")
+		# _msg = f"\t[• --- NEW '{SimpleLangParserInstruction.INSTR(int_val=SimpleLangParserInstruction.INIT)}' INSTRUCTION --- •]"
+		# print(bold_text(apply_color(211, _msg)), end="\n")
 
 	def init_parse_table(self):
 		pass
@@ -595,17 +595,17 @@ class SimpleLangParser(PyParser):
 						self.set_result(False)
 						self.add_instruction(SimpleLangParserInstruction.HALT)
 			case 4:
-				if len(self._symbol_stack) == 3 and self._symbol_stack[-1] == SimpleLangTokenType.NUMBER:
-					self.add_instruction(SimpleLangParserInstruction.REDUCE, "C", 1, 10)
-				else:
-					match _type_:
-						case SimpleLangTokenType.DELIM:
-							self.add_instruction(SimpleLangParserInstruction.REDUCE, "C", 1, 8)
-						case SimpleLangTokenType.END_SYMBOL:
-							self.add_instruction(SimpleLangParserInstruction.REDUCE, "S", 1, 1)
-						case _:
-							self.set_result(False)
-							self.add_instruction(SimpleLangParserInstruction.HALT)
+				# if len(self._symbol_stack) == 3 and self._symbol_stack[-1] == SimpleLangTokenType.NUMBER:
+				# 	self.add_instruction(SimpleLangParserInstruction.REDUCE, "C", 1, 10)
+				# else:
+				match _type_:
+					# case SimpleLangTokenType.DELIM:
+					# 	self.add_instruction(SimpleLangParserInstruction.REDUCE, "C", 1, 8)
+					case SimpleLangTokenType.END_SYMBOL:
+						self.add_instruction(SimpleLangParserInstruction.REDUCE, "S", 1, 1)
+					case _:
+						self.set_result(False)
+						self.add_instruction(SimpleLangParserInstruction.HALT)
 			case 5:
 				match _type_:
 					case SimpleLangTokenType.NUMBER:
