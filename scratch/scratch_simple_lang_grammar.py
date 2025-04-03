@@ -1,17 +1,3 @@
-"""
-	 ____________
-    |            |
-	•__THOUGHTS__•
-
-		A.) Create and use a data structure which represents the graph of the grammar
-		 	and it's various state transitions (perhaps something like an DFA)
-
-
-
-
-"""
-
-
 from random import randrange
 from enum import StrEnum, IntEnum, auto
 from collections import deque
@@ -112,34 +98,14 @@ class SimpleLangTokenizerHandler(LexHandler):
 					case "\n":
 						_add_token_alias(SimpleLangTokenType.SKIP, "", token_id=f"NEWLINE_DLIM_{_counter}")
 						_tokenizer_advance()
-						# _add_token_alias(SimpleLangTokenType.DELIM, r"\n", token_id=f"NEWLINE_DLIM_{_counter}")
-						# _tokenizer_advance()
 					case "\t":
 						_add_token_alias(SimpleLangTokenType.SKIP, "", token_id=f"TAB_DLIM_	{_counter}")
 						_tokenizer_advance()
-						# _add_token_alias(SimpleLangTokenType.DELIM, r"\t", token_id=f"TAB_DLIM_{_counter}")
-						# _tokenizer_advance()
 					case ",":
 						_add_token_alias(SimpleLangTokenType.DELIM, ",", token_id=f"COMMA_DLIM_{_counter}")
 						_tokenizer_advance()
-					# case "S":
-					# 	_add_token_alias(SimpleLangTokenType.S, "S", token_id=f"S_{_counter}")
-					# 	_tokenizer_advance()
-					# case "A":
-					# 	_add_token_alias(SimpleLangTokenType.A, "A", token_id=f"A_{_counter}")
-					# 	_tokenizer_advance()
-					# case "C":
-					# 	_add_token_alias(SimpleLangTokenType.C, "C", token_id=f"C_{_counter}")
-					# 	_tokenizer_advance()
-					# case "B":
-					# 	_add_token_alias(SimpleLangTokenType.B, "B", token_id=f"B_{_counter}")
-					# 	_tokenizer_advance()
-					# case "a":
-					# 	_add_token_alias(SimpleLangTokenType.a, "a", token_id=f"a_{_counter}")
-					# 	_tokenizer_advance()
 					case _:
 						_add_token_alias(SimpleLangTokenType.SKIP, _current_char, token_id=f"SKIP_{_counter}")
-						# _add_token_alias(SimpleLangTokenType.INVALID, _current_char, token_id=f"INVALID ---> {_counter}")
 						_tokenizer_advance()
 			_counter += 1
 		_add_token_alias(SimpleLangTokenType.END_SYMBOL, "#", token_id="END_SYMBOL")
@@ -149,101 +115,6 @@ class SimpleLangTableBuilder(TableBuilder):
 
 	def build_table(self, table):
 		pass
-
-
-"""class PyParser:
-
-	__slots__ = ("_parser_id", "_handlers", "_instructions", "_curr_instruction", "_args", "_parse_context", "_result", "_result_set", "_quit_flag", "_invalid_instr")
-
-	def __init__(self, invalid_instruction=SimpleLangParserInstruction.HALT, parser_id=None):
-		self._parser_id = parser_id or generate_id()
-		self._handlers = {}
-		self._instructions = deque()
-		self._curr_instruction = None
-		self._args = ((), {})
-		self._parse_context = None
-		self._result = None
-		self._result_set = False
-		self._quit_flag = False
-		self._invalid_instr = invalid_instruction
-
-	@property
-	def parser_id(self):
-		return self._parser_id
-
-	@property
-	def is_running(self):
-		return not self._quit_flag
-
-	@property
-	def parse_context(self):
-		return self._parse_context
-
-	@property
-	def curr_instruction(self):
-		return self._curr_instruction
-
-	@property
-	def curr_args(self):
-		return self._args
-
-	@property
-	def instructions(self):
-		return self._instructions
-
-	@property
-	def invalid_instruction(self):
-		return self._invalid_instr
-
-	@property
-	def result_set(self):
-		return self._result_set
-
-	def send(self, *args, **kwargs):
-		self._args = (args, kwargs)
-
-	def set_instruction(self, instruction_type):
-		self._curr_instruction = instruction_type
-
-	def add_instruction(self, instruction_type, *args, **kwargs):
-		self._instructions.append((instruction_type, args, kwargs))
-
-	def next_instruction(self, default=None):
-		return self._instructions.popleft() if self._instructions else default
-
-	def next_handler(self, default=None):
-		_instr_type, _args, _kwargs = self.next_instruction(default=(self.invalid_instruction, (), {}))  # @NOTE<'default' value of (None, (), {}) in order to allow tuple unpacking syntax, regardless if valid next instruction type (i.e. unsupportd)>
-		_handler = self._handlers.get(_instr_type, default)
-		self.set_instruction(_instr_type)
-		self.send(*_args, **_kwargs)
-		return _handler
-
-	def set_result(self, result):
-		self._result = result
-		self._result_set = True
-
-	def set_context(self, parse_context):
-		self._parse_context = parse_context
-
-	def add_handler(self, instruction_type, handler):
-		self._handlers[instruction_type] = handler
-	
-	def halt(self):
-		self._quit_flag = True
-		self._instructions = deque()
-
-	def parse(self, parse_context):
-		self.set_context(deque(parse_context))
-		self._quit_flag = False
-		while self._instructions and (not self._quit_flag):
-			_handler = self.next_handler(default=None)
-			if _handler is None:
-				# @TODO<Create and raise custom error here>
-				_error_details = f"unable to find supported handler for NEXT INSTRUCTION TYPE: '{self.curr_instruction}'...exiting with runtime-error..."
-				raise RuntimeError(_error_details)
-			_args, _kwargs = self._args
-			_handler(*_args, **_kwargs)
-		return self._result"""
 
 
 class SimpleLangParseTable(ParseTable):
@@ -333,19 +204,6 @@ class PyParser:
 	def halt(self):
 		self._quit_flag = True
 
-	# def parse(self, context):
-	# 	self.set_context(context)
-	# 	self._quit_flag = False
-	# 	while self._instructions and (not self._quit_flag):
-	# 		_handler = self.next_handler(default=None)
-	# 		if _handler is None:
-	# 			# @TODO<Create and raise custom error here>
-	# 			_error_details = f"unable to find supported handler for NEXT INSTRUCTION TYPE: '{self.curr_instruction}'...exiting with runtime-error..."
-	# 			raise RuntimeError(_error_details)
-	# 		_args, _kwargs = self._args
-	# 		_handler(*_args, **_kwargs)
-	# 	return self._result
-
 	def parse(self, context):
 		self._quit_flag = False
 		self.set_context(context)
@@ -354,7 +212,7 @@ class PyParser:
 
 class SimpleLangParser(PyParser):
 
-	def __init__(self, executor=None, delim="\n", init_state=0, invalid_instruction=SimpleLangParserInstruction.HALT, parser_id=None):
+	def __init__(self, executor=None, delim=",", init_state=0, invalid_instruction=SimpleLangParserInstruction.HALT, parser_id=None):
 		super().__init__(executor or self.__EXECUTOR__, parser_id=parser_id)
 		self._init_state = init_state
 		self._handlers = {}
@@ -470,9 +328,6 @@ class SimpleLangParser(PyParser):
 		self._instr_counter += 1
 
 	def __INIT__(self):
-		# self.add_instruction(SimpleLangParserInstruction.HALT)  # @NOTE<Submit SimpleLangParserInstruction.HALT instruction to quickly halt the
-		# 																  parser -- for use halting parser after it runs testing instructions, such
-		# 																  as parser initialization via the SimpleLangParserInstruction.INIT>
 		print()
 		print(f"    |" + underline_text(bold_text(apply_color(214, f"CURRENT INSTRUCTION"))) + bold_text(apply_color(168, f" • --- • {SimpleLangParserInstruction.INSTR(int_val=self.curr_instruction)} <iCOUNT: {self.instr_count}>")))
 		print()
@@ -527,8 +382,6 @@ class SimpleLangParser(PyParser):
 		print()
 		_state_int = self.state[0]
 		_type_ = self.peek(0).token_type
-		# _print_text = apply_color(226, f"\tSTATE #        •---> {_state_int}\n")
-		# _print_text += apply_color(226, f"\tNEXT TOKEN     •---> {_type_}\n")
 
 		print()
 		print(f"\t• STATE STACK  ---> {self._state_stack}")
@@ -595,12 +448,7 @@ class SimpleLangParser(PyParser):
 						self.set_result(False)
 						self.add_instruction(SimpleLangParserInstruction.HALT)
 			case 4:
-				# if len(self._symbol_stack) == 3 and self._symbol_stack[-1] == SimpleLangTokenType.NUMBER:
-				# 	self.add_instruction(SimpleLangParserInstruction.REDUCE, "C", 1, 10)
-				# else:
 				match _type_:
-					# case SimpleLangTokenType.DELIM:
-					# 	self.add_instruction(SimpleLangParserInstruction.REDUCE, "C", 1, 8)
 					case SimpleLangTokenType.END_SYMBOL:
 						self.add_instruction(SimpleLangParserInstruction.REDUCE, "S", 1, 1)
 					case _:
@@ -621,7 +469,6 @@ class SimpleLangParser(PyParser):
 		self._instr_counter += 1
 
 	def __HALT__(self):
-		# print(f"STATE ---> {self.state}")
 		if self.state == (0, SimpleLangTokenType.NUMBER):
 			self.set_result(True)
 		self.halt()
@@ -670,10 +517,7 @@ if __name__ == "__main__":
 			return self._channel.signal(signal_id=signal_id)
 
 		def register(self, signal_id, receiver=None, receiver_id=None):
-			# _signal = self.signal(signal_id=signal_id)
-			# _signal.register(receiver, receiver_id=receiver_id)
 			self._channel.register(signal_id, receiver=receiver, receiver_id=receiver_id)
-			# return _signal
 
 		def parse(self, context):
 			self._quit_flag = False
@@ -688,12 +532,30 @@ if __name__ == "__main__":
 			super().__init__(init_state=0, parser_id="HOPEFULLY_THIS_PARSER_DESIGN_STICKS")
 
 
-	_test_parser_imp = TestParserImp()
-	_test_parser_imp.register(0, receiver=lambda _parser_: _parser_.set_state(1), receiver_id=1)
-	_test_parser_imp.register(1, receiver=lambda _parser_: print(f"\n{_test_parser_imp}"), receiver_id=2)
-	_test_parser_imp.register(1, receiver=lambda _parser_: _parser_.set_state(2), receiver_id=3)
-	_test_parser_imp.register(2, receiver=lambda _parser_: _parser_.set_state((3, "A")), receiver_id=4)
-	_test_parser_imp.register(2, receiver=lambda _parser_: print(f"I'M DONE FOR RIGHT NOW (as of 5:27pm, Sunday, March 30th, 2025...until next time...)"), receiver_id=5)
-	_test_parser_imp.register((3, "A"), receiver=lambda _parser_: _parser_.halt(), receiver_id=5)
-	_test_parser_imp.register((3, "A"), receiver=lambda _parser_: print(f"WELL HOW BOUT THAT NOW..."), receiver_id=6)
-	_test_parser_imp.parse(["SHIT", "ON", "MY", "FACE"])
+	def test_parser_runner(input)
+		return test_parser.parse(input)
+
+	def test_parser_state_registration(test_parser):
+		test_parser.register(0, receiver=lambda _parser_: _parser_.set_state(1), receiver_id=1)
+		test_parser.register(1, receiver=lambda _parser_: print(f"\n{_parser_}"), receiver_id=2)
+		test_parser.register(1, receiver=lambda _parser_: _parser_.set_state(2), receiver_id=3)
+		test_parser.register(2, receiver=lambda _parser_: _parser_.set_state((3, "A")), receiver_id=4)
+		test_parser.register(2, receiver=lambda _parser_: print(f"I'M DONE FOR RIGHT NOW (as of 5:27pm, Sunday, March 30th, 2025...until next time...)"), receiver_id=5)
+		test_parser.register((3, "A"), receiver=lambda _parser_: _parser_.halt(), receiver_id=5)
+		test_parser.register((3, "A"), receiver=lambda _parser_: print(f"WELL HOW BOUT THAT NOW..."), receiver_id=6)
+
+
+	def test_parser_factory(*args, **kwargs):
+		return TestParserImp(*args, **kwargs)
+
+
+	def test_parser_main():
+		# @NOTE<Initialize test parser implementation>
+		_test_parser_imp = test_parser_factory()
+
+		# @NOTE<Register implementation's state handling>
+		test_parser_state_registration(_test_parser_imp)
+
+		# @NOTE<Run test parser implementation with '__TEST_INPUT__'>
+		__TEST_INPUT__ = ["HELLO", "MOTO"]
+		_valid_parse = _test_parser_imp.parse(__TEST_INPUT__)
