@@ -72,7 +72,7 @@ class SimpleLangParserInstruction(IntEnum):
 class SimpleLangTokenType(StrEnum):
 	INVALID = "INVALID"
 	SKIP = ""
-	END_SYMBOL = "#"
+	END_SYMBOL = "END_SYMBOL"
 	NUMBER = "NUMBER"
 	DELIM = "DELIM"
 
@@ -532,7 +532,7 @@ if __name__ == "__main__":
 			super().__init__(init_state=0, parser_id="HOPEFULLY_THIS_PARSER_DESIGN_STICKS")
 
 
-	def test_parser_runner(input)
+	def test_parser_runner(input):
 		return test_parser.parse(input)
 
 	def test_parser_state_registration(test_parser):

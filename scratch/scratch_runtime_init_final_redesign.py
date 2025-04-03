@@ -70,6 +70,8 @@ from .scratch_shell_init import initialize_shell
 from .scratch_logging_init import init_logging
 from .scratch_cons import (
 	LanguageType,
+	SimpleLangVersion,
+	DateLangVersion,
 	PyParseLoggerID,
 	ParserActionType
 )
@@ -289,6 +291,7 @@ def register_states(parser):
 @profile_callable(sort_by=SortBy.TIME)
 def final_main(debug_mode=True):
 	_simple_lang_input_filepath = r"/Users/mickey/Desktop/Python/custom_packages/pyparse/examples/example_simplang_input.sim"
+	_date_lang_input_filepath = r"/Users/mickey/Desktop/Python/custom_packages/pyparse/examples/example_datelang_source.dlang"
 	with open(_simple_lang_input_filepath, "r", newline="") as _in_file:
 		_test_input = _in_file.read()
 

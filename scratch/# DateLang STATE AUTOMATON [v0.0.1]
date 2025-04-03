@@ -1,0 +1,21 @@
+• -- DateLang STATE AUTOMATON [v0.0.1] -- •
+
+	 ___________
+    |           |
+	•__GRAMMAR__•
+
+		S  ::= A           (S_rule_1)
+		A  ::= B           (A_rule_1)
+		A  ::= D           (A_rule_2)
+	    B  ::= C           (B_rule_1)
+	    B  ::= C DELIM C   (B_rule_2)
+	    C  ::= NUMBER      (C_rule_1)
+	    D  ::= A C         (D_rule_1)
+	    D  ::= A B         (D_rule_2)
+	    D  ::= B DELIM     (D_rule_3)
+
+	 __________
+    |          |
+    •__STATES__•
+
+		STATE: 0

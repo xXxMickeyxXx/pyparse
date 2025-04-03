@@ -1,4 +1,37 @@
+from io import BytesIO
+
 import shutil as shell_utils
+
+
+class SystemIO:
+
+    # @NOTE<WARNING: NOT THREAD-SAFE>
+
+    # __DESCRIPTOR_ID = 0
+
+    # @classmethod
+    # def __new__(cls, *args, **kwargs):
+    #     _descriptor_id = cls.__DESCRIPTOR_ID
+    #     _new_cls = super().__new__(*args, descriptor_id=_descriptor_id, **kwargs)
+    #     cls.__DESCRIPTOR_ID += 1
+
+    def __init__(self, init_bytes=b""):
+        self._bytes_io = BytesIO()
+        self._descriptor_id = descriptor_id
+        self._std_input = sys.stdin
+        self._std_output = sys.stdout
+
+    @property
+    def descriptor_id(self):
+        return self._descriptor_id
+
+    @property
+    def STD_INPUT(self):
+        return self._std_input
+
+    @property
+    def STD_OUTPUT(self):
+        return self._std_output
 
 
 def center_text(text):

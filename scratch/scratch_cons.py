@@ -8,6 +8,16 @@ class LanguageType(StrEnum):
     TODO_LANG = "TODO_LANG"
 
 
+class SimpleLangVersion(StrEnum):
+
+    V0_0_1 = auto()
+
+
+class DateLangVersion(StrEnum):
+
+    V0_0_1 = auto()
+
+
 class PyParseLogName(StrEnum):
 
     SCRATCH_FILENAME = "scratch_logfile.log"
