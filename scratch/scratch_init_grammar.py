@@ -142,17 +142,38 @@ def init_grammar_9(grammar):
     grammar.create_rule("C", ["(", "S", ")"], rule_id="C_rule_1")
 
 
-def init_dateLang_grammar_v0_0_1(grammar):
+def init_date_lang_grammar_v0_0_1(grammar):
     # Date grammar for parsing and facilitating the usage of date
     grammar.create_rule("#", ["date"], rule_id="INIT_RULE")
-    grammar.create_rule("date", ["month", "date_delim", "day", "date_delim", "year"], rule_id="date")
-    # grammar.create_rule("date", ["year", "date_delim", "month", "date_delim", "day"], rule_id="date")
-    grammar.create_rule("date_delim", ["/"], rule_id="slash_delim")
-    grammar.create_rule("date_delim", ["-"], rule_id="hyphen_delim")
-    grammar.create_rule("date_delim", ["."], rule_id="dot_delim")
+    grammar.create_rule("date", ["year_format"], rule_id="date_format1")
+    grammar.create_rule("date", ["month_format"], rule_id="date_format2")
+    grammar.create_rule("date", ["day_format"], rule_id="date_format3t")
+    
+    grammar.create_rule("year_format", ["year", "DELIM", "month", "DELIM", "day"], rule_id="year_format")
+    grammar.create_rule("month_format", ["month", "DELIM", "day", "DELIM", "year"], rule_id="month_format")
+    grammar.create_rule("day_format", ["day", "DELIM", "month", "DELIM", "year"], rule_id="day_format")
+    
+    grammar.create_rule("year", ["year_4"], rule_id="year4")
+    grammar.create_rule("year", ["year_2"], rule_id="year2")
+    
+    grammar.create_rule("year_4", ["digit", "digit", "digit", "digit"], rule_id="year_4digits")
+    grammar.create_rule("year_2", ["digit", "digit"], rule_id="year_2digits")
+
+    grammar.create_rule("month", ["digit", "digit"], rule_id="month")
+    grammar.create_rule("day", ["digit", "digit"], rule_id="day")
+    grammar.create_rule("digit", ["0"], rule_id="digit0")
+    grammar.create_rule("digit", ["1"], rule_id="digit1")
+    grammar.create_rule("digit", ["2"], rule_id="digit2")
+    grammar.create_rule("digit", ["3"], rule_id="digit3")
+    grammar.create_rule("digit", ["4"], rule_id="digit4")
+    grammar.create_rule("digit", ["5"], rule_id="digit5")
+    grammar.create_rule("digit", ["6"], rule_id="digit6")
+    grammar.create_rule("digit", ["7"], rule_id="digit7")
+    grammar.create_rule("digit", ["8"], rule_id="digit8")
+    grammar.create_rule("digit", ["9"], rule_id="digit9")
 
 
-def init_simple_lang_grammar(grammar):
+def init_simple_lang_grammar_v0_0_1(grammar):
     """
     Simple-lang grammar - a super small grammar spec to truly begin
     designing and building this whole shebang. This language is essentialy
@@ -238,9 +259,9 @@ _grammar_initializers = {
     8: init_grammar_8,
     9: init_grammar_9,
     # 10: init_grammar_10,
-    "dateLang_v0_0_1": init_dateLang_grammar_v0_0_1,
+    "date_lang_v0_0_1": init_date_lang_grammar_v0_0_1,
     "todo_lang_v0_0_1": init_todo_grammar_v0_0_1,
-    "simple_lang_v0_0_1": init_simple_lang_grammar
+    "simple_lang_v0_0_1": init_simple_lang_grammar_v0_0_1
 }
 
 

@@ -450,7 +450,11 @@ class SimpleLangParser(PyParser):
 			case 4:
 				match _type_:
 					case SimpleLangTokenType.END_SYMBOL:
-						self.add_instruction(SimpleLangParserInstruction.REDUCE, "S", 1, 1)
+						if self._symbol_stack[-1] and self._symbol_stack[-1] == "B":
+							self.add_instruction(SimpleLangParserInstruction.REDUCE, "S", 1, 1)
+						else:
+							self.set_result(False)
+							self.add_instruction(SimpleLangParserInstruction.HALT)
 					case _:
 						self.set_result(False)
 						self.add_instruction(SimpleLangParserInstruction.HALT)

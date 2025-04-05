@@ -19,16 +19,7 @@ from ..errors import TokenError
 
 class Token(ABC):
 
-    _token_cache = {}
-
-    def __new__(cls, token_type, token_val, token_id=None):
-        _token_cache = cls._token_cache
-        _cache_key = (token_type, token_val)
-        if _cache_key in _token_cache:
-            return _token_cache[_cache_key]
-        _new_cls = super().__new__(cls)
-        _token_cache.update({_cache_key: _new_cls})
-        return _new_cls
+    __slots__ = ("_token_id", "_token_type", "_token_val")
 
     def __init__(self, token_type, token_val, token_id=None):
         self._token_id = token_id or token_type

@@ -10,12 +10,12 @@ class LanguageType(StrEnum):
 
 class SimpleLangVersion(StrEnum):
 
-    V0_0_1 = auto()
+    V0_0_1 = "v0_0_1"
 
 
 class DateLangVersion(StrEnum):
 
-    V0_0_1 = auto()
+    V0_0_1 = "v0_0_1"
 
 
 class PyParseLogName(StrEnum):

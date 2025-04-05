@@ -2,7 +2,7 @@ from .parser import Parser
 from .parse_context import Parse, ParseContextManager
 from .parsers import ShiftReduceParser
 from .grammar import Grammar
-from .lexer import Tokenizer, LexHandler
+from .lexer import Tokenizer, Scanner, LexHandler
 from .token import Token
 from .parsing_tree import Node
 

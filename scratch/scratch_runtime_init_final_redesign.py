@@ -13,7 +13,6 @@ from .scratch_simple_lang_grammar import (
 	SimpleLangParserInstruction,
 	SimpleLangTokenType,
 	SimpleLangTokenizerHandler,
-	SimpleLangTableBuilder,
 	SimpleLangParser
 	)
 from .scratch_todo_lang_grammar import (
@@ -28,6 +27,14 @@ from .scratch_grammar_8 import (
 	Grammar8TableBuilder,
 	Grammar8Parser
 	)
+from .scratch_date_lang import (
+	DateLangParserInstruction,
+	DateLangTokenType,
+	DateLangToken,
+	DateLangTokenizer,
+	DateLangParser
+
+)
 from .final_redesign import (
 	# Grammar8TokenType,
 	# Grammar8TokenizerHandler,
@@ -288,16 +295,15 @@ def register_states(parser):
 	parser.register_state(SimpleLangTokenType.END_SYMBOL, lambda _par_, _par_context_: _par_.stop())
 
 
-@profile_callable(sort_by=SortBy.TIME)
-def final_main(debug_mode=True):
+# @profile_callable(sort_by=SortBy.TIME)
+def simple_lang_main(debug_mode=True):
 	_simple_lang_input_filepath = r"/Users/mickey/Desktop/Python/custom_packages/pyparse/examples/example_simplang_input.sim"
-	_date_lang_input_filepath = r"/Users/mickey/Desktop/Python/custom_packages/pyparse/examples/example_datelang_source.dlang"
 	with open(_simple_lang_input_filepath, "r", newline="") as _in_file:
 		_test_input = _in_file.read()
 
 
 	__LANG_TYPE__ = LanguageType.SIMPLE_LANG
-	__GRAMMAR_VERSION__ = "v0_0_1"
+	__GRAMMAR_VERSION__ = SimpleLangVersion.V0_0_1
 	__LANG_INFO__ = f"{__LANG_TYPE__.lower()}_{__GRAMMAR_VERSION__}"
 	__GRAMMAR__ = test_grammar_factory()
 	init_grammar(__GRAMMAR__, __LANG_INFO__)
@@ -369,5 +375,113 @@ def final_main(debug_mode=True):
 	print()
 
 
+# @profile_callable(sort_by=SortBy.TIME)
+def date_lang_main(debug_mode=True):
+	_date_lang_input_filepath = r"/Users/mickey/Desktop/Python/custom_packages/pyparse/examples/example_datelang_source.dlang"
+	with open(_date_lang_input_filepath, "r", newline="") as _in_file:
+		_test_input = _in_file.read()
+
+
+	__LANG_TYPE__ = LanguageType.DATE_LANG
+	__GRAMMAR_VERSION__ = DateLangVersion.V0_0_1
+	__LANG_INFO__ = f"{__LANG_TYPE__.lower()}_{__GRAMMAR_VERSION__}"
+	__GRAMMAR__ = test_grammar_factory()
+	init_grammar(__GRAMMAR__, __LANG_INFO__)
+
+	for state, rule in __GRAMMAR__.generate_states().items():
+		print(bold_text(apply_color(214, f"STATE: {state}")))
+		print()
+		for i in rule:
+			_id = i.rule_id
+			_head = i.rule_head
+			_body = i.rule_body
+			_status = i.status()
+			print(f"\t • -------")
+			print(f"\t| RULE-ID:     {_id}")
+			print(f"\t| RULE-HEAD:   {_head}")
+			print(f"\t| RULE-BODY:   {_body}")
+			print(f"\t| AUG-RULE-:   {_status}")
+			print(f"\t • -------")
+			print()
+		print()
+		print()
+
+
+	# __TOKENIZER__ = DateLangTokenizer(tokenizer_id=__LANG_INFO__)
+	# __TOKENIZER__.set_input(_test_input)
+	# _token_context_ = __TOKENIZER__.tokenize()
+	# _token_context_ = [i for i in _token_context_ if i.token_type != DateLangTokenType.SKIP]
+	
+
+	# print()
+	# print(bold_text(apply_color(214, f" INPUT:")), end="\n")
+	# print(f"    |")
+	# print(f"    |")
+	# print(f"    |")
+	# for _idx_, _input_ in enumerate(_test_input.split("\n"), start=1):
+	# 	_input_repr_ = repr(_input_)
+	# 	if _idx_ == 1:
+	# 		print(f"     • ---> {_input_repr_}")
+	# 	else:
+	# 		print(f"            {_input_repr_}")
+	# print()
+	# print(bold_text(apply_color(204, " TOKEN CONTEXT:")))
+	# print(f"    |")
+	# print(f"    |")
+	# print(f"    |")
+	# _total_tokens = 0
+	# for _idx, _token_ in enumerate(_token_context_, start=1):
+	# 	if _idx == 1:
+	# 		print(f"     • ---> {_token_}")
+	# 	else:
+	# 		print(f"            {_token_}")
+	# 	_total_tokens += 1
+	# print()
+	# print()
+	# print(bold_text(apply_color(214, f" TOTAL TOKENS: {_total_tokens}")))
+	# for _ in range(2):
+	# 	print()
+
+
+	__TEST_TOKENS__ = (DateLangToken(DateLangTokenType.YEAR, "2023", token_id=DateLangTokenType.YEAR), DateLangToken(DateLangTokenType.DELIM, "-", token_id=DateLangTokenType.DELIM), DateLangToken(DateLangTokenType.MONTH, "08", token_id=DateLangTokenType.MONTH), DateLangToken(DateLangTokenType.DAY, "07", token_id=DateLangTokenType.DAY))
+
+	__PARSER__ = DateLangParser(executor=None, delim=",", invalid_instruction=DateLangParserInstruction.HALT, parser_id=__LANG_INFO__)
+	_pretval = __PARSER__.parse(_token_context_)
+	print()
+	print()
+	print(center_text(bold_text(apply_color(214, f"PARSE IS...\n"))))
+	print(center_text(bold_text(apply_color(10, f"• --- VALID --- •")) if _pretval else bold_text(apply_color(9, f"• --- INVALID --- •"))))
+	print()
+
+
+@profile_callable(sort_by=SortBy.TIME)
+def final_main(debug_mode=True):
+	simple_lang_main(debug_mode=debug_mode)
+	# date_lang_main(debug_mode=debug_mode)
+
+
 if __name__ == "__main__":
-	pass
+	from array import array
+
+
+	# Pack year, month, and day into a single 32-bit integer
+	def pack_date(year: int, month: int, day: int) -> int:
+	    return (year << 9) | (month << 5) | day
+
+
+	# Unpack the 32-bit integer back into year, month, and day
+	def unpack_date(packed: int) -> tuple[int, int, int]:
+	    year  = (packed >> 9) & 0x1FFFF  # 17 bits for year
+	    month = (packed >> 5) & 0xF      # 4 bits for month
+	    day   = packed & 0x1F            # 5 bits for day
+	    return year, month, day
+
+
+	date_array = array('I')  # unsigned 32-bit int array
+	date_array.append(pack_date(2025, 4, 5))
+	date_array.append(pack_date(1999, 12, 31))
+
+
+	# Iterate and unpack
+	for packed in date_array:
+	    print(unpack_date(packed))

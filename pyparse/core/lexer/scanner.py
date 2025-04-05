@@ -16,7 +16,7 @@ class Scanner(ABC):
 
     """
 
-    def __init__(self, input="", scanner_id=None):
+    def __init__(self, input=None, scanner_id=None):
         self._scanner_id = scanner_id or generate_id()
         self._input = input
         self._pointer = 0
@@ -26,22 +26,18 @@ class Scanner(ABC):
         return self._scanner_id
 
     @property
-    def input(self):
-        return self._input
-
-    @property
     def input_len(self):
-        return len(self.input)
+        return len(self._input) if (self._input or self._input is not None) else 0
 
     @property
     def can_consume(self):
         return self._input is not None and self.pointer < self.input_len
 
     @property
-    def current_char(self):
+    def current_char(self, default=None):
         _input = self._input
         _pointer = self._pointer
-        return _input[_pointer] if _input and self.can_consume else None
+        return _input[_pointer] if _input and self.can_consume else default
 
     @property
     def pointer(self):
@@ -51,13 +47,13 @@ class Scanner(ABC):
         self._input = input
 
     def reset(self):
-        self.set_input("")
+        self.set_input(None)
         self.update_pointer(0)
 
     def update_pointer(self, idx):
         if self.input_len > 0:
             if idx >= self.input_len:
-                _error_details = f"unable to update pointer to position of input at index: {idx} as that is out of the input's index bounds (max: {len(self.input) - 1 if len(self.input) > 0 else 0})..."
+                _error_details = f"unable to update pointer to position of input at index: {idx} as that is out of the input's index bounds (max: {len(self._input) - 1 if len(self._input) > 0 else 0})..."
                 raise ScannerError(details=_error_details)
         self._pointer = idx
 
@@ -111,11 +107,11 @@ class Scanner(ABC):
             # TODO: create and raise custom error here
             _error_details = f"unable to access token at index: {index} as it exceeds the bounds of tokens container..."
             raise IndexError(_error_details)
-        return self.input[index]
+        return self._input[index]
 
     def input_range(self, *slice_args):
         _slicer = slice(*slice_args)
-        return self.input[_slicer]
+        return self._input[_slicer]
 
 
 if __name__ == "__main__":
