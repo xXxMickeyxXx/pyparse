@@ -328,28 +328,28 @@ class SimpleLangParser(PyParser):
 		self._instr_counter += 1
 
 	def __INIT__(self):
-		print()
-		print(f"    |" + underline_text(bold_text(apply_color(214, f"CURRENT INSTRUCTION"))) + bold_text(apply_color(168, f" • --- • {SimpleLangParserInstruction.INSTR(int_val=self.curr_instruction)} <iCOUNT: {self.instr_count}>")))
-		print()
+		# print()
+		# print(f"    |" + underline_text(bold_text(apply_color(214, f"CURRENT INSTRUCTION"))) + bold_text(apply_color(168, f" • --- • {SimpleLangParserInstruction.INSTR(int_val=self.curr_instruction)} <iCOUNT: {self.instr_count}>")))
+		# print()
 
 		_state_int = self._init_state
 		_type_ = self.context[0].token_type
-		_print_text = f"\t   |\n"
-		_print_text += f"\t   |\n"
-		_print_text += f"\t   |\n"
-		_print_text += f"\t    • ---> "
-		_print_text += apply_color(226, underline_text("ESTABLISHING PARSERS INITAL STATE") + "...\n\n")
-		_print_text += apply_color(226, f"\tSTATE #        •---> {_state_int}\n")
-		_print_text += apply_color(226, f"\tNEXT TOKEN     •---> {_type_}\n")
-		print(_print_text)
+		# _print_text = f"\t   |\n"
+		# _print_text += f"\t   |\n"
+		# _print_text += f"\t   |\n"
+		# _print_text += f"\t    • ---> "
+		# _print_text += apply_color(226, underline_text("ESTABLISHING PARSERS INITAL STATE") + "...\n\n")
+		# _print_text += apply_color(226, f"\tSTATE #        •---> {_state_int}\n")
+		# _print_text += apply_color(226, f"\tNEXT TOKEN     •---> {_type_}\n")
+		# print(_print_text)
 		self._state_stack.append(self._init_state)
 		self.add_instruction(SimpleLangParserInstruction.CALC_STATE, symbol=self.peek(offset=0))
 		self.add_instruction(SimpleLangParserInstruction.MAIN_LOOP)
 		self._instr_counter += 1
 
 	def __CONFLICT__(self, logic):
-		print(f"SHIFT LOGIC   ---> {logic[0]}")
-		print(f"REDUCE LOGIC  ---> {logic[1]}")
+		# print(f"SHIFT LOGIC   ---> {logic[0]}")
+		# print(f"REDUCE LOGIC  ---> {logic[1]}")
 		if len(self._symbol_stack) <= 1 and self._symbol_stack[-1] == "C":
 			self.add_instruction(SimpleLangParserInstruction.SHIFT, logic[0])
 		elif len(self._symbol_stack) >= 3:
@@ -368,8 +368,8 @@ class SimpleLangParser(PyParser):
 		for _ in range(pop_count):
 			_sym_pop = self._symbol_stack.pop(-1)
 			_state_pop = self._state_stack.pop(-1)
-			print(f"\nPOPPING SYMBOL  ---> '{_sym_pop}' FROM SYMBOL STACK")
-			print(f"POPPING STATE   ---> '{_state_pop}' FROM STATE STACK\n")
+			# print(f"\nPOPPING SYMBOL  ---> '{_sym_pop}' FROM SYMBOL STACK")
+			# print(f"POPPING STATE   ---> '{_state_pop}' FROM STATE STACK\n")
 		self._symbol_stack.append(rule_head)
 		self._state_stack.append(goto)
 		self.add_instruction(SimpleLangParserInstruction.CALC_STATE, symbol=None)
@@ -377,16 +377,16 @@ class SimpleLangParser(PyParser):
 		self._instr_counter += 1
 
 	def __MAIN_LOOP__(self):
-		print()
-		print(f"    |" + underline_text(bold_text(apply_color(214, f"CURRENT INSTRUCTION"))) + bold_text(apply_color(168, f" • --- • {SimpleLangParserInstruction.INSTR(int_val=self.curr_instruction)} <iCOUNT: {self.instr_count}>")))
-		print()
+		# print()
+		# print(f"    |" + underline_text(bold_text(apply_color(214, f"CURRENT INSTRUCTION"))) + bold_text(apply_color(168, f" • --- • {SimpleLangParserInstruction.INSTR(int_val=self.curr_instruction)} <iCOUNT: {self.instr_count}>")))
+		# print()
 		_state_int = self.state[0]
 		_type_ = self.peek(0).token_type
 
-		print()
-		print(f"\t• STATE STACK  ---> {self._state_stack}")
-		print(f"\t• SYMBOL STACK ---> {self._symbol_stack}")
-		print(f"\t• NEXT:\n             |\n             • {self.peek(offset=0)}\n             |\n             • {_type_}")
+		# print()
+		# print(f"\t• STATE STACK  ---> {self._state_stack}")
+		# print(f"\t• SYMBOL STACK ---> {self._symbol_stack}")
+		# print(f"\t• NEXT:\n             |\n             • {self.peek(offset=0)}\n             |\n             • {_type_}")
 
 		# _action, *args = self.parse_table.action((_state_int, _type_), default=(SimpleLangParserInstruction.ERROR, None))
 		# print()
