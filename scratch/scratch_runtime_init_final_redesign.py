@@ -28,6 +28,7 @@ from .scratch_grammar_8 import (
 	Grammar8Parser
 	)
 from .scratch_date_lang import (
+	DateFormat,
 	DateLangParserInstruction,
 	DateLangTokenType,
 	DateLangToken,
@@ -90,6 +91,9 @@ from .utils import (
 	underline_text,
 	center_text
 )
+
+
+_SCRATCH_PARSER_RUNTIME_LOGGER = PyLogger.get("scratch_runtime_init_final_redesign")
 
 
 class ParserStateType(IntEnum):
@@ -295,6 +299,10 @@ def register_states(parser):
 	parser.register_state(SimpleLangTokenType.END_SYMBOL, lambda _par_, _par_context_: _par_.stop())
 
 
+def _handle_current_file(current_file):
+	pass
+
+
 # @profile_callable(sort_by=SortBy.TIME)
 def simple_lang_main(debug_mode=True):
 	_simple_lang_input_filepath = r"/Users/mickey/Desktop/Python/custom_packages/pyparse/examples/example_simplang_input.sim"
@@ -375,8 +383,9 @@ def simple_lang_main(debug_mode=True):
 	print()
 
 
-# @profile_callable(sort_by=SortBy.TIME)
+@profile_callable(sort_by=SortBy.TIME)
 def date_lang_main(debug_mode=True):
+	__CURRENT_FILE__ = fr"{__file__}"
 	_date_lang_input_filepath = r"/Users/mickey/Desktop/Python/custom_packages/pyparse/examples/example_datelang_source.dlang"
 	with open(_date_lang_input_filepath, "r", newline="") as _in_file:
 		_test_input = _in_file.read()
@@ -384,27 +393,27 @@ def date_lang_main(debug_mode=True):
 
 	__LANG_TYPE__ = LanguageType.DATE_LANG
 	__GRAMMAR_VERSION__ = DateLangVersion.V0_0_1
-	__LANG_INFO__ = f"{__LANG_TYPE__.lower()}_{__GRAMMAR_VERSION__}"
+	__LANG_INFO__ = f"{__LANG_TYPE__.lower()}_{__GRAMMAR_VERSION__}"  # @VERSION_NOTE_<'date_lang_v0_0_1' as of 2025/04/10>
 	__GRAMMAR__ = test_grammar_factory()
 	init_grammar(__GRAMMAR__, __LANG_INFO__)
 
-	for state, rule in __GRAMMAR__.generate_states().items():
-		print(bold_text(apply_color(214, f"STATE: {state}")))
-		print()
-		for i in rule:
-			_id = i.rule_id
-			_head = i.rule_head
-			_body = i.rule_body
-			_status = i.status()
-			print(f"\t • -------")
-			print(f"\t| RULE-ID:     {_id}")
-			print(f"\t| RULE-HEAD:   {_head}")
-			print(f"\t| RULE-BODY:   {_body}")
-			print(f"\t| AUG-RULE-:   {_status}")
-			print(f"\t • -------")
-			print()
-		print()
-		print()
+	# for state, rule in __GRAMMAR__.generate_states().items():
+	# 	print(bold_text(apply_color(214, f"STATE: {state}")))
+	# 	print()
+	# 	for i in rule:
+	# 		_id = i.rule_id
+	# 		_head = i.rule_head
+	# 		_body = i.rule_body
+	# 		_status = i.status()
+	# 		print(f"\t • -------")
+	# 		print(f"\t| RULE-ID:     {_id}")
+	# 		print(f"\t| RULE-HEAD:   {_head}")
+	# 		print(f"\t| RULE-BODY:   {_body}")
+	# 		print(f"\t| AUG-RULE-:   {_status}")
+	# 		print(f"\t • -------")
+	# 		print()
+	# 	print()
+	# 	print()
 
 
 	# __TOKENIZER__ = DateLangTokenizer(tokenizer_id=__LANG_INFO__)
@@ -445,8 +454,8 @@ def date_lang_main(debug_mode=True):
 
 	__TEST_TOKENS__ = (DateLangToken(DateLangTokenType.YEAR, "2023", token_id=DateLangTokenType.YEAR), DateLangToken(DateLangTokenType.DELIM, "-", token_id=DateLangTokenType.DELIM), DateLangToken(DateLangTokenType.MONTH, "08", token_id=DateLangTokenType.MONTH), DateLangToken(DateLangTokenType.DAY, "07", token_id=DateLangTokenType.DAY))
 
-	__PARSER__ = DateLangParser(executor=None, delim=",", invalid_instruction=DateLangParserInstruction.HALT, parser_id=__LANG_INFO__)
-	_pretval = __PARSER__.parse(_token_context_)
+	__PARSER__ = DateLangParser(executor=None, invalid_instruction=DateLangParserInstruction.HALT, logger=_SCRATCH_PARSER_RUNTIME_LOGGER)
+	_pretval = __PARSER__.parse(__TEST_TOKENS__)
 	print()
 	print()
 	print(center_text(bold_text(apply_color(214, f"PARSE IS...\n"))))
@@ -454,10 +463,10 @@ def date_lang_main(debug_mode=True):
 	print()
 
 
-@profile_callable(sort_by=SortBy.TIME)
+# @profile_callable(sort_by=SortBy.TIME)
 def final_main(debug_mode=True):
-	simple_lang_main(debug_mode=debug_mode)
-	# date_lang_main(debug_mode=debug_mode)
+	# simple_lang_main(debug_mode=debug_mode)
+	date_lang_main(debug_mode=debug_mode)
 
 
 if __name__ == "__main__":

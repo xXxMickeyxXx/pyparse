@@ -1,3 +1,5 @@
+from typing import Callable
+from collections import deque
 from abc import ABC, abstractmethod
 from enum import StrEnum, IntEnum, auto
 
@@ -7,6 +9,12 @@ from .scratch_utils import generate_id
 from .scratch_cons import (
 	LanguageType,
 	DateLangVersion
+)
+from .utils import (
+	apply_color,
+	bold_text,
+	underline_text,
+	center_text
 )
 
 
@@ -21,6 +29,11 @@ class DateFormat(StrEnum):
 	M = "M"
 	DD = "DD"
 	D = "D"
+
+
+class DateLangTokenizerMode(IntEnum):
+
+	DEFAULT = auto()
 
 
 class DateLangParserInstruction(IntEnum):
@@ -183,10 +196,17 @@ class Tokenizer(ABC):
 
 class DateLangTokenizer:
 
-	def __init__(self, tokenizer_id=None):
-		self._tokenizer_id = tokenizer_id or generate_id()
+	def __init__(self, mode=DateLangTokenizerMode.DEFAULT, format=f"{DateFormat.YYYY}/{DateFormat.MM}/{DateFormat.DD}", tokenizer_id=None):
+		self._tokenizer_id = tokenizer_id or generate_id()  # @NOTE<move to 'Tokenizer' interface>
+		self._token = None  # @NOTE<move to 'Tokenizer' interface>
+		self._mode = mode  # @NOTE<move to 'Tokenizer' interface>
+		self._format = format
+
+	def set_token(self, token):
+		# @NOTE<move to 'Tokenizer' interface>
+		self._token = token
 	
-	def tokenize(self):
+	def tokenize(self, mode):
 		_END_OF_INPUT = DateLangToken(DateLangTokenType.END_SYMBOL, "#", token_id=DateLangTokenType.END_SYMBOL)
 		self.add_token(_END_OF_INPUT)
 		return self.reset()
@@ -264,19 +284,19 @@ class PyParser:
 
 class DateLangParser(PyParser):
 
-	__slots__ = ("_handlers", "_instructions", "_curr_instruction", "_args", "_invalid_instr", "_state", "_state_stack", "_symbol_stack", "_logger")
+	__slots__ = ("_handlers", "_instructions", "_curr_instruction", "_args", "_invalid_instr", "_state", "_state_stack", "_symbol_stack", "_instr_counter", "_logger")
 
-	def __init__(self, executor=None, invalid_instruction=DateLangParserInstruction.HALT, logger_id=None):
-		super.__init__(executor or self.__EXECUTOR__, init_state=0, parser_id=f"{LanguageType.DATE_LANG.lower()}_{DateLangVersion.V0_0_1}")
+	def __init__(self, executor=None, invalid_instruction=DateLangParserInstruction.HALT, logger=None):
+		super().__init__(executor or self.__EXECUTOR__, init_state=0, parser_id=f"{LanguageType.DATE_LANG.lower()}_{DateLangVersion.V0_0_1}")
 		self._handlers = {}
 		self._instructions = deque()
 		self._curr_instruction = None
 		self._args = ((), {})
 		self._invalid_instr = invalid_instruction
 
-		self._state = (None, None)
 		self._state_stack = []
 		self._symbol_stack = []
+		self._instr_counter = 0
 		self._logger = logger or _date_lang_logger
 		self.init()
 
@@ -324,17 +344,31 @@ class DateLangParser(PyParser):
 	def next_instruction(self, default=None):
 		return self._instructions.popleft() if self._instructions else default
 
+	def next_handler(self, default=None):
+		_instr_type, _args, _kwargs = self.next_instruction(default=(self.invalid_instruction, (), {}))  # @NOTE<'default' value of (None, (), {}) in order to allow tuple unpacking syntax, regardless if valid next instruction type (i.e. unsupportd)>
+		_handler = self._handlers.get(_instr_type, default)
+		self.set_instruction(_instr_type)
+		self.send(*_args, **_kwargs)
+		return _handler
+
 	def init(self):
-		self.add_instruction(DateLangParserInstruction.HALT, self.__HALT__)
-		self.add_instruction(DateLangParserInstruction.INIT, self.__INIT__)
-		self.add_instruction(DateLangParserInstruction.SHIFT, self.__SHIFT__)
-		self.add_instruction(DateLangParserInstruction.REDUCE, self.__REDUCE__)
-		self.add_instruction(DateLangParserInstruction.ACCEPT, self.__ACCEPT__)
-		self.add_instruction(DateLangParserInstruction.ERROR, self.__ERROR__)
-		self.add_instruction(DateLangParserInstruction.PRINT, self.__PRINT__)
-		self.add_instruction(DateLangParserInstruction.CLEANUP, self.__CLEAN_UP__)
-		self.add_instruction(DateLangParserInstruction.CALC_STATE, self.__CALC_STATE__)
-		self.add_instruction(DateLangParserInstruction.MAIN_LOOP, self.__MAIN_LOOP__)
+		# @NOTE<Setup instruction handlers>
+		self.add_handler(DateLangParserInstruction.HALT, self.__HALT__)
+		self.add_handler(DateLangParserInstruction.INIT, self.__INIT__)
+		self.add_handler(DateLangParserInstruction.SHIFT, self.__SHIFT__)
+		self.add_handler(DateLangParserInstruction.REDUCE, self.__REDUCE__)
+		self.add_handler(DateLangParserInstruction.ACCEPT, self.__ACCEPT__)
+		self.add_handler(DateLangParserInstruction.ERROR, self.__ERROR__)
+		self.add_handler(DateLangParserInstruction.PRINT, self.__PRINT__)
+		self.add_handler(DateLangParserInstruction.CLEANUP, self.__CLEAN_UP__)
+		self.add_handler(DateLangParserInstruction.CALC_STATE, self.__CALC_STATE__)
+		self.add_handler(DateLangParserInstruction.MAIN_LOOP, self.__MAIN_LOOP__)
+
+
+		# @NOTE<Submit initial instruction(s)>
+		self.add_instruction(DateLangParserInstruction.INIT)
+		# self.add_instruction(DateLangParserInstruction.HALT)
+
 
 	@staticmethod
 	def __EXECUTOR__(parser):
@@ -348,8 +382,11 @@ class DateLangParser(PyParser):
 			_handler(*_args, **_kwargs)
 		return parser.result
 
-	def __HALT__(self):
-		pass
+	def __HALT__(self, condition=None):
+		_condition_ = condition if isinstance(condition, Callable) else lambda: self.state == (0, SimpleLangTokenType.NUMBER)
+		self.set_result(_condition_())
+		self.halt()
+		self._instr_counter +=1
 
 	def __INIT__(self):
 		_state_int = self.state
@@ -363,18 +400,17 @@ class DateLangParser(PyParser):
 		_print_text += apply_color(226, f"\tNEXT TOKEN     •---> {_type_}\n")
 		print(_print_text)
 		self._state_stack.append(self.state)
-		self.add_instruction(SimpleLangParserInstruction.CALC_STATE, symbol=_type_)
-		self.add_instruction(SimpleLangParserInstruction.MAIN_LOOP)
+		self.add_instruction(DateLangParserInstruction.CALC_STATE, _type_, state_int=_state_int)
+		self.add_instruction(DateLangParserInstruction.MAIN_LOOP)
 		self._instr_counter += 1
-		pass
 
 	def __SHIFT__(self, state_int):
 		_next_token = self.context.pop(0)
 		_next_token_type = _next_token.token_type
 		self._state_stack.append(state_int)
 		self._symbol_stack.append(_next_token_type)
-		self.add_instruction(SimpleLangParserInstruction.CALC_STATE, symbol=None)
-		self.add_instruction(SimpleLangParserInstruction.MAIN_LOOP)
+		self.add_instruction(DateLangParserInstruction.CALC_STATE, self.context[0].token_type)
+		self.add_instruction(DateLangParserInstruction.MAIN_LOOP)
 		self._instr_counter += 1
 
 	def __REDUCE__(self, rule_head, pop_count, goto):
@@ -383,12 +419,13 @@ class DateLangParser(PyParser):
 			_state_pop = self._state_stack.pop(-1)
 		self._symbol_stack.append(rule_head)
 		self._state_stack.append(goto)
-		self.add_instruction(SimpleLangParserInstruction.CALC_STATE, symbol=None)
-		self.add_instruction(SimpleLangParserInstruction.MAIN_LOOP)
+		self.add_instruction(DateLangParserInstruction.CALC_STATE, self.context[0].token_type)
+		self.add_instruction(DateLangParserInstruction.MAIN_LOOP)
 		self._instr_counter += 1
 
 	def __ACCEPT__(self):
-		raise NotImplementedError
+		self.add_instruction(DateLangParserInstruction.PRINT, f"TEST ACCEPT")
+		self.add_instruction(DateLangParserInstruction.HALT, condition)
 
 	def __ERROR__(self, error=None, error_msg="Critical: a runtime error has occurred; please review and try again..."):
 		__error__ = error or RuntimeError
@@ -401,11 +438,12 @@ class DateLangParser(PyParser):
 	def __CLEAN_UP__(self):
 		raise NotImplementedError
 
-	def __CALC_STATE__(self):
-		self.set_state((self._state_stack[-1], self._symbol_stack[-1] if symbol is None else symbol))
+	def __CALC_STATE__(self, symbol, state_int=None):
+		_state_int = state_int if state_int is not None else (self._state_stack[-1] if self._state_stack else 0)
+		self.set_state((_state_int, symbol))
 
 	def __MAIN_LOOP__(self):
-		raise NotImplementedError
+		self.add_instruction(DateLangParserInstruction.HALT, condition=lambda: self.state == (0, DateLangTokenType.YEAR))
 
 
 if __name__ == "__main__":
