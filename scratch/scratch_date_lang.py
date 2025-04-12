@@ -332,6 +332,15 @@ class DateLangParser(PyParser):
 	def logger(self):
 		return self._logger
 
+	def peek(self, offset=0, default=None):
+		try:
+			return self.context[offset]
+		except IndexError as _indx_err:
+			return default
+		finally:
+			# @NOTE<Shouldn't reach here but just in case error isn't caught>
+			return default
+
 	def send(self, *args, **kwargs):
 		self._args = (args, kwargs)
 
@@ -383,7 +392,7 @@ class DateLangParser(PyParser):
 		return parser.result
 
 	def __HALT__(self, condition=None):
-		_condition_ = condition if isinstance(condition, Callable) else lambda: self.state == (0, SimpleLangTokenType.NUMBER)
+		_condition_ = condition if isinstance(condition, Callable) else lambda: False
 		self.set_result(_condition_())
 		self.halt()
 		self._instr_counter +=1
@@ -404,12 +413,16 @@ class DateLangParser(PyParser):
 		self.add_instruction(DateLangParserInstruction.MAIN_LOOP)
 		self._instr_counter += 1
 
-	def __SHIFT__(self, state_int):
+	def __SHIFT__(self, state_int, default=None):
 		_next_token = self.context.pop(0)
 		_next_token_type = _next_token.token_type
 		self._state_stack.append(state_int)
 		self._symbol_stack.append(_next_token_type)
-		self.add_instruction(DateLangParserInstruction.CALC_STATE, self.context[0].token_type)
+		if not self.context:
+			_token_type = default
+		else:
+			_token_type = self.context[0].token_type
+		self.add_instruction(DateLangParserInstruction.CALC_STATE, _token_type, state_int=self._state_stack[-1])
 		self.add_instruction(DateLangParserInstruction.MAIN_LOOP)
 		self._instr_counter += 1
 
@@ -419,13 +432,18 @@ class DateLangParser(PyParser):
 			_state_pop = self._state_stack.pop(-1)
 		self._symbol_stack.append(rule_head)
 		self._state_stack.append(goto)
-		self.add_instruction(DateLangParserInstruction.CALC_STATE, self.context[0].token_type)
+		if not self.context:
+			_token_type = self._symbol_stack[-1]
+		else:
+			_token_type = self.context[0].token_type
+		self.add_instruction(DateLangParserInstruction.CALC_STATE, _token_type, state_int=self._state_stack[-1])
 		self.add_instruction(DateLangParserInstruction.MAIN_LOOP)
 		self._instr_counter += 1
 
 	def __ACCEPT__(self):
+		self.set_state(-1)
 		self.add_instruction(DateLangParserInstruction.PRINT, f"TEST ACCEPT")
-		self.add_instruction(DateLangParserInstruction.HALT, condition)
+		self.add_instruction(DateLangParserInstruction.HALT, condition=lambda: self.state == -1)
 
 	def __ERROR__(self, error=None, error_msg="Critical: a runtime error has occurred; please review and try again..."):
 		__error__ = error or RuntimeError
@@ -443,8 +461,246 @@ class DateLangParser(PyParser):
 		self.set_state((_state_int, symbol))
 
 	def __MAIN_LOOP__(self):
-		self.add_instruction(DateLangParserInstruction.HALT, condition=lambda: self.state == (0, DateLangTokenType.YEAR))
+		_state_int = self.state[0]
+		_type_ = self.state[1]
+
+		print()
+		print(f"MAIN_LOOP INSTRUCTION")
+		print(f"    |")
+		print(f"    | ({_state_int}, {_type_.lower()})")
+		print()
+		print()
+		print()
+		print(f"STATE INT STACK: {self._state_stack}")
+		print(f"SYMBOL STACK: {self._symbol_stack}")
+		print()
+		print()
+
+
+		match _state_int:
+			case None:
+				print(f"HALTING on 'case None'")
+				self.add_instruction(DateLangParserInstruction.HALT)
+			case 0:
+				if _type_.lower() == "year":
+					print(f"SHIFTING TO STATE INT 9")
+					self.add_instruction(DateLangParserInstruction.SHIFT, 9)
+				else:
+					print(f"HALTING on 'case 0'")
+					self.add_instruction(DateLangParserInstruction.HALT, condition=lambda: False)
+			case 2:
+				if _type_ == DateLangTokenType.END_SYMBOL:
+					print(f"REDUCING: {self._symbol_stack} ---> 'date'\nGOTO STATE INT: 3")
+					self.add_instruction(DateLangParserInstruction.REDUCE, "year_format", 1, 3)
+				else:
+					print(f"HALTING on 'case 2'")
+					self.add_instruction(DateLangParserInstruction.HALT, condition=lambda: False)
+			case 3:
+				if _type_ == DateLangTokenType.END_SYMBOL:
+					self.add_instruction(DateLangParserInstruction.ACCEPT)
+				else:
+					print(f"HALTING on 'case 3'")
+					self.add_instruction(DateLangParserInstruction.HALT, condition=lambda: False)
+			case 9:
+				if _type_.lower() == "delim":
+					print(f"SHIFTING TO STATE INT: 14")
+					self.add_instruction(DateLangParserInstruction.SHIFT, 14)
+				else:
+					print(f"HALTING on 'case 9'")
+					self.add_instruction(DateLangParserInstruction.HALT, condition=lambda: False)
+			case 14:
+				if _type_.lower() == "month":
+					print(f"SHIFTING TO STATE INT: 22")
+					self.add_instruction(DateLangParserInstruction.SHIFT, 22)
+				else:
+					print(f"HALTING on 'case 14'")
+					self.add_instruction(DateLangParserInstruction.HALT, condition=lambda: False)
+			case 22:
+				if _type_.lower() == "delim":
+					print(f"SHIFTING TO STATE INT: 26")
+					self.add_instruction(DateLangParserInstruction.SHIFT, 26)
+				else:
+					print(f"HALTING on 'case 22'")
+					self.add_instruction(DateLangParserInstruction.HALT, condition=lambda: False)
+			case 26:
+				if _type_.lower() == "day":
+					print(f"SHIFTING TO STATE INT: 31")
+					self.add_instruction(DateLangParserInstruction.SHIFT, 31, default=DateLangTokenType.END_SYMBOL)
+				else:
+					print(f"HALTING on 'case 26'")
+					self.add_instruction(DateLangParserInstruction.HALT, condition=lambda: False)
+			case 31:
+				if _type_ == DateLangTokenType.END_SYMBOL:
+					print(f"REDUCING: {self._symbol_stack} ---> 'date'\nGOTO STATE INT: 2")
+					self.add_instruction(DateLangParserInstruction.REDUCE, "year_format", 5, 2)
+				else:
+					print(f"HALTING on 'case 31'")
+					self.add_instruction(DateLangParserInstruction.HALT, condition=lambda: False)
+			case _:
+				print(f"HALTING on 'case _'")
+				self.add_instruction(DateLangParserInstruction.HALT, condition=lambda: False)
 
 
 if __name__ == "__main__":
-	pass
+	from pyprofiler import profile_callable, SortBy
+	from pyutils import (
+	    cmd_argument,
+	    DEFAULT_PARSER as DEFAULT_CMD_LINE_PARSER
+	)
+	from .scratch_package_paths import (
+	    LOGGING_ROOT
+	)
+	from .scratch_evaluator import Evaluator
+	from .scratch_nodes import Node
+	from .scratch_init_grammar import (
+		test_grammar_factory,
+		init_grammar
+	)
+	# from .scratch_runtime_setup import (
+	# 	GRAMMAR,
+	# 	CoreParser2,
+	# 	TestGrammarParserEnv,
+	# 	ParseContext,
+	# 	Tokenizer,
+	# 	TestArithmaticGrammarTokenizeHandler,
+	# 	TestArithmaticGrammarTokenType,
+	# 	ManualGrammar4TableBuilder,
+	# 	parse_and_display,
+	# 	user_runtime
+	# )
+	from .scratch_logging_init import init_logging
+	from .scratch_cons import (
+		LanguageType,
+		DateLangVersion,
+		PyParseLoggerID,
+		ParserActionType
+	)
+	from .utils import (
+		display_result,
+		display_item_states,
+		bold_text,
+		apply_color,
+		underline_text,
+		center_text
+	)
+
+
+	_SCRATCH_PARSER_RUNTIME_LOGGER = PyLogger.get("scratch_runtime_init_final_redesign")
+
+
+	# @profile_callable(sort_by=SortBy.TIME)
+	def date_lang_main(debug_mode=True):
+		__CURRENT_FILE__ = fr"{__file__}"
+		_date_lang_input_filepath = r"/Users/mickey/Desktop/Python/custom_packages/pyparse/examples/example_datelang_source.dlang"
+		with open(_date_lang_input_filepath, "r", newline="") as _in_file:
+			_test_input = _in_file.read()
+
+
+		__LANG_TYPE__ = LanguageType.DATE_LANG
+		__GRAMMAR_VERSION__ = DateLangVersion.V0_0_1
+		__LANG_INFO__ = f"{__LANG_TYPE__.lower()}_{__GRAMMAR_VERSION__}"  # @VERSION_NOTE_<'date_lang_v0_0_1' as of 2025/04/10>
+		__GRAMMAR__ = test_grammar_factory()
+		init_grammar(__GRAMMAR__, __LANG_INFO__)
+
+		# for state, rule in __GRAMMAR__.generate_states().items():
+		# 	print(bold_text(apply_color(214, f"STATE: {state}")))
+		# 	print()
+		# 	for i in rule:
+		# 		_id = i.rule_id
+		# 		_head = i.rule_head
+		# 		_body = i.rule_body
+		# 		_status = i.status()
+		# 		print(f"\t • -------")
+		# 		print(f"\t| RULE-ID:     {_id}")
+		# 		print(f"\t| RULE-HEAD:   {_head}")
+		# 		print(f"\t| RULE-BODY:   {_body}")
+		# 		print(f"\t| AUG-RULE-:   {_status}")
+		# 		print(f"\t • -------")
+		# 		print()
+		# 	print()
+		# 	print()
+
+
+
+		_test_input = "2023-08-07"
+		_token_context_ = []
+		# _test_format = f"{DateFormat.YYYY}-{DateFormat.MM}-{DateFormat.DD}"
+		# _test_format_deque = deque(_test_format.split())
+		# _test_input_deque = deque(_test_input.split())
+
+		# _delim = ""
+		# _year = ""
+		# _month = ""
+		# _day = ""
+
+		# while _test_format_deque or _test_input_deque:
+
+		# 	_format_char = _test_format_deque.popleft()
+		# 	_4_year = ""
+		# 	for i in range(4):
+
+
+		# 	if "".join(_test_format[:4]) == DateFormat.YYYY:
+		# 		for i in range(4):
+		# 			_year_char = _test_input[_pointer]
+		# 			_pointer += 1
+
+		# 	elif 
+
+		# 		break
+		# 	else:
+		# 		break
+			
+		# 	_pointer += 1
+	
+
+		if not _token_context_:
+			_token_context_ = [DateLangToken(DateLangTokenType.YEAR, "2023", token_id=DateLangTokenType.YEAR), DateLangToken(DateLangTokenType.DELIM, "-", token_id=DateLangTokenType.DELIM), DateLangToken(DateLangTokenType.MONTH, "08", token_id=DateLangTokenType.MONTH), DateLangToken(DateLangTokenType.DELIM, "-", token_id=DateLangTokenType.DELIM), DateLangToken(DateLangTokenType.DAY, "07", token_id=DateLangTokenType.DAY), DateLangToken(DateLangTokenType.END_SYMBOL, "#", token_id=DateLangTokenType.END_SYMBOL)]
+
+		# __TOKENIZER__ = DateLangTokenizer(tokenizer_id=__LANG_INFO__)
+		# __TOKENIZER__.set_input(_test_input)
+		# _token_context_ = __TOKENIZER__.tokenize()
+		# _token_context_ = [i for i in _token_context_ if i.token_type != DateLangTokenType.SKIP]
+
+
+		print()
+		print(bold_text(apply_color(214, f" INPUT:")), end="\n")
+		print(f"    |")
+		print(f"    |")
+		print(f"    |")
+		for _idx_, _input_ in enumerate(_test_input.split("\n"), start=1):
+			_input_repr_ = repr(_input_)
+			if _idx_ == 1:
+				print(f"     • ---> {_input_repr_}")
+			else:
+				print(f"            {_input_repr_}")
+		print()
+		print()
+		print(bold_text(apply_color(204, " TOKEN CONTEXT:")))
+		print(f"    |")
+		print(f"    |")
+		print(f"    |")
+		_total_tokens = 0
+		for _idx, _token_ in enumerate(_token_context_, start=1):
+			if _idx == 1:
+				print(f"     • ---> {_token_}")
+			else:
+				print(f"            {_token_}")
+			_total_tokens += 1
+		print()
+		print()
+		print(bold_text(apply_color(214, f" TOTAL TOKENS: {_total_tokens}")))
+		for _ in range(2):
+			print()
+
+
+		__PARSER__ = DateLangParser(executor=None, invalid_instruction=DateLangParserInstruction.HALT, logger=_SCRATCH_PARSER_RUNTIME_LOGGER)
+		_pretval = __PARSER__.parse(_token_context_)
+		print()
+		print()
+		print(center_text(bold_text(apply_color(214, f"PARSE IS...\n"))))
+		print(center_text(bold_text(apply_color(10, f"• --- VALID --- •")) if _pretval else bold_text(apply_color(9, f"• --- INVALID --- •"))))
+		print()
+
+
+	date_lang_main(debug_mode=True)

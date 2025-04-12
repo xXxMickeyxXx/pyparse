@@ -20,4 +20,658 @@
 
 		STATE: 0
 
+			 • -------
+			| RULE-ID:     INIT_RULE
+			| RULE-HEAD:   #
+			| RULE-BODY:   ['date']
+			| AUG-RULE-:   [•, 'date']
+			 • -------
 
+			 • -------
+			| RULE-ID:     date_format_1
+			| RULE-HEAD:   date
+			| RULE-BODY:   ['year_format']
+			| AUG-RULE-:   [•, 'year_format']
+			 • -------
+
+			 • -------
+			| RULE-ID:     date_format_2
+			| RULE-HEAD:   date
+			| RULE-BODY:   ['month_format']
+			| AUG-RULE-:   [•, 'month_format']
+			 • -------
+
+			 • -------
+			| RULE-ID:     date_format_3
+			| RULE-HEAD:   date
+			| RULE-BODY:   ['day_format']
+			| AUG-RULE-:   [•, 'day_format']
+			 • -------
+
+			 • -------
+			| RULE-ID:     year_format
+			| RULE-HEAD:   year_format
+			| RULE-BODY:   ['year', 'DELIM', 'month', 'DELIM', 'day']
+			| AUG-RULE-:   [•, 'year', 'DELIM', 'month', 'DELIM', 'day']
+			 • -------
+
+			 • -------
+			| RULE-ID:     month_format
+			| RULE-HEAD:   month_format
+			| RULE-BODY:   ['month', 'DELIM', 'day', 'DELIM', 'year']
+			| AUG-RULE-:   [•, 'month', 'DELIM', 'day', 'DELIM', 'year']
+			 • -------
+
+			 • -------
+			| RULE-ID:     day_format
+			| RULE-HEAD:   day_format
+			| RULE-BODY:   ['day', 'DELIM', 'month', 'DELIM', 'year']
+			| AUG-RULE-:   [•, 'day', 'DELIM', 'month', 'DELIM', 'year']
+			 • -------
+
+			 • -------
+			| RULE-ID:     year_4digits
+			| RULE-HEAD:   year
+			| RULE-BODY:   ['4_digits']
+			| AUG-RULE-:   [•, '4_digits']
+			 • -------
+
+			 • -------
+			| RULE-ID:     year_2digits
+			| RULE-HEAD:   year
+			| RULE-BODY:   ['2_digits']
+			| AUG-RULE-:   [•, '2_digits']
+			 • -------
+
+			 • -------
+			| RULE-ID:     month_4digits
+			| RULE-HEAD:   month
+			| RULE-BODY:   ['4_digits']
+			| AUG-RULE-:   [•, '4_digits']
+			 • -------
+
+			 • -------
+			| RULE-ID:     month_2digits
+			| RULE-HEAD:   month
+			| RULE-BODY:   ['2_digits']
+			| AUG-RULE-:   [•, '2_digits']
+			 • -------
+
+			 • -------
+			| RULE-ID:     day_4digits
+			| RULE-HEAD:   day
+			| RULE-BODY:   ['4_digits']
+			| AUG-RULE-:   [•, '4_digits']
+			 • -------
+
+			 • -------
+			| RULE-ID:     day_2digits
+			| RULE-HEAD:   day
+			| RULE-BODY:   ['2_digits']
+			| AUG-RULE-:   [•, '2_digits']
+			 • -------
+
+			 • -------
+			| RULE-ID:     4digits
+			| RULE-HEAD:   4_digits
+			| RULE-BODY:   ['DIGIT', 'DIGIT', 'DIGIT', 'DIGIT']
+			| AUG-RULE-:   [•, 'DIGIT', 'DIGIT', 'DIGIT', 'DIGIT']
+			 • -------
+
+			 • -------
+			| RULE-ID:     2digits
+			| RULE-HEAD:   2_digits
+			| RULE-BODY:   ['DIGIT', 'DIGIT']
+			| AUG-RULE-:   [•, 'DIGIT', 'DIGIT']
+			 • -------
+
+
+
+		STATE: 1
+
+			 • -------
+			| RULE-ID:     day_format
+			| RULE-HEAD:   day_format
+			| RULE-BODY:   ['day', 'DELIM', 'month', 'DELIM', 'year']
+			| AUG-RULE-:   ['day', •, 'DELIM', 'month', 'DELIM', 'year']
+			 • -------
+
+
+
+		STATE: 2
+
+			 • -------
+			| RULE-ID:     date_format_1
+			| RULE-HEAD:   date
+			| RULE-BODY:   ['year_format']
+			| AUG-RULE-:   ['year_format', •]
+			 • -------
+
+
+
+		STATE: 3
+
+			 • -------
+			| RULE-ID:     INIT_RULE
+			| RULE-HEAD:   #
+			| RULE-BODY:   ['date']
+			| AUG-RULE-:   ['date', •]
+			 • -------
+
+
+
+		STATE: 4
+
+			 • -------
+			| RULE-ID:     date_format_2
+			| RULE-HEAD:   date
+			| RULE-BODY:   ['month_format']
+			| AUG-RULE-:   ['month_format', •]
+			 • -------
+
+
+
+		STATE: 5
+
+			 • -------
+			| RULE-ID:     year_4digits
+			| RULE-HEAD:   year
+			| RULE-BODY:   ['4_digits']
+			| AUG-RULE-:   ['4_digits', •]
+			 • -------
+
+			 • -------
+			| RULE-ID:     month_4digits
+			| RULE-HEAD:   month
+			| RULE-BODY:   ['4_digits']
+			| AUG-RULE-:   ['4_digits', •]
+			 • -------
+
+			 • -------
+			| RULE-ID:     day_4digits
+			| RULE-HEAD:   day
+			| RULE-BODY:   ['4_digits']
+			| AUG-RULE-:   ['4_digits', •]
+			 • -------
+
+
+
+		STATE: 6
+
+			 • -------
+			| RULE-ID:     4digits
+			| RULE-HEAD:   4_digits
+			| RULE-BODY:   ['DIGIT', 'DIGIT', 'DIGIT', 'DIGIT']
+			| AUG-RULE-:   ['DIGIT', •, 'DIGIT', 'DIGIT', 'DIGIT']
+			 • -------
+
+			 • -------
+			| RULE-ID:     2digits
+			| RULE-HEAD:   2_digits
+			| RULE-BODY:   ['DIGIT', 'DIGIT']
+			| AUG-RULE-:   ['DIGIT', •, 'DIGIT']
+			 • -------
+
+
+
+		STATE: 7
+
+			 • -------
+			| RULE-ID:     month_format
+			| RULE-HEAD:   month_format
+			| RULE-BODY:   ['month', 'DELIM', 'day', 'DELIM', 'year']
+			| AUG-RULE-:   ['month', •, 'DELIM', 'day', 'DELIM', 'year']
+			 • -------
+
+
+
+		STATE: 8
+
+			 • -------
+			| RULE-ID:     date_format_3
+			| RULE-HEAD:   date
+			| RULE-BODY:   ['day_format']
+			| AUG-RULE-:   ['day_format', •]
+			 • -------
+
+
+
+		STATE: 9
+
+			 • -------
+			| RULE-ID:     year_format
+			| RULE-HEAD:   year_format
+			| RULE-BODY:   ['year', 'DELIM', 'month', 'DELIM', 'day']
+			| AUG-RULE-:   ['year', •, 'DELIM', 'month', 'DELIM', 'day']
+			 • -------
+
+
+
+		STATE: 10
+
+			 • -------
+			| RULE-ID:     year_2digits
+			| RULE-HEAD:   year
+			| RULE-BODY:   ['2_digits']
+			| AUG-RULE-:   ['2_digits', •]
+			 • -------
+
+			 • -------
+			| RULE-ID:     month_2digits
+			| RULE-HEAD:   month
+			| RULE-BODY:   ['2_digits']
+			| AUG-RULE-:   ['2_digits', •]
+			 • -------
+
+			 • -------
+			| RULE-ID:     day_2digits
+			| RULE-HEAD:   day
+			| RULE-BODY:   ['2_digits']
+			| AUG-RULE-:   ['2_digits', •]
+			 • -------
+
+
+
+		STATE: 11
+
+			 • -------
+			| RULE-ID:     day_format
+			| RULE-HEAD:   day_format
+			| RULE-BODY:   ['day', 'DELIM', 'month', 'DELIM', 'year']
+			| AUG-RULE-:   ['day', 'DELIM', •, 'month', 'DELIM', 'year']
+			 • -------
+
+			 • -------
+			| RULE-ID:     month_4digits
+			| RULE-HEAD:   month
+			| RULE-BODY:   ['4_digits']
+			| AUG-RULE-:   [•, '4_digits']
+			 • -------
+
+			 • -------
+			| RULE-ID:     month_2digits
+			| RULE-HEAD:   month
+			| RULE-BODY:   ['2_digits']
+			| AUG-RULE-:   [•, '2_digits']
+			 • -------
+
+			 • -------
+			| RULE-ID:     4digits
+			| RULE-HEAD:   4_digits
+			| RULE-BODY:   ['DIGIT', 'DIGIT', 'DIGIT', 'DIGIT']
+			| AUG-RULE-:   [•, 'DIGIT', 'DIGIT', 'DIGIT', 'DIGIT']
+			 • -------
+
+			 • -------
+			| RULE-ID:     2digits
+			| RULE-HEAD:   2_digits
+			| RULE-BODY:   ['DIGIT', 'DIGIT']
+			| AUG-RULE-:   [•, 'DIGIT', 'DIGIT']
+			 • -------
+
+
+
+		STATE: 12
+
+			 • -------
+			| RULE-ID:     4digits
+			| RULE-HEAD:   4_digits
+			| RULE-BODY:   ['DIGIT', 'DIGIT', 'DIGIT', 'DIGIT']
+			| AUG-RULE-:   ['DIGIT', 'DIGIT', •, 'DIGIT', 'DIGIT']
+			 • -------
+
+			 • -------
+			| RULE-ID:     2digits
+			| RULE-HEAD:   2_digits
+			| RULE-BODY:   ['DIGIT', 'DIGIT']
+			| AUG-RULE-:   ['DIGIT', 'DIGIT', •]
+			 • -------
+
+
+
+		STATE: 13
+
+			 • -------
+			| RULE-ID:     month_format
+			| RULE-HEAD:   month_format
+			| RULE-BODY:   ['month', 'DELIM', 'day', 'DELIM', 'year']
+			| AUG-RULE-:   ['month', 'DELIM', •, 'day', 'DELIM', 'year']
+			 • -------
+
+			 • -------
+			| RULE-ID:     day_4digits
+			| RULE-HEAD:   day
+			| RULE-BODY:   ['4_digits']
+			| AUG-RULE-:   [•, '4_digits']
+			 • -------
+
+			 • -------
+			| RULE-ID:     day_2digits
+			| RULE-HEAD:   day
+			| RULE-BODY:   ['2_digits']
+			| AUG-RULE-:   [•, '2_digits']
+			 • -------
+
+			 • -------
+			| RULE-ID:     4digits
+			| RULE-HEAD:   4_digits
+			| RULE-BODY:   ['DIGIT', 'DIGIT', 'DIGIT', 'DIGIT']
+			| AUG-RULE-:   [•, 'DIGIT', 'DIGIT', 'DIGIT', 'DIGIT']
+			 • -------
+
+			 • -------
+			| RULE-ID:     2digits
+			| RULE-HEAD:   2_digits
+			| RULE-BODY:   ['DIGIT', 'DIGIT']
+			| AUG-RULE-:   [•, 'DIGIT', 'DIGIT']
+			 • -------
+
+
+
+		STATE: 14
+
+			 • -------
+			| RULE-ID:     year_format
+			| RULE-HEAD:   year_format
+			| RULE-BODY:   ['year', 'DELIM', 'month', 'DELIM', 'day']
+			| AUG-RULE-:   ['year', 'DELIM', •, 'month', 'DELIM', 'day']
+			 • -------
+
+			 • -------
+			| RULE-ID:     month_4digits
+			| RULE-HEAD:   month
+			| RULE-BODY:   ['4_digits']
+			| AUG-RULE-:   [•, '4_digits']
+			 • -------
+
+			 • -------
+			| RULE-ID:     month_2digits
+			| RULE-HEAD:   month
+			| RULE-BODY:   ['2_digits']
+			| AUG-RULE-:   [•, '2_digits']
+			 • -------
+
+			 • -------
+			| RULE-ID:     4digits
+			| RULE-HEAD:   4_digits
+			| RULE-BODY:   ['DIGIT', 'DIGIT', 'DIGIT', 'DIGIT']
+			| AUG-RULE-:   [•, 'DIGIT', 'DIGIT', 'DIGIT', 'DIGIT']
+			 • -------
+
+			 • -------
+			| RULE-ID:     2digits
+			| RULE-HEAD:   2_digits
+			| RULE-BODY:   ['DIGIT', 'DIGIT']
+			| AUG-RULE-:   [•, 'DIGIT', 'DIGIT']
+			 • -------
+
+
+
+		STATE: 15
+
+			 • -------
+			| RULE-ID:     month_4digits
+			| RULE-HEAD:   month
+			| RULE-BODY:   ['4_digits']
+			| AUG-RULE-:   ['4_digits', •]
+			 • -------
+
+
+
+		STATE: 16
+
+			 • -------
+			| RULE-ID:     day_format
+			| RULE-HEAD:   day_format
+			| RULE-BODY:   ['day', 'DELIM', 'month', 'DELIM', 'year']
+			| AUG-RULE-:   ['day', 'DELIM', 'month', •, 'DELIM', 'year']
+			 • -------
+
+
+
+		STATE: 17
+
+			 • -------
+			| RULE-ID:     month_2digits
+			| RULE-HEAD:   month
+			| RULE-BODY:   ['2_digits']
+			| AUG-RULE-:   ['2_digits', •]
+			 • -------
+
+
+
+		STATE: 18
+
+			 • -------
+			| RULE-ID:     4digits
+			| RULE-HEAD:   4_digits
+			| RULE-BODY:   ['DIGIT', 'DIGIT', 'DIGIT', 'DIGIT']
+			| AUG-RULE-:   ['DIGIT', 'DIGIT', 'DIGIT', •, 'DIGIT']
+			 • -------
+
+
+
+		STATE: 19
+
+			 • -------
+			| RULE-ID:     month_format
+			| RULE-HEAD:   month_format
+			| RULE-BODY:   ['month', 'DELIM', 'day', 'DELIM', 'year']
+			| AUG-RULE-:   ['month', 'DELIM', 'day', •, 'DELIM', 'year']
+			 • -------
+
+
+
+		STATE: 20
+
+			 • -------
+			| RULE-ID:     day_4digits
+			| RULE-HEAD:   day
+			| RULE-BODY:   ['4_digits']
+			| AUG-RULE-:   ['4_digits', •]
+			 • -------
+
+
+
+		STATE: 21
+
+			 • -------
+			| RULE-ID:     day_2digits
+			| RULE-HEAD:   day
+			| RULE-BODY:   ['2_digits']
+			| AUG-RULE-:   ['2_digits', •]
+			 • -------
+
+
+
+		STATE: 22
+
+			 • -------
+			| RULE-ID:     year_format
+			| RULE-HEAD:   year_format
+			| RULE-BODY:   ['year', 'DELIM', 'month', 'DELIM', 'day']
+			| AUG-RULE-:   ['year', 'DELIM', 'month', •, 'DELIM', 'day']
+			 • -------
+
+
+
+		STATE: 23
+
+			 • -------
+			| RULE-ID:     day_format
+			| RULE-HEAD:   day_format
+			| RULE-BODY:   ['day', 'DELIM', 'month', 'DELIM', 'year']
+			| AUG-RULE-:   ['day', 'DELIM', 'month', 'DELIM', •, 'year']
+			 • -------
+
+			 • -------
+			| RULE-ID:     year_4digits
+			| RULE-HEAD:   year
+			| RULE-BODY:   ['4_digits']
+			| AUG-RULE-:   [•, '4_digits']
+			 • -------
+
+			 • -------
+			| RULE-ID:     year_2digits
+			| RULE-HEAD:   year
+			| RULE-BODY:   ['2_digits']
+			| AUG-RULE-:   [•, '2_digits']
+			 • -------
+
+			 • -------
+			| RULE-ID:     4digits
+			| RULE-HEAD:   4_digits
+			| RULE-BODY:   ['DIGIT', 'DIGIT', 'DIGIT', 'DIGIT']
+			| AUG-RULE-:   [•, 'DIGIT', 'DIGIT', 'DIGIT', 'DIGIT']
+			 • -------
+
+			 • -------
+			| RULE-ID:     2digits
+			| RULE-HEAD:   2_digits
+			| RULE-BODY:   ['DIGIT', 'DIGIT']
+			| AUG-RULE-:   [•, 'DIGIT', 'DIGIT']
+			 • -------
+
+
+
+		STATE: 24
+
+			 • -------
+			| RULE-ID:     4digits
+			| RULE-HEAD:   4_digits
+			| RULE-BODY:   ['DIGIT', 'DIGIT', 'DIGIT', 'DIGIT']
+			| AUG-RULE-:   ['DIGIT', 'DIGIT', 'DIGIT', 'DIGIT', •]
+			 • -------
+
+
+
+		STATE: 25
+
+			 • -------
+			| RULE-ID:     month_format
+			| RULE-HEAD:   month_format
+			| RULE-BODY:   ['month', 'DELIM', 'day', 'DELIM', 'year']
+			| AUG-RULE-:   ['month', 'DELIM', 'day', 'DELIM', •, 'year']
+			 • -------
+
+			 • -------
+			| RULE-ID:     year_4digits
+			| RULE-HEAD:   year
+			| RULE-BODY:   ['4_digits']
+			| AUG-RULE-:   [•, '4_digits']
+			 • -------
+
+			 • -------
+			| RULE-ID:     year_2digits
+			| RULE-HEAD:   year
+			| RULE-BODY:   ['2_digits']
+			| AUG-RULE-:   [•, '2_digits']
+			 • -------
+
+			 • -------
+			| RULE-ID:     4digits
+			| RULE-HEAD:   4_digits
+			| RULE-BODY:   ['DIGIT', 'DIGIT', 'DIGIT', 'DIGIT']
+			| AUG-RULE-:   [•, 'DIGIT', 'DIGIT', 'DIGIT', 'DIGIT']
+			 • -------
+
+			 • -------
+			| RULE-ID:     2digits
+			| RULE-HEAD:   2_digits
+			| RULE-BODY:   ['DIGIT', 'DIGIT']
+			| AUG-RULE-:   [•, 'DIGIT', 'DIGIT']
+			 • -------
+
+
+
+		STATE: 26
+
+			 • -------
+			| RULE-ID:     year_format
+			| RULE-HEAD:   year_format
+			| RULE-BODY:   ['year', 'DELIM', 'month', 'DELIM', 'day']
+			| AUG-RULE-:   ['year', 'DELIM', 'month', 'DELIM', •, 'day']
+			 • -------
+
+			 • -------
+			| RULE-ID:     day_4digits
+			| RULE-HEAD:   day
+			| RULE-BODY:   ['4_digits']
+			| AUG-RULE-:   [•, '4_digits']
+			 • -------
+
+			 • -------
+			| RULE-ID:     day_2digits
+			| RULE-HEAD:   day
+			| RULE-BODY:   ['2_digits']
+			| AUG-RULE-:   [•, '2_digits']
+			 • -------
+
+			 • -------
+			| RULE-ID:     4digits
+			| RULE-HEAD:   4_digits
+			| RULE-BODY:   ['DIGIT', 'DIGIT', 'DIGIT', 'DIGIT']
+			| AUG-RULE-:   [•, 'DIGIT', 'DIGIT', 'DIGIT', 'DIGIT']
+			 • -------
+
+			 • -------
+			| RULE-ID:     2digits
+			| RULE-HEAD:   2_digits
+			| RULE-BODY:   ['DIGIT', 'DIGIT']
+			| AUG-RULE-:   [•, 'DIGIT', 'DIGIT']
+			 • -------
+
+
+
+		STATE: 27
+
+			 • -------
+			| RULE-ID:     year_4digits
+			| RULE-HEAD:   year
+			| RULE-BODY:   ['4_digits']
+			| AUG-RULE-:   ['4_digits', •]
+			 • -------
+
+
+
+		STATE: 28
+
+			 • -------
+			| RULE-ID:     day_format
+			| RULE-HEAD:   day_format
+			| RULE-BODY:   ['day', 'DELIM', 'month', 'DELIM', 'year']
+			| AUG-RULE-:   ['day', 'DELIM', 'month', 'DELIM', 'year', •]
+			 • -------
+
+
+
+		STATE: 29
+
+			 • -------
+			| RULE-ID:     year_2digits
+			| RULE-HEAD:   year
+			| RULE-BODY:   ['2_digits']
+			| AUG-RULE-:   ['2_digits', •]
+			 • -------
+
+
+
+		STATE: 30
+
+			 • -------
+			| RULE-ID:     month_format
+			| RULE-HEAD:   month_format
+			| RULE-BODY:   ['month', 'DELIM', 'day', 'DELIM', 'year']
+			| AUG-RULE-:   ['month', 'DELIM', 'day', 'DELIM', 'year', •]
+			 • -------
+
+
+
+		STATE: 31
+
+			 • -------
+			| RULE-ID:     year_format
+			| RULE-HEAD:   year_format
+			| RULE-BODY:   ['year', 'DELIM', 'month', 'DELIM', 'day']
+			| AUG-RULE-:   ['year', 'DELIM', 'month', 'DELIM', 'day', •]
+			 • -------

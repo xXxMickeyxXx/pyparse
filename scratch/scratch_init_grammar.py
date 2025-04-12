@@ -144,33 +144,34 @@ def init_grammar_9(grammar):
 
 def init_date_lang_grammar_v0_0_1(grammar):
     # Date grammar for parsing and facilitating the usage of date
+
+
+    # Inital rule (via augmented grammar)
     grammar.create_rule("#", ["date"], rule_id="INIT_RULE")
-    grammar.create_rule("date", ["year_format"], rule_id="date_format1")
-    grammar.create_rule("date", ["month_format"], rule_id="date_format2")
-    grammar.create_rule("date", ["day_format"], rule_id="date_format3t")
+
+
+    # @NOTE<Date format rules, depending on order of date units (e.g. year unit first, then the month unit, lastly the day unit VERSUS month unit first, then the day unit, lastly the year unit VERSUS day unit first, then the month unit, lastly the year unit)>
+    grammar.create_rule("date", ["year_format"], rule_id="date_format_1")
+    grammar.create_rule("date", ["month_format"], rule_id="date_format_2")
+    grammar.create_rule("date", ["day_format"], rule_id="date_format_3")
     
+
+    # @NOTE<>
     grammar.create_rule("year_format", ["year", "DELIM", "month", "DELIM", "day"], rule_id="year_format")
     grammar.create_rule("month_format", ["month", "DELIM", "day", "DELIM", "year"], rule_id="month_format")
     grammar.create_rule("day_format", ["day", "DELIM", "month", "DELIM", "year"], rule_id="day_format")
     
-    grammar.create_rule("year", ["year_4"], rule_id="year4")
-    grammar.create_rule("year", ["year_2"], rule_id="year2")
-    
-    grammar.create_rule("year_4", ["digit", "digit", "digit", "digit"], rule_id="year_4digits")
-    grammar.create_rule("year_2", ["digit", "digit"], rule_id="year_2digits")
 
-    grammar.create_rule("month", ["digit", "digit"], rule_id="month")
-    grammar.create_rule("day", ["digit", "digit"], rule_id="day")
-    grammar.create_rule("digit", ["0"], rule_id="digit0")
-    grammar.create_rule("digit", ["1"], rule_id="digit1")
-    grammar.create_rule("digit", ["2"], rule_id="digit2")
-    grammar.create_rule("digit", ["3"], rule_id="digit3")
-    grammar.create_rule("digit", ["4"], rule_id="digit4")
-    grammar.create_rule("digit", ["5"], rule_id="digit5")
-    grammar.create_rule("digit", ["6"], rule_id="digit6")
-    grammar.create_rule("digit", ["7"], rule_id="digit7")
-    grammar.create_rule("digit", ["8"], rule_id="digit8")
-    grammar.create_rule("digit", ["9"], rule_id="digit9")
+    grammar.create_rule("year", ["4_digits"], rule_id="year_4digits")
+    grammar.create_rule("year", ["2_digits"], rule_id="year_2digits")
+    grammar.create_rule("month", ["4_digits"], rule_id="month_4digits")
+    grammar.create_rule("month", ["2_digits"], rule_id="month_2digits")
+    grammar.create_rule("day", ["4_digits"], rule_id="day_4digits")
+    grammar.create_rule("day", ["2_digits"], rule_id="day_2digits")
+
+    grammar.create_rule("x_digits", ("NUMBER"), rule_id="xdigits")
+    grammar.create_rule("4_digits", ["DIGIT", "DIGIT", "DIGIT", "DIGIT"], rule_id="4digits")
+    grammar.create_rule("2_digits", ["DIGIT", "DIGIT"], rule_id="2digits")
 
 
 def init_simple_lang_grammar_v0_0_1(grammar):

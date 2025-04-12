@@ -74,7 +74,7 @@ from .scratch_runtime_setup import (
 	parse_and_display,
 	user_runtime
 )
-from .scratch_shell_init import initialize_shell
+import initialize_shell
 from .scratch_logging_init import init_logging
 from .scratch_cons import (
 	LanguageType,
@@ -416,11 +416,13 @@ def date_lang_main(debug_mode=True):
 	# 	print()
 
 
+
 	# __TOKENIZER__ = DateLangTokenizer(tokenizer_id=__LANG_INFO__)
 	# __TOKENIZER__.set_input(_test_input)
 	# _token_context_ = __TOKENIZER__.tokenize()
 	# _token_context_ = [i for i in _token_context_ if i.token_type != DateLangTokenType.SKIP]
-	
+	_token_context_ = (DateLangToken(DateLangTokenType.YEAR, "2023", token_id=DateLangTokenType.YEAR), DateLangToken(DateLangTokenType.DELIM, "-", token_id=DateLangTokenType.DELIM), DateLangToken(DateLangTokenType.MONTH, "08", token_id=DateLangTokenType.MONTH), DateLangToken(DateLangTokenType.DAY, "07", token_id=DateLangTokenType.DAY))
+
 
 	# print()
 	# print(bold_text(apply_color(214, f" INPUT:")), end="\n")
@@ -464,33 +466,27 @@ def date_lang_main(debug_mode=True):
 
 
 # @profile_callable(sort_by=SortBy.TIME)
-def final_main(debug_mode=True):
-	# simple_lang_main(debug_mode=debug_mode)
-	date_lang_main(debug_mode=debug_mode)
+def final_main(version, debug_mode=True):
+	_simple_lang_version = f"{str(LanguageType.SIMPLE_LANG)}_{_lang_versions[LanguageType.SIMPLE_LANG]}"
+	_date_lang_version = f"{str(LanguageType.DATE_LANG)}_{_lang_versions[LanguageType.DATE_LANG]}"
+	if version == _simple_lang_version:
+		_log_callbacks = initialize_shell(logger=_SCRATCH_PARSER_RUNTIME_LOGGER, version=_simple_lang_version)
+		for _cback in _log_callbacks:
+			_cback(logger=_SCRATCH_PARSER_RUNTIME_LOGGER, version=_simple_lang_version)
+		simple_lang_main(debug_mode=debug_mode)
+	elif version == _date_lang_version:
+		_log_callbacks = initialize_shell(logger=_SCRATCH_PARSER_RUNTIME_LOGGER, version=_date_lang_version)
+		for _cback in _log_callbacks:
+			_cback(logger=_SCRATCH_PARSER_RUNTIME_LOGGER, version=_date_lang_version)
+		date_lang_main(debug_mode=debug_mode)
+	else:
+		_error_details = f"invalid version key; unable to select appropriate language testing runtime...please review and try again..."
+		raise RuntimeError(_error_details)
 
 
 if __name__ == "__main__":
-	from array import array
+	# __VERSION__ = f"{str(LanguageType.SIMPLE_LANG)}_{_lang_versions[LanguageType.SIMPLE_LANG]}"
+	__VERSION__ = f"{str(LanguageType.DATE_LANG)}_{_lang_versions[LanguageType.DATE_LANG]}"
+	
 
-
-	# Pack year, month, and day into a single 32-bit integer
-	def pack_date(year: int, month: int, day: int) -> int:
-	    return (year << 9) | (month << 5) | day
-
-
-	# Unpack the 32-bit integer back into year, month, and day
-	def unpack_date(packed: int) -> tuple[int, int, int]:
-	    year  = (packed >> 9) & 0x1FFFF  # 17 bits for year
-	    month = (packed >> 5) & 0xF      # 4 bits for month
-	    day   = packed & 0x1F            # 5 bits for day
-	    return year, month, day
-
-
-	date_array = array('I')  # unsigned 32-bit int array
-	date_array.append(pack_date(2025, 4, 5))
-	date_array.append(pack_date(1999, 12, 31))
-
-
-	# Iterate and unpack
-	for packed in date_array:
-	    print(unpack_date(packed))
+	final_main(__VERSION__, debug_mode=True)
