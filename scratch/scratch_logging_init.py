@@ -5,13 +5,10 @@ from pyutils import (
     NoneTypeConversionCondition
 )
 from pylog import PyLogger, LogType
-from .scratch_package_paths import (
-    LOGGING_ROOT
-)
-from .scratch_cons import PyParseLoggerID, PyParseLogName
+from .scratch_cons import PyParseFileSystemPath
 
 
-_logging_init_logger = PyLogger.get(PyParseLoggerID.LOGGING_INIT)
+_logging_init_logger = PyLogger.get("LOGGING_INIT")
 
 
 def init_logging(*args, use_logging=True, logging_callbacks=None, **kwargs):
@@ -27,12 +24,12 @@ def init_logging(*args, use_logging=True, logging_callbacks=None, **kwargs):
             "logging_dir": (
                 str(kwargs.pop("logging_dir"))
                 if "logging_dir" in kwargs
-                else str(LOGGING_ROOT)
+                else str(PyParseFileSystemPath.LOGGING)
             ),
             "log_filename": (
                 str(kwargs.pop("log_filename"))
                 if "log_filename" in kwargs
-                else str(PyParseLogName.SCRATCH_FILENAME)
+                else str("scratch_logfile.log")
             ),
             **kwargs,
         }

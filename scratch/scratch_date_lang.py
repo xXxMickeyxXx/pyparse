@@ -1,10 +1,18 @@
-from typing import Callable
+from typing import (
+	Union,
+	Callable
+)
 from collections import deque
 from abc import ABC, abstractmethod
 from enum import StrEnum, IntEnum, auto
 
-from pyparse import Tokenizer, Scanner, LexHandler, Token
 from pylog import PyLogger, LogType
+from pyutils import (
+    cmd_argument,
+    DEFAULT_PARSER as DEFAULT_CMD_LINE_PARSER
+)
+from pyparse import Tokenizer, Scanner, LexHandler, Token
+
 from .scratch_utils import generate_id
 from .scratch_cons import (
 	LanguageType,
@@ -16,6 +24,7 @@ from .utils import (
 	underline_text,
 	center_text
 )
+from .scratch_shell_init import initialize_shell
 
 
 _date_lang_logger = PyLogger(logger_id=f"{LanguageType.DATE_LANG}{DateLangVersion.V0_0_1}")
@@ -65,7 +74,7 @@ class DateLangParserInstruction(IntEnum):
 	# CONFLICT = auto()  # @NOTE<Potentially add new CONFLICT enumss so it may be good to remove this
 					     #       generalized one to give space to the specific ones>
 
-	# @NOTE<Parser instructions>
+	# @NOTE<MISC parser instructions>
 	PRINT = auto()
 	CLEANUP = auto()
 	CALC_STATE = auto()
@@ -93,6 +102,24 @@ class DateLangToken(Token):
 
 		def __init__(self, token_type, token_val, token_id=None):
 			super().__init__(token_type, token_val, token_id=token_id)
+
+
+class TokenizerContext(ABC):
+	
+	def __init__(self):
+		pass
+
+
+class TokenizerStateInstance(ABC):
+	
+	def __init__(self):
+		pass
+
+
+class TokenizerState(ABC):
+	
+	def __init__(self):
+		pass
 
 
 class Tokenizer(ABC):
@@ -196,20 +223,62 @@ class Tokenizer(ABC):
 
 class DateLangTokenizer:
 
-	def __init__(self, mode=DateLangTokenizerMode.DEFAULT, format=f"{DateFormat.YYYY}/{DateFormat.MM}/{DateFormat.DD}", tokenizer_id=None):
+	# @NOTE<Abstract out the attributes/properties/methods that define the 'Tokenizer',
+	#       makign sure to leave methods specific to this tokenizer type (i.e. it
+	# 		being the tokenizer class used for tokenizing a date input)>
+
+	__slots__ = ("_tokenizer_id", "_format", "_input")
+
+	def __init__(self, format=None, tokenizer_id=None):
 		self._tokenizer_id = tokenizer_id or generate_id()  # @NOTE<move to 'Tokenizer' interface>
-		self._token = None  # @NOTE<move to 'Tokenizer' interface>
-		self._mode = mode  # @NOTE<move to 'Tokenizer' interface>
+		self._format = format or f"{DateFormat.YYYY}-{DateFormat.MM}-{DateFormat.DD}"
+		self._input = None
+		self._format_pointer = 0
+
+	@property
+	def tokenizer_id(self):
+		# @NOTE<Probably needs to ultimately be added to the 'Tokenizer' interface>
+		return self._tokenizer_id
+
+	@property
+	def input(self):
+		# @NOTE<Probably needs to ultimately be added to the 'Tokenizer' interface>
+		if not bool(self._input):
+		# @NOTE<Create and raise custom error here>
+			_error_details = f"unable to access 'input' property as an input has not yet been set for this instance of '{self.__class__.__name__}'..."
+			raise RuntimeError(_error_details)
+		return self._input
+
+	@property
+	def format(self):
+		# @NOTE<Probably needs to ultimately be added to the 'Tokenizer' interface>
+		return self._format
+
+	def set_input(self, input):
+		# @NOTE<Probably needs to ultimately be added to the 'Tokenizer' interface>
+		self._input = input
+
+	def set_format(self, format):
+		# @NOTE<Probably needs to ultimately be added to the 'Tokenizer' interface>
 		self._format = format
 
-	def set_token(self, token):
-		# @NOTE<move to 'Tokenizer' interface>
-		self._token = token
-	
-	def tokenize(self, mode):
+	def tokenize(self):
+		_format = self.format
+
+		_format_pointer = 0
+		_format_len = len(_format)
+		while _format_pointer < _format_len:
+			_current_format_sym = _format[_format_pointer]
+
+			match _current_format_sym:
+				case _:
+					_error_details = f"an error has occurred within 'tokenize' method of instance of '{self.__class__.__name__}'...please review and try again..."
+					raise RuntimeError(_error_details)
+
 		_END_OF_INPUT = DateLangToken(DateLangTokenType.END_SYMBOL, "#", token_id=DateLangTokenType.END_SYMBOL)
-		self.add_token(_END_OF_INPUT)
-		return self.reset()
+
+	def _handler_year(self):
+		pass
 
 
 class PyParser:
@@ -378,15 +447,34 @@ class DateLangParser(PyParser):
 		self.add_instruction(DateLangParserInstruction.INIT)
 		# self.add_instruction(DateLangParserInstruction.HALT)
 
-
 	@staticmethod
 	def __EXECUTOR__(parser):
 		while parser.instructions and (parser.is_running):
-			_handler = parser.next_handler(default=None)
+			_instr_type, _args, _kwargs = parser.next_instruction(default=(parser.invalid_instruction, (), {}))  # @NOTE<'default' value of (None, (), {}) in order to allow tuple unpacking syntax, regardless if valid next instruction type (i.e. unsupportd)>
+			_handler = parser._handlers.get(_instr_type, None)
+			# @NOTE<Determine if should logic should dictate that it exit early, IF the
+			# 		'_handler' evaluates to 'None', which would prevent the parser from
+			# 		updating and setting the current instruction and args or just allow
+			# 		it, even if no '_handler' is found (i.e. '_handler' evaluates to
+			# 		'None')>
 			if _handler is None:
 				# @TODO<Create and raise custom error here>
 				_error_details = f"unable to find supported handler for NEXT INSTRUCTION TYPE: '{parser.curr_instruction}'...exiting with runtime-error..."
 				raise RuntimeError(_error_details)
+
+			# @NOTE<set currently being executed instruction and set the 'args' and/or
+			# 		'kwargs' for the specific handler. Even though this could be
+			# 		skipped, setting them in the parser gives the ability to reference
+			# 		the data associated with the currently executing instruction and
+			# 		it's 'args' and/or 'kwargs'>
+			parser.set_instruction(_instr_type)
+			parser.send(*_args, **_kwargs)
+
+			# _handler = parser.next_handler(default=None)
+			# if _handler is None:
+			# 	# @TODO<Create and raise custom error here>
+			# 	_error_details = f"unable to find supported handler for NEXT INSTRUCTION TYPE: '{parser.curr_instruction}'...exiting with runtime-error..."
+			# 	raise RuntimeError(_error_details)
 			_args, _kwargs = parser.curr_args
 			_handler(*_args, **_kwargs)
 		return parser.result
@@ -441,8 +529,8 @@ class DateLangParser(PyParser):
 		self._instr_counter += 1
 
 	def __ACCEPT__(self):
+		self.add_instruction(DateLangParserInstruction.PRINT, f" TEST ACCEPT\n    |\n    • ---> @NOTE<As a test, setting parser state to int -1>")
 		self.set_state(-1)
-		self.add_instruction(DateLangParserInstruction.PRINT, f"TEST ACCEPT")
 		self.add_instruction(DateLangParserInstruction.HALT, condition=lambda: self.state == -1)
 
 	def __ERROR__(self, error=None, error_msg="Critical: a runtime error has occurred; please review and try again..."):
@@ -542,13 +630,18 @@ class DateLangParser(PyParser):
 
 
 if __name__ == "__main__":
+
+	########################################################################################################################
+	#                                                                                                                      #
+	# • -------------------------------------------------- 'DateLang' -------------------------------------------------- • #
+	#                                                                                                                      #
+	########################################################################################################################
+
+
 	from pyprofiler import profile_callable, SortBy
 	from pyutils import (
 	    cmd_argument,
 	    DEFAULT_PARSER as DEFAULT_CMD_LINE_PARSER
-	)
-	from .scratch_package_paths import (
-	    LOGGING_ROOT
 	)
 	from .scratch_evaluator import Evaluator
 	from .scratch_nodes import Node
@@ -556,24 +649,11 @@ if __name__ == "__main__":
 		test_grammar_factory,
 		init_grammar
 	)
-	# from .scratch_runtime_setup import (
-	# 	GRAMMAR,
-	# 	CoreParser2,
-	# 	TestGrammarParserEnv,
-	# 	ParseContext,
-	# 	Tokenizer,
-	# 	TestArithmaticGrammarTokenizeHandler,
-	# 	TestArithmaticGrammarTokenType,
-	# 	ManualGrammar4TableBuilder,
-	# 	parse_and_display,
-	# 	user_runtime
-	# )
 	from .scratch_logging_init import init_logging
 	from .scratch_cons import (
 		LanguageType,
 		DateLangVersion,
-		PyParseLoggerID,
-		ParserActionType
+		PyParseFileSystemPath
 	)
 	from .utils import (
 		display_result,
@@ -588,7 +668,9 @@ if __name__ == "__main__":
 	_SCRATCH_PARSER_RUNTIME_LOGGER = PyLogger.get("scratch_runtime_init_final_redesign")
 
 
-	@profile_callable(sort_by=SortBy.TIME)
+	@profile_callable(sort_by=SortBy.CUMULATIVE)
+	# @profile_callable(sort_by=SortBy.TIME)
+	# @profile_callable(sort_by=SortBy.CALLS)
 	def date_lang_main(debug_mode=True):
 		# __CURRENT_FILE__ = fr"{__file__}"
 		# _date_lang_input_filepath = r"/Users/mickey/Desktop/Python/custom_packages/pyparse/examples/example_datelang_source.dlang"
@@ -601,6 +683,25 @@ if __name__ == "__main__":
 		__LANG_INFO__ = f"{__LANG_TYPE__.lower()}_{__GRAMMAR_VERSION__}"  # @VERSION_NOTE_<'date_lang_v0_0_1' as of 2025/04/10>
 		# __GRAMMAR__ = test_grammar_factory()
 		# init_grammar(__GRAMMAR__, __LANG_INFO__)
+
+
+		_logging_setup_callbacks = initialize_shell(logger=_SCRATCH_PARSER_RUNTIME_LOGGER, version=str(__LANG_INFO__))
+
+		ENCODING = cmd_argument("encoding", parser=DEFAULT_CMD_LINE_PARSER)
+		USE_LOGGING = cmd_argument("log", parser=DEFAULT_CMD_LINE_PARSER)
+		LOGGING_DIR = cmd_argument("logging_dir", parser=DEFAULT_CMD_LINE_PARSER)
+		LOG_FILENAME = cmd_argument("log_filename", parser=DEFAULT_CMD_LINE_PARSER)
+		LOGGING_LEVEL = cmd_argument("logging_level", parser=DEFAULT_CMD_LINE_PARSER)
+
+		init_logging(
+			use_logging=USE_LOGGING,
+			log_filename=LOG_FILENAME,
+			logging_dir=LOGGING_DIR,
+			logging_level=LOGGING_LEVEL,
+			logging_callbacks=_logging_setup_callbacks,
+			encoding=ENCODING
+		)
+
 
 		# for state, rule in __GRAMMAR__.generate_states().items():
 		# 	print(bold_text(apply_color(214, f"STATE: {state}")))
@@ -686,35 +787,35 @@ if __name__ == "__main__":
 		# _token_context_ = [i for i in _token_context_ if i.token_type != DateLangTokenType.SKIP]
 
 
-		# print()
-		# print(bold_text(apply_color(214, f" INPUT:")), end="\n")
-		# print(f"    |")
-		# print(f"    |")
-		# print(f"    |")
-		# for _idx_, _input_ in enumerate(_test_input.split("\n"), start=1):
-		# 	_input_repr_ = repr(_input_)
-		# 	if _idx_ == 1:
-		# 		print(f"     • ---> {_input_repr_}")
-		# 	else:
-		# 		print(f"            {_input_repr_}")
-		# print()
-		# print()
-		# print(bold_text(apply_color(204, " TOKEN CONTEXT:")))
-		# print(f"    |")
-		# print(f"    |")
-		# print(f"    |")
-		# _total_tokens = 0
-		# for _idx, _token_ in enumerate(_token_context_, start=1):
-		# 	if _idx == 1:
-		# 		print(f"     • ---> {_token_}")
-		# 	else:
-		# 		print(f"            {_token_}")
-		# 	_total_tokens += 1
-		# print()
-		# print()
-		# print(bold_text(apply_color(214, f" TOTAL TOKENS: {_total_tokens}")))
-		# for _ in range(2):
-		# 	print()
+		print()
+		print(bold_text(apply_color(214, f" INPUT:")), end="\n")
+		print(f"    |")
+		print(f"    |")
+		print(f"    |")
+		for _idx_, _input_ in enumerate(_test_input.split("\n"), start=1):
+			_input_repr_ = repr(_input_)
+			if _idx_ == 1:
+				print(f"     • ---> {_input_repr_}")
+			else:
+				print(f"            {_input_repr_}")
+		print()
+		print()
+		print(bold_text(apply_color(204, " TOKEN CONTEXT:")))
+		print(f"    |")
+		print(f"    |")
+		print(f"    |")
+		_total_tokens = 0
+		for _idx, _token_ in enumerate(_token_context_, start=1):
+			if _idx == 1:
+				print(f"     • ---> {_token_}")
+			else:
+				print(f"            {_token_}")
+			_total_tokens += 1
+		print()
+		print()
+		print(bold_text(apply_color(214, f" TOTAL TOKENS: {_total_tokens}")))
+		for _ in range(2):
+			print()
 
 
 		__PARSER__ = DateLangParser(executor=None, invalid_instruction=DateLangParserInstruction.HALT, logger=_SCRATCH_PARSER_RUNTIME_LOGGER)
@@ -723,7 +824,6 @@ if __name__ == "__main__":
 		print()
 		print(center_text(bold_text(apply_color(214, f"PARSE IS...\n"))))
 		print(center_text(bold_text(apply_color(10, f"• --- VALID --- •")) if _pretval else bold_text(apply_color(9, f"• --- INVALID --- •"))))
-		print()
 
 
 	date_lang_main(debug_mode=True)
