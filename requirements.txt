@@ -1,7 +1,12 @@
-build==1.2.1
+build==1.2.2.post1
+charset-normalizer==3.3.2
 packaging==24.0
 pycustomerror @ git+https://github.com/xXxMickeyxXx/pycustomerror.git@5f8f9bffd4658307f842b82bd0c96c8388ee3082
 pyevent @ git+https://github.com/xXxMickeyxXx/pyevent.git@f711860e8adb6d3236ef0e3618bffa3d07382847
+pylog @ git+https://github.com/xXxMickeyxXx/pylog.git@cb2d5e9b50f43c7f516443f566437c464474a2b8
+-e git+https://github.com/xXxMickeyxXx/pyparse.git@6dc85495d82f8ff335de04e8a784c11303d19f61#egg=pyparse
 pyprofiler @ git+https://github.com/xXxMickeyxXx/pyprofiler.git@89122d89d8a26b0f63af1331ddc00b007f7fee99
 pyproject_hooks==1.0.0
-pysynchrony @ git+https://github.com/xXxMickeyxXx/pysynchrony.git@5ef6d2aa0c2616fb5bf0f640f19269e70ea07040
+pysynchrony @ git+https://github.com/xXxMickeyxXx/pysynchrony.git@80e7a337e321ca86ceb08337a4943cccae727d51
+pyutils @ git+https://github.com/xXxMickeyxXx/pyutils.git@c3f37c4c1701d185f47aaa507eaeddce69b64b1f
+unittest_utils @ git+https://github.com/xXxMickeyxXx/unittest_utils.git@0896d4aac4579f2215a1b38b01f3f1d5f33e3a1c

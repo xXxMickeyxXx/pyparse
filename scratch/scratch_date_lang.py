@@ -6,6 +6,7 @@ from collections import deque
 from abc import ABC, abstractmethod
 from enum import StrEnum, IntEnum, auto
 
+from pyevent import PyChannel
 from pylog import PyLogger, LogType
 from pyutils import (
     cmd_argument,
@@ -40,27 +41,23 @@ class DateFormat(StrEnum):
 	D = "D"
 
 
-class DateLangTokenizerMode(IntEnum):
-
-	DEFAULT = auto()
-
-
 class DateLangParserInstruction(IntEnum):
 	"""
 		 _____________________
 	    |          			  |
 	    •__INSTRUCTION ENUMS__•
 
-			HALT (int: 1)
-			INIT (int: 2)
-			SHIFT (int: 3)
-			REDUCE (int: 4)
-			ACCEPT (int: 5)
-			ERROR (int: 6)
-			PRINT (int: 7)
-			CLEANUP (int: 8)
-			CALC_STATE (int: 9)
-			MAIN_LOOP (int: 10)
+			HALT 	 	(int: 1)
+			INIT 	 	(int: 2)
+			SHIFT 	 	(int: 3)
+			REDUCE 	 	(int: 4)
+			ACCEPT 	 	(int: 5)
+			ERROR 	 	(int: 6)
+			PRINT 	 	(int: 7)
+			CLEANUP  	(int: 8)
+			CALC_STATE  (int: 9)
+			CALL 		(int: 10)
+			MAIN_LOOP   (int: 11)
 
 	"""
 
@@ -78,6 +75,7 @@ class DateLangParserInstruction(IntEnum):
 	PRINT = auto()
 	CLEANUP = auto()
 	CALC_STATE = auto()
+	CALL = auto()
 
 	# @NOTE<Parser mainloop instruction>
 	MAIN_LOOP = auto()
@@ -96,6 +94,84 @@ class DateLangTokenType(StrEnum):
 	INVALID = "INVALID"
 	SKIP = ""
 	END_SYMBOL = "END_SYMBOL"
+
+
+class LevelFrame(ABC):
+
+	def __init__(self):
+		pass
+
+
+class SymbolNode(ABC):
+
+	__slots__ = ("_symbol", "_next")
+
+	def __init__(self, symbol="", next=None):
+		self._symbol = symbol
+		self._next = next
+
+
+class PatternMatcher(ABC):
+	# @NOTE<Should likely get abstracted (and/or interfaced) out of this entire project, either as a
+	# 		standalone module/package, as part of some utility kmodule/package, and so on etc.>
+	pass
+
+
+class DateFormat:
+
+	__slots__ = ("_validator_id", "_format", "_channel", "_queue", "_current_fsymbol")
+
+	def __init__(self, format, validator_id=generate_id()):
+		self._validator_id = validator_id
+		self._format = format
+		self._channel = PyChannel()
+
+		self._queue = deque(self.format)
+		self._current_fsymbol = self.next_fqueue(default=None)
+
+		_first_felement = self.next_fqueue(default=None)
+		self._state_stack = deque([] if _first_felement is None else [_first_felement])
+
+	@property
+	def format(self):
+		return self._format
+
+	@property
+	def current_fsymbol(self):
+		if not (self._current_fsymbol):
+			_error_details = f""
+			raise RuntimeError(_error_details)
+		return self._current_fsymbol
+
+	def update_state(self, state):
+		self._state_stack.append(state)
+		self._channel.emit(state, self)
+
+	def register_state(self, state, receiver=None, receiver_id=None):
+		self._channel.register(state, receiver=receiver, receiver_id=receiver_id)
+
+	def state(self, default=None):
+		_retval = default
+		try:
+			_retval = self._state_stack[-1]
+		except IndexError as _indx_err:
+			# @NOTE<Determine if there's a need to handle this error and if so, how>
+			pass
+		finally:
+			return _retval
+
+	def next_fqueue(self, default=None):
+		_retval = default
+		try:
+			_retval = self._queue.popleft()
+		except IndexError as _indx_err:
+			# @NOTE<Determine if there's a need to handle this error and if so, how>
+			pass
+		finally:
+			return _retval
+
+	def match(self, input):
+		pass
 
 
 class DateLangToken(Token):
@@ -371,6 +447,9 @@ class DateLangParser(PyParser):
 
 	@property
 	def curr_instruction(self):
+		# @NOTE<Update so that 'curr_instruction' becomes 'current_instruction' (in order
+		# 		to match the theme of spelling out the word 'curent' whenever it's used
+		# 		as a variable name)>
 		return self._curr_instruction
 
 	@property
@@ -440,6 +519,7 @@ class DateLangParser(PyParser):
 		self.add_handler(DateLangParserInstruction.PRINT, self.__PRINT__)
 		self.add_handler(DateLangParserInstruction.CLEANUP, self.__CLEAN_UP__)
 		self.add_handler(DateLangParserInstruction.CALC_STATE, self.__CALC_STATE__)
+		self.add_handler(DateLangParserInstruction.CALL, self.__CALL__)
 		self.add_handler(DateLangParserInstruction.MAIN_LOOP, self.__MAIN_LOOP__)
 
 
@@ -529,9 +609,25 @@ class DateLangParser(PyParser):
 		self._instr_counter += 1
 
 	def __ACCEPT__(self):
-		self.add_instruction(DateLangParserInstruction.PRINT, f" TEST ACCEPT\n    |\n    • ---> @NOTE<As a test, setting parser state to int -1>")
-		self.set_state(-1)
-		self.add_instruction(DateLangParserInstruction.HALT, condition=lambda: self.state == -1)
+		_random_test_states = [randy.randint(0, 10) for _ in range(10)]
+		print()
+		print(f"RANDOM TEST STATES:")
+		for ee in _random_test_states:
+			print(ee)
+		print()
+
+		def _test_condition_1():
+			# nonlocal _random_test_states
+			_randy_choice = randy.choice(_random_test_states)
+			return _randy_choice
+			print(f"Setting parser's result, i.e., the value that returns when parser is done running it's 'parse' method")
+
+
+		_randy_choice = randy.choice(_random_test_states)
+		self.add_instruction(DateLangParserInstruction.PRINT, f" TEST ACCEPT\n    |\n    • ---> @NOTE<As a test, setting parser to random state intege, with possible values between the # 0 to the # 9 (inclusive)")
+		self.set_state(randy.choice(_random_test_states))
+		self.add_instruction(DateLangParserInstruction.HALT, condition=_test_condition_1)
+		self._instr_counter += 1
 
 	def __ERROR__(self, error=None, error_msg="Critical: a runtime error has occurred; please review and try again..."):
 		__error__ = error or RuntimeError
@@ -545,6 +641,11 @@ class DateLangParser(PyParser):
 		raise NotImplementedError
 
 	def __CALC_STATE__(self, symbol, state_int=None):
+		_state_int = state_int if state_int is not None else (self._state_stack[-1] if self._state_stack else 0)
+		self.set_state((_state_int, symbol))
+
+	def __CALL__(self, func, *args, **kwargs):
+		func(*args, **kwargs)
 		_state_int = state_int if state_int is not None else (self._state_stack[-1] if self._state_stack else 0)
 		self.set_state((_state_int, symbol))
 
@@ -638,6 +739,8 @@ if __name__ == "__main__":
 	########################################################################################################################
 
 
+	import random as randy
+
 	from pyprofiler import profile_callable, SortBy
 	from pyutils import (
 	    cmd_argument,
@@ -668,7 +771,7 @@ if __name__ == "__main__":
 	_SCRATCH_PARSER_RUNTIME_LOGGER = PyLogger.get("scratch_runtime_init_final_redesign")
 
 
-	@profile_callable(sort_by=SortBy.CUMULATIVE)
+	# @profile_callable(sort_by=SortBy.CUMULATIVE)
 	# @profile_callable(sort_by=SortBy.TIME)
 	# @profile_callable(sort_by=SortBy.CALLS)
 	def date_lang_main(debug_mode=True):
