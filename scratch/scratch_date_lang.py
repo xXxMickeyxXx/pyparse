@@ -15,6 +15,7 @@ from pyutils import (
 )
 from pyparse import Tokenizer, Scanner, LexHandler, Token
 
+from .scratch_nodes import Node
 from .scratch_utils import generate_id
 from .scratch_cons import (
 	LanguageType,
@@ -136,6 +137,10 @@ class PatternMatcher(ABC):
 			raise RuntimeError(_error_details)
 		return self._input
 
+	@property
+	def current_symbol(self):
+		return self._current_symbol[self._input_pointer]
+
 	def symbol(self, default=""):
 		# try:
 		# 	return self.input[]
@@ -147,6 +152,14 @@ class PatternMatcher(ABC):
 	def ip(self, offset: int):
 		self._input_pointer = offset
 
+	def increment(self, offset: int = 1):
+		self._input_pointer += offset
+
+	def decrement(self, offset: int = 1):
+		self._input_pointer -= offset
+
+	def match(self, symbol):
+		return self.current_symbol == symbol or self.current_symbol is symbol
 
 
 class DateFormat:
@@ -212,22 +225,88 @@ class DateLangToken(Token):
 			super().__init__(token_type, token_val, token_id=token_id)
 
 
-class TokenizerContext(ABC):
+class DateNode(Node):
+
+	def __init__(self, *nodes, delim="-"):
+		super().__init__(node_id=self.__class__.__name__)
+		self._delim = delim
+		for _node in nodes:
+			self.add(_node)
+
+	def __str__(self):
+		return f"{self.year_node.value}{self._delim}{self.month_node.value}{self._delim}{self.day_node.value}"
+
+	@property
+	def year_node(self):
+		_year_node = [i for i in self.branches() if i.node_id == "YearDateUnitNode"]
+		assert _year_node, f"'YearDateUnitNode' has not yet been added to node ID: {self.node_id}"
+		return _year_node[0]
+
+	@property
+	def month_node(self):
+		_year_node = [i for i in self.branches() if i.node_id == "MonthDateUnitNode"]
+		assert _year_node, f"'MonthDateUnitNode' has not yet been added to node ID: {self.node_id}"
+		return _year_node[0]
+
+	@property
+	def day_node(self):
+		_year_node = [i for i in self.branches() if i.node_id == "DayDateUnitNode"]
+		assert _year_node, f"'DayDateUnitNode' has not yet been added to node ID: {self.node_id}"
+		return _year_node[0]
+
+
+class YearDateUnitNode(DateNode):
+
+	def __init__(self, token):
+		super().__init__()
+		self._token = token
+		assert self._token.token_type == DateLangTokenType.YEAR, f"Invalid token type for '{self.__class__.__name__}'; token type: {self._token.token_type}"
+
+	@property
+	def value(self):
+		return self._token.token_val
+
+
+class MonthDateUnitNode(DateNode):
+
+	def __init__(self, token):
+		super().__init__()
+		self._token = token
+		assert self._token.token_type == DateLangTokenType.MONTH, f"Invalid token type for '{self.__class__.__name__}'; token type: {self._token.token_type}"
+
+	@property
+	def value(self):
+		return self._token.token_val
+
+
+class DayDateUnitNode(DateNode):
+
+	def __init__(self, token):
+		super().__init__()
+		self._token = token
+		assert self._token.token_type == DateLangTokenType.DAY, f"Invalid token type for '{self.__class__.__name__}'; token type: {self._token.token_type}"
+
+	@property
+	def value(self):
+		return self._token.token_val
+
+
+# class TokenizerContext(ABC):
 	
-	def __init__(self):
-		pass
+# 	def __init__(self):
+# 		pass
 
 
-class TokenizerStateInstance(ABC):
+# class TokenizerStateInstance(ABC):
 	
-	def __init__(self):
-		pass
+# 	def __init__(self):
+# 		pass
 
 
-class TokenizerState(ABC):
+# class TokenizerState(ABC):
 	
-	def __init__(self):
-		pass
+# 	def __init__(self):
+# 		pass
 
 
 class Tokenizer(ABC):
@@ -461,7 +540,7 @@ class PyParser:
 
 class DateLangParser(PyParser):
 
-	__slots__ = ("_handlers", "_instructions", "_curr_instruction", "_args", "_invalid_instr", "_state", "_state_stack", "_symbol_stack", "_instr_counter", "_logger")
+	__slots__ = ("_handlers", "_instructions", "_curr_instruction", "_args", "_invalid_instr", "_state", "_ast_stack", "_state_stack", "_symbol_stack", "_instr_counter", "_logger")
 
 	def __init__(self, executor=None, invalid_instruction=DateLangParserInstruction.HALT, logger=None):
 		super().__init__(executor or self.__EXECUTOR__, init_state=0, parser_id=f"{LanguageType.DATE_LANG.lower()}_{DateLangVersion.V0_0_1}")
@@ -471,6 +550,7 @@ class DateLangParser(PyParser):
 		self._args = ((), {})
 		self._invalid_instr = invalid_instruction
 
+		self._ast_stack = []
 		self._state_stack = []
 		self._symbol_stack = []
 		self._instr_counter = 0
@@ -592,8 +672,11 @@ class DateLangParser(PyParser):
 		return parser.result
 
 	def __HALT__(self, condition=None):
-		_condition_ = condition if isinstance(condition, Callable) else lambda: False
-		self.set_result(_condition_())
+		if condition is None:
+			self.set_result(self._ast_stack.pop(-1))
+		else:
+			_condition_ = condition if isinstance(condition, Callable) else lambda: False
+			self.set_result(_condition_())
 		self.halt()
 		self._instr_counter +=1
 
@@ -641,20 +724,21 @@ class DateLangParser(PyParser):
 		self._instr_counter += 1
 
 	def __ACCEPT__(self):
-		_random_test_states = [randy.randint(0, 10) for _ in range(10)]
+		# _random_test_states = [randy.randint(0, 10) for _ in range(10)]
 
 
-		def _test_condition_1():
-			_randy_choice = randy.choice(_random_test_states)
-			print(f"                 Setting parser's result, i.e., the value that returns when parser is done running it's 'parse' method.\n                 The condition: {self.state} == {_randy_choice} (self.state == _randy_choice) will set the parser's result to: '{self.state == _randy_choice}'")
+		# def _test_condition_1():
+		# 	_randy_choice = randy.choice(_random_test_states)
+		# 	print(f"                 Setting parser's result, i.e., the value that returns when parser is done running it's 'parse' method.\n                 The condition: {self.state} == {_randy_choice} (self.state == _randy_choice) will set the parser's result to: '{self.state == _randy_choice}'")
 			
-			return self.state == _randy_choice
+		# 	return self.state == _randy_choice
 
 
-		_randy_choice = randy.choice(_random_test_states)
-		self.add_instruction(DateLangParserInstruction.PRINT, f" TEST ACCEPT\n    |\n    • ---> @NOTE<As a test, setting parser to random state integer, with possible values between the # 0 to the # 9 (inclusive)>")
-		self.set_state(randy.choice(_random_test_states))
-		self.add_instruction(DateLangParserInstruction.HALT, condition=_test_condition_1)
+		# _randy_choice = randy.choice(_random_test_states)
+		# self.add_instruction(DateLangParserInstruction.PRINT, f" TEST ACCEPT\n    |\n    • ---> @NOTE<As a test, setting parser to random state integer, with possible values between the # 0 to the # 9 (inclusive)>")
+		# self.set_state(randy.choice(_random_test_states))
+		# self.set_result(self._ast_stack.pop(-1))
+		self.add_instruction(DateLangParserInstruction.HALT, condition=None)
 		self._instr_counter += 1
 
 	def __ERROR__(self, error=None, error_msg="Critical: a runtime error has occurred; please review and try again..."):
@@ -701,6 +785,8 @@ class DateLangParser(PyParser):
 			case 0:
 				if _type_.lower() == "year":
 					# print(f"SHIFTING TO STATE INT 9")
+					_year_token = self.context[0]
+					self._handle_year_node(_year_token)
 					self.add_instruction(DateLangParserInstruction.SHIFT, 9)
 				else:
 					# print(f"HALTING on 'case 0'")
@@ -728,6 +814,8 @@ class DateLangParser(PyParser):
 			case 14:
 				if _type_.lower() == "month":
 					# print(f"SHIFTING TO STATE INT: 22")
+					_month_token = self.context[0]
+					self._handle_month_node(_month_token)
 					self.add_instruction(DateLangParserInstruction.SHIFT, 22)
 				else:
 					# print(f"HALTING on 'case 14'")
@@ -742,6 +830,8 @@ class DateLangParser(PyParser):
 			case 26:
 				if _type_.lower() == "day":
 					# print(f"SHIFTING TO STATE INT: 31")
+					_day_token = self.context[0]
+					self._handle_day_node(_day_token)
 					self.add_instruction(DateLangParserInstruction.SHIFT, 31, default=DateLangTokenType.END_SYMBOL)
 				else:
 					# print(f"HALTING on 'case 26'")
@@ -756,6 +846,28 @@ class DateLangParser(PyParser):
 			case _:
 				# print(f"HALTING on 'case _'")
 				self.add_instruction(DateLangParserInstruction.HALT, condition=lambda: False)
+
+	def _init_nodes(self):
+		_date_node = DateNode()
+		self._ast_stack.append(_date_node)
+
+	def _handle_year_node(self, token):
+		if not self._ast_stack:
+			self._init_nodes()
+		_date_node = self._ast_stack[-1]
+		_date_node.add(YearDateUnitNode(token))
+
+	def _handle_month_node(self, token):
+		if not self._ast_stack:
+			self._init_nodes()
+		_date_node = self._ast_stack[-1]
+		_date_node.add(MonthDateUnitNode(token))
+
+	def _handle_day_node(self, token):
+		if not self._ast_stack:
+			self._init_nodes()
+		_date_node = self._ast_stack[-1]
+		_date_node.add(DayDateUnitNode(token))
 
 
 def date_lang_main():
@@ -948,6 +1060,8 @@ def date_lang_main():
 
 		__PARSER__ = DateLangParser(executor=None, invalid_instruction=DateLangParserInstruction.HALT, logger=_SCRATCH_PARSER_RUNTIME_LOGGER)
 		_pretval = __PARSER__.parse(_token_context_)
+		print()
+		print(f"RESULT ---> {_pretval}")
 		print()
 		print()
 		print(center_text(bold_text(apply_color(214, f"PARSE IS...\n"))))
