@@ -1,3 +1,4 @@
+import random as randy  # @TODO:**Delete when packaging**
 from typing import (
 	Union,
 	Callable
@@ -96,25 +97,56 @@ class DateLangTokenType(StrEnum):
 	END_SYMBOL = "END_SYMBOL"
 
 
-class LevelFrame(ABC):
+# class LevelFrame(ABC):
 
-	def __init__(self):
-		pass
+# 	__slots__ = ("_symbol",)
+
+# 	def __init__(self, symbol):
+# 		self._symbol = symbol
+# 		self._next_nodes = []
 
 
-class SymbolNode(ABC):
+# class SymbolNode(ABC):
 
-	__slots__ = ("_symbol", "_next")
+# 	# _level_frame = 
 
-	def __init__(self, symbol="", next=None):
-		self._symbol = symbol
-		self._next = next
+# 	__slots__ = ("_symbol", "_next")
+
+# 	def __init__(self, symbol, next=None):
+# 		self._symbol = symbol
+# 		self._next = next
 
 
 class PatternMatcher(ABC):
 	# @NOTE<Should likely get abstracted (and/or interfaced) out of this entire project, either as a
 	# 		standalone module/package, as part of some utility kmodule/package, and so on etc.>
-	pass
+
+	__slots__ = ("_input", "_input_pointer", "_current_symbol")
+
+	def __init__(self):
+		self._input = input
+		self._input_pointer = 0
+
+		self._current_symbol = None
+
+	@property
+	def input(self):
+		if not bool(self._input):
+			_error_details = f"@TODO<update error verbiage; create and raise custom error here>"
+			raise RuntimeError(_error_details)
+		return self._input
+
+	def symbol(self, default=""):
+		# try:
+		# 	return self.input[]
+		pass
+
+	def set_input(self, input):
+		self._input = input
+
+	def ip(self, offset: int):
+		self._input_pointer = offset
+
 
 
 class DateFormat:
@@ -610,21 +642,17 @@ class DateLangParser(PyParser):
 
 	def __ACCEPT__(self):
 		_random_test_states = [randy.randint(0, 10) for _ in range(10)]
-		print()
-		print(f"RANDOM TEST STATES:")
-		for ee in _random_test_states:
-			print(ee)
-		print()
+
 
 		def _test_condition_1():
-			# nonlocal _random_test_states
 			_randy_choice = randy.choice(_random_test_states)
-			return _randy_choice
-			print(f"Setting parser's result, i.e., the value that returns when parser is done running it's 'parse' method")
+			print(f"                 Setting parser's result, i.e., the value that returns when parser is done running it's 'parse' method.\n                 The condition: {self.state} == {_randy_choice} (self.state == _randy_choice) will set the parser's result to: '{self.state == _randy_choice}'")
+			
+			return self.state == _randy_choice
 
 
 		_randy_choice = randy.choice(_random_test_states)
-		self.add_instruction(DateLangParserInstruction.PRINT, f" TEST ACCEPT\n    |\n    • ---> @NOTE<As a test, setting parser to random state intege, with possible values between the # 0 to the # 9 (inclusive)")
+		self.add_instruction(DateLangParserInstruction.PRINT, f" TEST ACCEPT\n    |\n    • ---> @NOTE<As a test, setting parser to random state integer, with possible values between the # 0 to the # 9 (inclusive)>")
 		self.set_state(randy.choice(_random_test_states))
 		self.add_instruction(DateLangParserInstruction.HALT, condition=_test_condition_1)
 		self._instr_counter += 1
@@ -730,16 +758,13 @@ class DateLangParser(PyParser):
 				self.add_instruction(DateLangParserInstruction.HALT, condition=lambda: False)
 
 
-if __name__ == "__main__":
+def date_lang_main():
 
 	########################################################################################################################
 	#                                                                                                                      #
 	# • -------------------------------------------------- 'DateLang' -------------------------------------------------- • #
 	#                                                                                                                      #
 	########################################################################################################################
-
-
-	import random as randy
 
 	from pyprofiler import profile_callable, SortBy
 	from pyutils import (
@@ -774,7 +799,7 @@ if __name__ == "__main__":
 	# @profile_callable(sort_by=SortBy.CUMULATIVE)
 	# @profile_callable(sort_by=SortBy.TIME)
 	# @profile_callable(sort_by=SortBy.CALLS)
-	def date_lang_main(debug_mode=True):
+	def _date_lang_main(debug_mode=True):
 		# __CURRENT_FILE__ = fr"{__file__}"
 		# _date_lang_input_filepath = r"/Users/mickey/Desktop/Python/custom_packages/pyparse/examples/example_datelang_source.dlang"
 		# with open(_date_lang_input_filepath, "r", newline="") as _in_file:
@@ -929,4 +954,8 @@ if __name__ == "__main__":
 		print(center_text(bold_text(apply_color(10, f"• --- VALID --- •")) if _pretval else bold_text(apply_color(9, f"• --- INVALID --- •"))))
 
 
-	date_lang_main(debug_mode=True)
+	_date_lang_main(debug_mode=True)
+
+
+if __name__ == "__main__":
+	date_lang_main()
