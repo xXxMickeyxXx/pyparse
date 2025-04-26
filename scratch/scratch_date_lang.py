@@ -118,16 +118,18 @@ class DateLangTokenType(StrEnum):
 # 		self._next = next
 
 
-class PatternMatcher(ABC):
+class DatePatternMatcher(ABC):
 	# @NOTE<Should likely get abstracted (and/or interfaced) out of this entire project, either as a
 	# 		standalone module/package, as part of some utility kmodule/package, and so on etc.>
 
-	__slots__ = ("_input", "_input_pointer", "_current_symbol")
+	__slots__ = ("_pattern", "_delim", "_input", "_input_pointer", "_current_symbol")
 
-	def __init__(self):
+	def __init__(self, pattern, delim="-"):
+		self._pattern = pattern
+		self._delim = delim
+		
 		self._input = input
 		self._input_pointer = 0
-
 		self._current_symbol = None
 
 	@property
@@ -158,65 +160,128 @@ class PatternMatcher(ABC):
 	def decrement(self, offset: int = 1):
 		self._input_pointer -= offset
 
-	def match(self, symbol):
-		return self.current_symbol == symbol or self.current_symbol is symbol
+	# def match(self, symbol):
+	# 	return self.current_symbol == symbol or self.current_symbol is symbol
 
+	def consume(self, symbol):
+		_matched = self.current_symbol == symbol or self.current_symbol is symbol
+		if _matched:
+			self.increment(offset=1)
+			return True
+		return False
 
-class DateFormat:
+	def match_input(self, input):
+		# @NOTE<update '_input_pointer' to '_symbol_pointer' or simply '_pointer'>
+		self._input = input
+		self._input_pointer = 0
+		_input_len = len(input) 
+		_pattern_len = len(self._pattern)
 
-	__slots__ = ("_validator_id", "_format", "_channel", "_queue", "_current_fsymbol")
+		if _input_len != _pattern_len:
+			return False
 
-	def __init__(self, format, validator_id=generate_id()):
-		self._validator_id = validator_id
-		self._format = format
-		self._channel = PyChannel()
-
-		self._queue = deque(self.format)
-		self._current_fsymbol = self.next_fqueue(default=None)
-
-		_first_felement = self.next_fqueue(default=None)
-		self._state_stack = deque([] if _first_felement is None else [_first_felement])
-
-	@property
-	def format(self):
-		return self._format
-
-	@property
-	def current_fsymbol(self):
-		if not (self._current_fsymbol):
-			_error_details = f""
-			raise RuntimeError(_error_details)
-		return self._current_fsymbol
-
-	def update_state(self, state):
-		self._state_stack.append(state)
-		self._channel.emit(state, self)
-
-	def register_state(self, state, receiver=None, receiver_id=None):
-		self._channel.register(state, receiver=receiver, receiver_id=receiver_id)
-
-	def state(self, default=None):
-		_retval = default
-		try:
-			_retval = self._state_stack[-1]
-		except IndexError as _indx_err:
-			# @NOTE<Determine if there's a need to handle this error and if so, how>
-			pass
-		finally:
-			return _retval
-
-	def next_fqueue(self, default=None):
-		_retval = default
-		try:
-			_retval = self._queue.popleft()
-		except IndexError as _indx_err:
-			# @NOTE<Determine if there's a need to handle this error and if so, how>
-			pass
-		finally:
-			return _retval
+		while (_input_len > self._input_pointer) or (_pattern_len > self._input_pointer):
+			_pattern_symbol = self._pattern[self._input_pointer]
+			print(f"MATCH PATTERN SYMBOL ---> {_pattern_symbol}")
+			match _pattern_symbol:
+				case "Y":
+					# @NOTE<check if pattern using 4 numbers for the year date unit (e.g., '1989'
+					# 		or '2025')>
+					if self._pattern[self._input_pointer: self._input_pointer + 4] == DateFormat.YYYY and (self._input[self._input_pointer: self._input_pointer + 4].isdigit()):
+						# @NOTE<check if symbol after the 4 digit year date unit is the delimiter in
+						# 		order to move onto the next date unit)>
+						if (self._pattern[self._input_pointer + 5] == self._delim) and (self._input[self._input_pointer + 5] == self._delim):
+							self.increment(offset=5)
+						else:
+							self.increment(offset=4)
+					# @NOTE<check if pattern using 2 numbers for the year date unit (e.g., '89'
+					# 		for the year '1989' or '25' for the year '2025'>
+					elif self._pattern[self._input_pointer: self._input_pointer + 3] == f"{DateFormat.YY}{self._delim}" and (self._input[self._input_pointer: self._input_pointer + 2].isdigit()):
+						# @NOTE<check if symbol after the 2 digit year date unit is the delimiter in
+						# 		order to move onto the next date unit)>
+						if (self._pattern[self._input_pointer + 4] == self._delim) and (self._input[self._input_pointer + 4] == self._delim):
+							self.increment(offset=3)
+						else:
+							self.increment(offset=2)
+				case "M":
+					if (self._pattern[self._input_pointer: self._input_pointer + 2] == DateFormat.MM) and (self._input[self._input_pointer: self._input_pointer + 2].isdigit()):
+						self.increment(offset=2)
+					else:
+						self.increment(offset=1)
+				case "D":
+					if self._pattern[self._input_pointer: self._input_pointer + 2] == DateFormat.DD and ((self._input[self._input_pointer: self._input_pointer + 2].isdigit())):
+						self.increment(offset=2)
+					else:
+						self.increment(offset=1)
+				case self._delim:
+					if self._input[self._input_pointer] == self._delim:
+						self.increment(offset=1)
+				case _:
+					# @TODO<create and raise custom error here>
+					# _error_details = f"match for symbol: '{_pattern_symbol}' could not be found...please review and try again..."
+					# raise RuntimeError(_error_details)
+					return False
+		return True if (_input_len == self._input_pointer) and (_pattern_len == self._input_pointer) else False
 
 	def match(self, input):
-		pass
+		return self.match_input(input)
+
+
+# class DateFormat:
+
+# 	__slots__ = ("_validator_id", "_format", "_channel", "_queue", "_current_fsymbol")
+
+# 	def __init__(self, format, validator_id=generate_id()):
+# 		self._validator_id = validator_id
+# 		self._format = format
+# 		self._channel = PyChannel()
+
+# 		self._queue = deque(self.format)
+# 		self._current_fsymbol = self.next_fqueue(default=None)
+
+# 		_first_felement = self.next_fqueue(default=None)
+# 		self._state_stack = deque([] if _first_felement is None else [_first_felement])
+
+# 	@property
+# 	def format(self):
+# 		return self._format
+
+# 	@property
+# 	def current_fsymbol(self):
+# 		if not (self._current_fsymbol):
+# 			_error_details = f""
+# 			raise RuntimeError(_error_details)
+# 		return self._current_fsymbol
+
+# 	def update_state(self, state):
+# 		self._state_stack.append(state)
+# 		self._channel.emit(state, self)
+
+# 	def register_state(self, state, receiver=None, receiver_id=None):
+# 		self._channel.register(state, receiver=receiver, receiver_id=receiver_id)
+
+# 	def state(self, default=None):
+# 		_retval = default
+# 		try:
+# 			_retval = self._state_stack[-1]
+# 		except IndexError as _indx_err:
+# 			# @NOTE<Determine if there's a need to handle this error and if so, how>
+# 			pass
+# 		finally:
+# 			return _retval
+
+# 	def next_fqueue(self, default=None):
+# 		_retval = default
+# 		try:
+# 			_retval = self._queue.popleft()
+# 		except IndexError as _indx_err:
+# 			# @NOTE<Determine if there's a need to handle this error and if so, how>
+# 			pass
+# 		finally:
+# 			return _retval
+
+# 	def match(self, input):
+# 		pass
 
 
 class DateLangToken(Token):
@@ -1069,6 +1134,20 @@ def date_lang_main():
 
 
 	_date_lang_main(debug_mode=True)
+
+	_test_pattern = f"{str(DateFormat.YY)}-{str(DateFormat.MM)}-{str(DateFormat.DD)}"
+	# _test_input = "1989-12-22"
+	# _test_input = "89-12-22"
+	# _test_input = "89-8-08"
+	_test_input = "89-10-08"
+	print()
+	print(f"PATTERN         ---> {_test_pattern}")
+	print(f"MATCHING INPUT  ---> {_test_input}")
+	print()
+	_pattern_matcher = DatePatternMatcher(_test_pattern, delim='-')
+	_input_valid_output_txt = bold_text(apply_color(10, f"TRUE")) if _pattern_matcher.match(_test_input) else bold_text(apply_color(9, f"FALSE"))
+	print(f"INPUT VALID ---> {_input_valid_output_txt}")
+	print()
 
 
 if __name__ == "__main__":
