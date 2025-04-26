@@ -7,6 +7,7 @@ from collections import deque
 from abc import ABC, abstractmethod
 from enum import StrEnum, IntEnum, auto
 
+from pyprofiler import profile_callable, SortBy
 from pyevent import PyChannel
 from pylog import PyLogger, LogType
 from pyutils import (
@@ -98,26 +99,6 @@ class DateLangTokenType(StrEnum):
 	END_SYMBOL = "END_SYMBOL"
 
 
-# class LevelFrame(ABC):
-
-# 	__slots__ = ("_symbol",)
-
-# 	def __init__(self, symbol):
-# 		self._symbol = symbol
-# 		self._next_nodes = []
-
-
-# class SymbolNode(ABC):
-
-# 	# _level_frame = 
-
-# 	__slots__ = ("_symbol", "_next")
-
-# 	def __init__(self, symbol, next=None):
-# 		self._symbol = symbol
-# 		self._next = next
-
-
 class DatePatternMatcher(ABC):
 	# @NOTE<Should likely get abstracted (and/or interfaced) out of this entire project, either as a
 	# 		standalone module/package, as part of some utility kmodule/package, and so on etc.>
@@ -171,6 +152,13 @@ class DatePatternMatcher(ABC):
 		return False
 
 	def match_input(self, input):
+		# @TODO<Determine how to handle when the date format when the value of the date
+		# 		unit naturally exceeds the contraint of the pattern. For example, if
+		# 		the month pattern is specified to include only 1 digit, then how are
+		# 		you supposed to check for the valid month of October, which requires
+		# 		2 digits (i.e. '10' for the 10th month of the year)>
+
+
 		# @NOTE<update '_input_pointer' to '_symbol_pointer' or simply '_pointer'>
 		self._input = input
 		self._input_pointer = 0
@@ -225,63 +213,6 @@ class DatePatternMatcher(ABC):
 
 	def match(self, input):
 		return self.match_input(input)
-
-
-# class DateFormat:
-
-# 	__slots__ = ("_validator_id", "_format", "_channel", "_queue", "_current_fsymbol")
-
-# 	def __init__(self, format, validator_id=generate_id()):
-# 		self._validator_id = validator_id
-# 		self._format = format
-# 		self._channel = PyChannel()
-
-# 		self._queue = deque(self.format)
-# 		self._current_fsymbol = self.next_fqueue(default=None)
-
-# 		_first_felement = self.next_fqueue(default=None)
-# 		self._state_stack = deque([] if _first_felement is None else [_first_felement])
-
-# 	@property
-# 	def format(self):
-# 		return self._format
-
-# 	@property
-# 	def current_fsymbol(self):
-# 		if not (self._current_fsymbol):
-# 			_error_details = f""
-# 			raise RuntimeError(_error_details)
-# 		return self._current_fsymbol
-
-# 	def update_state(self, state):
-# 		self._state_stack.append(state)
-# 		self._channel.emit(state, self)
-
-# 	def register_state(self, state, receiver=None, receiver_id=None):
-# 		self._channel.register(state, receiver=receiver, receiver_id=receiver_id)
-
-# 	def state(self, default=None):
-# 		_retval = default
-# 		try:
-# 			_retval = self._state_stack[-1]
-# 		except IndexError as _indx_err:
-# 			# @NOTE<Determine if there's a need to handle this error and if so, how>
-# 			pass
-# 		finally:
-# 			return _retval
-
-# 	def next_fqueue(self, default=None):
-# 		_retval = default
-# 		try:
-# 			_retval = self._queue.popleft()
-# 		except IndexError as _indx_err:
-# 			# @NOTE<Determine if there's a need to handle this error and if so, how>
-# 			pass
-# 		finally:
-# 			return _retval
-
-# 	def match(self, input):
-# 		pass
 
 
 class DateLangToken(Token):
@@ -935,6 +866,9 @@ class DateLangParser(PyParser):
 		_date_node.add(DayDateUnitNode(token))
 
 
+# @profile_callable(sort_by=SortBy.CUMULATIVE)
+# @profile_callable(sort_by=SortBy.TIME)
+# @profile_callable(sort_by=SortBy.CALLS)
 def date_lang_main():
 
 	########################################################################################################################
@@ -943,7 +877,6 @@ def date_lang_main():
 	#                                                                                                                      #
 	########################################################################################################################
 
-	from pyprofiler import profile_callable, SortBy
 	from pyutils import (
 	    cmd_argument,
 	    DEFAULT_PARSER as DEFAULT_CMD_LINE_PARSER
@@ -1133,13 +1066,13 @@ def date_lang_main():
 		print(center_text(bold_text(apply_color(10, f"• --- VALID --- •")) if _pretval else bold_text(apply_color(9, f"• --- INVALID --- •"))))
 
 
-	_date_lang_main(debug_mode=True)
+	# _date_lang_main(debug_mode=True)
 
-	_test_pattern = f"{str(DateFormat.YY)}-{str(DateFormat.MM)}-{str(DateFormat.DD)}"
+	_test_pattern = f"{str(DateFormat.YYYY)}-{str(DateFormat.MM)}-{str(DateFormat.D)}"
 	# _test_input = "1989-12-22"
 	# _test_input = "89-12-22"
 	# _test_input = "89-8-08"
-	_test_input = "89-10-08"
+	_test_input = "1989-10-1"
 	print()
 	print(f"PATTERN         ---> {_test_pattern}")
 	print(f"MATCHING INPUT  ---> {_test_input}")
