@@ -8,7 +8,7 @@ from pylog import PyLogger, LogType
 from .scratch_cons import PyParseFileSystemPath
 
 
-_logging_init_logger = PyLogger.get("LOGGING_INIT")
+_logging_init_logger = PyLogger.get("scratch.init_logging")
 
 
 def init_logging(*args, use_logging=True, logging_callbacks=None, **kwargs):

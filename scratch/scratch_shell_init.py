@@ -35,7 +35,7 @@ def _set_logging_level(callback_list, logger=_shell_init_logger):
             message=f"'-logging_level' command-line argument has been registered with the application and is now available for use",
             command=f"-logging_level",
             default=_DEFAULT_LEVEL,
-            version=str(version),
+            # version=str(version),
             logger_id=f"{logger.logger_id}",
             help=f"set's server's logging level; defaults to 'INFO' (as per python's built-in 'logging' module's 'INFO' constant')...",
         ))
@@ -53,7 +53,7 @@ def _set_logging_dir(callback_list, logger=_shell_init_logger):
         message=f"'-log_filename' command-line argument has been registered with the application and is now available for use",
         command=f"-log_filename",
         default=_DEFAULT_LOGGING_FILENAME,
-        version=str(version),
+        # version=str(version),
         logger_id=f"{logger.logger_id}",
         help=f"set name to use for log file"
     ))
@@ -71,7 +71,7 @@ def _set_logging_filename(callback_list, logger=_shell_init_logger):
         message=f"'-log_filename' command-line argument has been registered with the application and is now available for use",
         command=f"-log_filename",
         default=_DEFAULT_LOGGING_FILENAME,
-        version=str(version),
+        # version=str(version),
         logger_id=f"{logger.logger_id}",
         help=f"set name to use for log file"
     ))
@@ -87,7 +87,7 @@ def _set_use_logging(callback_list, logger=_shell_init_logger):
     callback_list.append(lambda: logger.submit_log(
         message=f"Flag which, when included, will enable logging",
         default=False,
-        version=str(version),
+        # version=str(version),
         help=f"Include this flag to enable logging",
         logger_id=f"{logger.logger_id}"
     ))
@@ -103,7 +103,7 @@ def _set_use_debugger(callback_list, logger=_shell_init_logger):
     callback_list.append(lambda: logger.submit_log(
         message=f"Flag which, when included, will enable application-wide debugging",
         default=False,
-        version=str(version),
+        # version=str(version),
         help=f"Include this flag to enable application-wide debugging",
         logger_id=f"{logger.logger_id}"
     ))

@@ -1,4 +1,10 @@
-import random as randy  # @TODO:**Delete when packaging**
+# @TODO<Determine how I could add the ability to create sub-todo's so that I can
+# 		ultimately create a todo list with the ability to have sub-tasks; this
+# 		should then allow me to break each todo into a series of steps that I
+# 		can then test against, hook into unit testing, regression
+# 		testing, etc.>
+
+
 from typing import (
 	Union,
 	Callable
@@ -99,7 +105,165 @@ class DateLangTokenType(StrEnum):
 	END_SYMBOL = "END_SYMBOL"
 
 
-class DatePatternMatcher(ABC):
+class PatternMatcherState(ABC):
+
+	__slots__ = ("_state_id", "_context")
+
+	def __init__(self, state_id=None):
+		self._state_id = state_id or generate_id()
+		self._context = None
+
+	@property
+	def state_id(self):
+		return self._state_id
+
+	@property
+	def context(self):
+		if self._context is None or not bool(self._context):
+			# @TODO<update error verbiage; create and raise custom error here>
+			_error_details = f"@TODO<update error verbiage; create and raise custom error here>"
+			raise RuntimeError(_error_details)
+		return self._context
+
+	def set_context(self, context):
+		self._context = context
+
+	@abstractmethod
+	def execute(self):
+		raise NotImplementedError
+
+
+class DefaultPatternMatcherState(PatternMatcherState):
+
+	def __init__(self):
+		super().__init__(state_id="DefaultPatternMatcherState")
+
+	def execute(self, context):
+		print()
+		print(f"HALTING...")
+		print(f"...TEST MATCH 'True'")
+		context.update(YearPatternMatcherState())
+
+
+class YearPatternMatcherState(PatternMatcherState):
+
+	def __init__(self, delim="-"):
+		super().__init__(state_id="YearPatternMatcherState")
+		self._year_input = ""
+		self._delim = delim
+
+	def execute(self, context):
+		if context.input[context.pointer: context.pointer + 4].isdigit():
+			# @NOTE: offset to get just the int value of year date unit input is int 4,
+			# 	   	 however, we want to just skip over the delimiter and make that the
+			# 	   	 parser's problem, i.e. after parsing during semantic analysis
+			print(f"OFFSETTING BY int 5 (skipping delim)")
+			context.update(MonthPatternMatcherState(delim=self._delim))
+		# print()
+		# print(f"HALTING...")
+		# print(f"...TEST MATCH 'True'")
+		# context.set_match(True)
+		# context.halt()
+
+
+class MonthPatternMatcherState(PatternMatcherState):
+
+	def __init__(self, delim="-"):
+		super().__init__(state_id="MonthPatternMatcherState")
+		self._year_input = ""
+		self._delim = delim
+
+	def execute(self, context):
+		print(f"SHIT ON MY FACE")
+		_ctx_idx = context.pointer
+		_possible_month_date_unit = context.input[_ctx_idx: _ctx_idx + 2]
+		if _possible_month_date_unit.isdigit():
+			print(f"POOPIE DOOPIE")
+			if int(_possible_month_date_unit) >= 10 and (context.pattern[_ctx_idx: _ctx_idx + 2] != DateFormat.MM):
+				# @NOTE: month date unit pattern may specify only a single month digit, but that
+				# 		 goes out the window once the month digits surpass int 9 (i.e., the 9th
+				#		 day of said month)
+				context.increment(1)
+			else:
+				context.increment(2)
+
+
+class PatternMatcher(ABC):
+
+	# @NOTE<Match an input against a specified pattern using this class (or
+	# 		derivative implementations of this class)>
+
+	__slots__ = ("_pattern", "_state", "_input", "_context_id", "_pointer", "_halt_flag", "_match_flag")
+
+	def __init__(self, pattern, init_state=DefaultPatternMatcherState(), context_id=None):
+		self._context_id = context_id or generate_id()
+		self._pattern = pattern
+		self._state = init_state
+
+		self._input = ""
+		self._pointer = 0
+		self._halt_flag = False
+		self._match_flag = False
+
+	@property
+	def pattern(self):
+		return self._pattern
+
+	@property
+	def input(self):
+		if not bool(self._input):
+			# @TODO<update error verbiage; create and raise custom error here>
+			_error_details = f"@TODO<update error verbiage; create and raise custom error here>"
+			raise RuntimeError(_error_details)
+		return self._input
+
+	@property
+	def state(self):
+		return self._state
+
+	@property
+	def pointer(self):
+		# @TODO: Update 'pointer' to be 'index' or 'poisition' or 'pos' or the like
+		return self._pointer
+
+	def halt(self):
+		self._halt_flag = True
+
+	def set_match(self, valid_bool):
+		self._match_flag = valid_bool
+
+	# def update_state(self, state):
+	# 	self._state = state
+	# 	self._state.set_context(self)
+
+	def update(self, state):
+		self._state = state
+		self._state.set_context(self)
+
+	def set_input(self, input):
+		self._input = input
+
+	def ip(self, value):
+		self._pointer = value
+
+	def increment(self, offset=1):
+		self._pointer += offset
+
+	def decrement(self, offset=1):
+		self._pointer -= offset
+
+	def match(self, input):
+		self.ip(0)
+		self.set_input(input)
+		self._halt_flag = False
+		self._match_flag = False
+
+		while not self._halt_flag:
+			self._state.execute(self)
+		return self._match_flag
+
+
+class DatePatternMatcher(PatternMatcher):
 	# @NOTE<Should likely get abstracted (and/or interfaced) out of this entire project, either as a
 	# 		standalone module/package, as part of some utility kmodule/package, and so on etc.>
 
@@ -132,8 +296,8 @@ class DatePatternMatcher(ABC):
 	def set_input(self, input):
 		self._input = input
 
-	def ip(self, offset: int):
-		self._input_pointer = offset
+	def ip(self, value: int):
+		self._input_pointer = value
 
 	def increment(self, offset: int = 1):
 		self._input_pointer += offset
@@ -165,9 +329,6 @@ class DatePatternMatcher(ABC):
 		_input_len = len(input) 
 		_pattern_len = len(self._pattern)
 
-		if _input_len != _pattern_len:
-			return False
-
 		while (_input_len > self._input_pointer) or (_pattern_len > self._input_pointer):
 			_pattern_symbol = self._pattern[self._input_pointer]
 			print(f"MATCH PATTERN SYMBOL ---> {_pattern_symbol}")
@@ -192,10 +353,24 @@ class DatePatternMatcher(ABC):
 						else:
 							self.increment(offset=2)
 				case "M":
+					_curr_input_sym = self._input[self._input_pointer]
+					_next_input_sym = self._input[self._input_pointer + 1]
 					if (self._pattern[self._input_pointer: self._input_pointer + 2] == DateFormat.MM) and (self._input[self._input_pointer: self._input_pointer + 2].isdigit()):
 						self.increment(offset=2)
+						print(f"MATCH CASE: 'M' ---> 'if' CLAUSE")
+					elif (self._pattern[self._input_pointer: self._input_pointer + 1] == DateFormat.M):
+						# @NOTE<Handle when the date unit value requires more than a single digit to
+						# 		represent a given month, even though the pattern specifies that the
+						# 		month date unit value must be a single digit>
+						if f"{_curr_input_sym}{_next_input_sym}".isdigit() and int(f"{_curr_input_sym}{_next_input_sym}") > 9:
+							self.increment(offset=2)
+							print(f"MATCH CASE: 'M' ---> 'elif' CLAUSE, SUB 'if' CLAUSE")
+						else:
+							self.increment(offset=1)
+							print(f"MATCH CASE: 'M' ---> 'elif' CLAUSE, SUB 'else' CLAUSE")							
 					else:
 						self.increment(offset=1)
+						print(f"MATCH CASE: 'M' ---> 'else' CLAUSE")
 				case "D":
 					if self._pattern[self._input_pointer: self._input_pointer + 2] == DateFormat.DD and ((self._input[self._input_pointer: self._input_pointer + 2].isdigit())):
 						self.increment(offset=2)
@@ -287,24 +462,15 @@ class DayDateUnitNode(DateNode):
 		return self._token.token_val
 
 
-# class TokenizerContext(ABC):
-	
-# 	def __init__(self):
-# 		pass
+class Date:
+
+	__slots__ = ()
+
+	def __init__(self):
+		pass
 
 
-# class TokenizerStateInstance(ABC):
-	
-# 	def __init__(self):
-# 		pass
-
-
-# class TokenizerState(ABC):
-	
-# 	def __init__(self):
-# 		pass
-
-
+"""
 class Tokenizer(ABC):
 
 	__slots__ = ("_tokenizer_id", "_scanner", "_tokens")
@@ -402,6 +568,7 @@ class Tokenizer(ABC):
 	@abstractmethod
 	def tokenize(self):
 		raise NotImplementedError
+"""
 
 
 class DateLangTokenizer:
@@ -720,20 +887,6 @@ class DateLangParser(PyParser):
 		self._instr_counter += 1
 
 	def __ACCEPT__(self):
-		# _random_test_states = [randy.randint(0, 10) for _ in range(10)]
-
-
-		# def _test_condition_1():
-		# 	_randy_choice = randy.choice(_random_test_states)
-		# 	print(f"                 Setting parser's result, i.e., the value that returns when parser is done running it's 'parse' method.\n                 The condition: {self.state} == {_randy_choice} (self.state == _randy_choice) will set the parser's result to: '{self.state == _randy_choice}'")
-			
-		# 	return self.state == _randy_choice
-
-
-		# _randy_choice = randy.choice(_random_test_states)
-		# self.add_instruction(DateLangParserInstruction.PRINT, f" TEST ACCEPT\n    |\n    • ---> @NOTE<As a test, setting parser to random state integer, with possible values between the # 0 to the # 9 (inclusive)>")
-		# self.set_state(randy.choice(_random_test_states))
-		# self.set_result(self._ast_stack.pop(-1))
 		self.add_instruction(DateLangParserInstruction.HALT, condition=None)
 		self._instr_counter += 1
 
@@ -903,7 +1056,27 @@ def date_lang_main():
 	)
 
 
-	_SCRATCH_PARSER_RUNTIME_LOGGER = PyLogger.get("scratch_runtime_init_final_redesign")
+	_SCRATCH_PARSER_RUNTIME_LOGGER = PyLogger.get("scratch.date_lang")
+
+	__LANG_TYPE__ = LanguageType.DATE_LANG
+	__GRAMMAR_VERSION__ = DateLangVersion.V0_0_1
+	__LANG_VERSION__ = str(f"{__LANG_TYPE__.lower()}_{__GRAMMAR_VERSION__}")  # @VERSION_NOTE_<'date_lang_v0_0_1' as of 2025/04/10>
+
+	_logging_setup_callbacks = initialize_shell(logger=_SCRATCH_PARSER_RUNTIME_LOGGER, version=__LANG_VERSION__)
+
+	ENCODING = cmd_argument("encoding", parser=DEFAULT_CMD_LINE_PARSER)
+	USE_LOGGING = cmd_argument("log", parser=DEFAULT_CMD_LINE_PARSER)
+	LOGGING_DIR = cmd_argument("logging_dir", parser=DEFAULT_CMD_LINE_PARSER)
+	LOG_FILENAME = cmd_argument("log_filename", parser=DEFAULT_CMD_LINE_PARSER)
+	LOGGING_LEVEL = cmd_argument("logging_level", parser=DEFAULT_CMD_LINE_PARSER)
+
+	init_logging(logging_callbacks=_logging_setup_callbacks, logging_dir=LOGGING_DIR, log_filename=LOG_FILENAME)
+
+	# _SCRATCH_PARSER_RUNTIME_LOGGER.config(
+
+	# )
+
+	# print(f"LOGGER CONFIGURED: {_SCRATCH_PARSER_RUNTIME_LOGGER.is_configured()}")
 
 
 	# @profile_callable(sort_by=SortBy.CUMULATIVE)
@@ -915,30 +1088,6 @@ def date_lang_main():
 		# with open(_date_lang_input_filepath, "r", newline="") as _in_file:
 		# 	_test_input = _in_file.read()
 
-
-		__LANG_TYPE__ = LanguageType.DATE_LANG
-		__GRAMMAR_VERSION__ = DateLangVersion.V0_0_1
-		__LANG_INFO__ = f"{__LANG_TYPE__.lower()}_{__GRAMMAR_VERSION__}"  # @VERSION_NOTE_<'date_lang_v0_0_1' as of 2025/04/10>
-		# __GRAMMAR__ = test_grammar_factory()
-		# init_grammar(__GRAMMAR__, __LANG_INFO__)
-
-
-		_logging_setup_callbacks = initialize_shell(logger=_SCRATCH_PARSER_RUNTIME_LOGGER, version=str(__LANG_INFO__))
-
-		ENCODING = cmd_argument("encoding", parser=DEFAULT_CMD_LINE_PARSER)
-		USE_LOGGING = cmd_argument("log", parser=DEFAULT_CMD_LINE_PARSER)
-		LOGGING_DIR = cmd_argument("logging_dir", parser=DEFAULT_CMD_LINE_PARSER)
-		LOG_FILENAME = cmd_argument("log_filename", parser=DEFAULT_CMD_LINE_PARSER)
-		LOGGING_LEVEL = cmd_argument("logging_level", parser=DEFAULT_CMD_LINE_PARSER)
-
-		init_logging(
-			use_logging=USE_LOGGING,
-			log_filename=LOG_FILENAME,
-			logging_dir=LOGGING_DIR,
-			logging_level=LOGGING_LEVEL,
-			logging_callbacks=_logging_setup_callbacks,
-			encoding=ENCODING
-		)
 
 
 		# for state, rule in __GRAMMAR__.generate_states().items():
@@ -1019,7 +1168,7 @@ def date_lang_main():
 		# _token_context_ = tokenize_format("%Y-%m-%d")
 		_token_context_ = [DateLangToken(DateLangTokenType.YEAR, "2023", token_id=DateLangTokenType.YEAR), DateLangToken(DateLangTokenType.DELIM, "-", token_id=DateLangTokenType.DELIM), DateLangToken(DateLangTokenType.MONTH, "08", token_id=DateLangTokenType.MONTH), DateLangToken(DateLangTokenType.DELIM, "-", token_id=DateLangTokenType.DELIM), DateLangToken(DateLangTokenType.DAY, "07", token_id=DateLangTokenType.DAY), DateLangToken(DateLangTokenType.END_SYMBOL, "#", token_id=DateLangTokenType.END_SYMBOL)]
 
-		# __TOKENIZER__ = DateLangTokenizer(tokenizer_id=__LANG_INFO__)
+		# __TOKENIZER__ = DateLangTokenizer(tokenizer_id=__LANG_VERSION__)
 		# __TOKENIZER__.set_input(_test_input)
 		# _token_context_ = __TOKENIZER__.tokenize()
 		# _token_context_ = [i for i in _token_context_ if i.token_type != DateLangTokenType.SKIP]
@@ -1066,21 +1215,31 @@ def date_lang_main():
 		print(center_text(bold_text(apply_color(10, f"• --- VALID --- •")) if _pretval else bold_text(apply_color(9, f"• --- INVALID --- •"))))
 
 
-	# _date_lang_main(debug_mode=True)
+	# @TODO<Design a scanner class (e.g., 'InputScanner') to provide a mechanism
+	# 						for moving through a given input>
+	#
+	# _date_lang_logger.config(logger_id="TEST_LOGGER_ID", logging_dir=r"/Users/mickey/Desktop/Python/custom_packages/pyparse/files/logging", log_filename="TEST_LOGGING.log")  # @NOTE: Update 'logging_dir' to 'log_dir' to match 'log_filename' (i.e., using																															   #        'log_' versus 'logging'_)
+	# _date_lang_logger.submit_log(message="START OF 'DateLang' TESTING RUNTIME")
+	# _date_lang_logger.submit_log(message="START OF 'DateLang' TESTING RUNTIME")
 
-	_test_pattern = f"{str(DateFormat.YYYY)}-{str(DateFormat.MM)}-{str(DateFormat.D)}"
-	# _test_input = "1989-12-22"
-	# _test_input = "89-12-22"
-	# _test_input = "89-8-08"
-	_test_input = "1989-10-1"
-	print()
-	print(f"PATTERN         ---> {_test_pattern}")
-	print(f"MATCHING INPUT  ---> {_test_input}")
-	print()
-	_pattern_matcher = DatePatternMatcher(_test_pattern, delim='-')
-	_input_valid_output_txt = bold_text(apply_color(10, f"TRUE")) if _pattern_matcher.match(_test_input) else bold_text(apply_color(9, f"FALSE"))
-	print(f"INPUT VALID ---> {_input_valid_output_txt}")
-	print()
+
+	_SCRATCH_PARSER_RUNTIME_LOGGER.submit_log(log_type=LogType.DEBUG, message="Entering 'DateLang' main-loop...")
+	_date_lang_main(debug_mode=True)
+	_SCRATCH_PARSER_RUNTIME_LOGGER.submit_log(log_type=LogType.DEBUG, message="Exiting 'DateLang' main-loop")
+	# print(f"LOG SUBMITTED TO DIR: {LOGGING_DIR}")
+	# print(f"LOG SUBMITTED TO FILENAME: {LOG_FILENAME}")
+
+	# _test_pattern = f"{str(DateFormat.YYYY)}-{str(DateFormat.M)}-{str(DateFormat.DD)}"
+	# _test_input = "2003-7-11"
+	# print()
+	# print(f"PATTERN         ---> {_test_pattern}")
+	# print(f"MATCHING INPUT  ---> {_test_input}")
+	# print()
+	# # _pattern_matcher = DatePatternMatcher(_test_pattern, delim='-')
+	# _pattern_matcher = PatternMatcher(_test_pattern)
+	# _input_valid_output_txt = bold_text(apply_color(10, f"TRUE")) if _pattern_matcher.match(_test_input) else bold_text(apply_color(9, f"FALSE"))
+	# print(f"INPUT VALID ---> {_input_valid_output_txt}")
+	# print()
 
 
 if __name__ == "__main__":
