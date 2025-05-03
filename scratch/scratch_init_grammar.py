@@ -1,6 +1,6 @@
 from .grammar_rule import GrammarRule
 from .grammar_designing import Grammar
-from .scratch_cons import LanguageType
+# from .scratch_cons import LanguageType
 
 
 def test_grammar_factory():
@@ -239,14 +239,19 @@ def init_todo_grammar_v0_0_1(grammar):
     #         @NOTE<Syntax for a 'NOTE' data structure>
     #
     grammar.create_rule("$", ["todo_lang"], rule_id="INIT_RULE")
-    grammar.create_rule("todo_lang", ["todo_@_symbol", "todo_type", "todo_body"], rule_id="todo_lang")
-    grammar.create_rule("todo_type", ["TODO"], rule_id="todo_type_TODO")
-    grammar.create_rule("todo_type", ["NOTE"], rule_id="todo_type_NOTE")
-    grammar.create_rule("todo_body", ["todo_l_angle", "todo_body_text", "todo_r_angle"], rule_id="todo_body")
-    grammar.create_rule("todo_body_text", ["TEXT"], rule_id="todo_body_text")
-    grammar.create_rule("todo_l_angle", ["<"], rule_id="todo_l_angle")
-    grammar.create_rule("todo_r_angle", [">"], rule_id="todo_r_angle")
-    grammar.create_rule("todo_@_symbol", ["@"], rule_id="todo_@_symbol")
+    grammar.create_rule("todo_lang", ["#", "@", "directive", "<", "DIRECTIVE_TAG", ">", ":", "DIRECTIVE_DATA"], rule_id="todo_lang1")
+    grammar.create_rule("todo_lang", ["#", "@", "directive", ":", "directive_data"], rule_id="todo_lang2")
+    grammar.create_rule("directive", ["NOTE"], rule_id="note_directive")
+    grammar.create_rule("directive", ["TODO"], rule_id="todo_directive")
+
+    # grammar.create_rule("todo_lang", ["todo_@_symbol", "todo_type", "todo_body"], rule_id="todo_lang")
+    # grammar.create_rule("todo_type", ["TODO"], rule_id="todo_type_TODO")
+    # grammar.create_rule("todo_type", ["NOTE"], rule_id="todo_type_NOTE")
+    # grammar.create_rule("todo_body", ["todo_l_angle", "todo_body_text", "todo_r_angle"], rule_id="todo_body")
+    # grammar.create_rule("todo_body_text", ["TEXT"], rule_id="todo_body_text")
+    # grammar.create_rule("todo_l_angle", ["<"], rule_id="todo_l_angle")
+    # grammar.create_rule("todo_r_angle", [">"], rule_id="todo_r_angle")
+    # grammar.create_rule("todo_@_symbol", ["@"], rule_id="todo_@_symbol")
 
 
 _grammar_initializers = {
@@ -261,8 +266,8 @@ _grammar_initializers = {
     9: init_grammar_9,
     # 10: init_grammar_10,
     "date_lang_v0_0_1": init_date_lang_grammar_v0_0_1,
-    "todo_lang_v0_0_1": init_todo_grammar_v0_0_1,
-    "simple_lang_v0_0_1": init_simple_lang_grammar_v0_0_1
+    "simple_lang_v0_0_1": init_simple_lang_grammar_v0_0_1,
+    "todo_lang_v0_0_1": init_todo_grammar_v0_0_1
 }
 
 

@@ -19,6 +19,11 @@ class DateLangVersion(StrEnum):
     V0_0_1 = "v0_0_1"
 
 
+class ToDoLangVersion(StrEnum):
+
+    V0_0_1 = "v0_0_1"
+
+
 # class PyParsePortID(IntEnum):
 
 #     # INPUT = auto()
