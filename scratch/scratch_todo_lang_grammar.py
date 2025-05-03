@@ -1,3 +1,11 @@
+# @TODO<TAG_EXAMPLE>: design and develop a way to notate tagged notes, perhaps giving names to
+# 	   				  specific '@NOTE' and/or '@TODO' declarations. Using this '@TODO' declaration, do
+# 	   				  something like add placing the tag/tags within angle brackets after declaring the
+# 	   				  directive value (i.e., 'TODO', 'NOTE', etc.), but before the colon, ':', which
+# 	   				  indicates the actual message and/or data associated with the declared directive
+#	   				  value (once again, i.e., 'TODO', 'NOTE', etc.,)
+
+
 from enum import StrEnum, IntEnum, auto
 from collections import deque
 

@@ -1,8 +1,8 @@
-# @TODO<Determine how I could add the ability to create sub-todo's so that I can
-# 		ultimately create a todo list with the ability to have sub-tasks; this
-# 		should then allow me to break each todo into a series of steps that I
-# 		can then test against, hook into unit testing, regression
-# 		testing, etc.>
+# @TODO: must improve upon the speed of overall implementation by utilizing
+# 		 benchmarking and profiling
+#
+# @TODO: Review implementation of some components of the 'Date' to see if they
+# 		 can be re-written in C (i.e., create a C API for python to call into)
 
 
 from typing import (
@@ -464,10 +464,61 @@ class DayDateUnitNode(DateNode):
 
 class Date:
 
-	__slots__ = ()
+	__slots__ = ("_date", "_delim", "_format", "_year_prefix")
 
-	def __init__(self):
-		pass
+	def __init__(self, *, year: int, month: int, day: int, delim="-", format=None, year_prefix=20):
+		self._date = (year << 9) | (month << 5) | day
+		self._delim = delim
+		self._format = format
+		self._year_prefix = year_prefix
+
+	@property
+	def delim(self):
+		return self._delim
+
+	@property
+	def format(self):
+		return self._format
+
+	@property
+	def year(self):
+		return (self._date >> 9) & 0x1FFFF
+
+	@property
+	def month(self):
+		return (self._date >> 5) & 0xF
+
+	@property
+	def day(self):
+		return self._date & 0x1F
+
+	def set_delim(self, delim):
+		self._delim = delim
+
+	def format(self, format):
+		self._format = format
+
+	def __repr__(self):
+		return f"{self.__class__.__name__}(year={self.year}, month={self.month}, day={self.day}, delim={self.delim})"
+
+	def __str__(self):
+		_delim = self.delim
+		return f"{self.year}{_delim}{self.month}{_delim}{self.day}"
+
+	def __eq__(self, other):
+		return self._date == other._date
+
+	def __gt__(self, other):
+		return self._date > other._date
+
+	def __ge__(self, other):
+		return self._date >= other._date
+
+	def __lt__(self, other):
+		return self._date < other._date
+
+	def __le__(self, other):
+		return self._date <= other._date
 
 
 """
@@ -1030,6 +1081,8 @@ def date_lang_main():
 	#                                                                                                                      #
 	########################################################################################################################
 
+	import os
+
 	from pyutils import (
 	    cmd_argument,
 	    DEFAULT_PARSER as DEFAULT_CMD_LINE_PARSER
@@ -1217,17 +1270,17 @@ def date_lang_main():
 
 	# @TODO<Design a scanner class (e.g., 'InputScanner') to provide a mechanism
 	# 						for moving through a given input>
-	#
+
+	# @TODO<**DELETE**>
 	# _date_lang_logger.config(logger_id="TEST_LOGGER_ID", logging_dir=r"/Users/mickey/Desktop/Python/custom_packages/pyparse/files/logging", log_filename="TEST_LOGGING.log")  # @NOTE: Update 'logging_dir' to 'log_dir' to match 'log_filename' (i.e., using																															   #        'log_' versus 'logging'_)
 	# _date_lang_logger.submit_log(message="START OF 'DateLang' TESTING RUNTIME")
 	# _date_lang_logger.submit_log(message="START OF 'DateLang' TESTING RUNTIME")
 
 
-	_SCRATCH_PARSER_RUNTIME_LOGGER.submit_log(log_type=LogType.DEBUG, message="Entering 'DateLang' main-loop...")
-	_date_lang_main(debug_mode=True)
-	_SCRATCH_PARSER_RUNTIME_LOGGER.submit_log(log_type=LogType.DEBUG, message="Exiting 'DateLang' main-loop")
-	# print(f"LOG SUBMITTED TO DIR: {LOGGING_DIR}")
-	# print(f"LOG SUBMITTED TO FILENAME: {LOG_FILENAME}")
+	# _SCRATCH_PARSER_RUNTIME_LOGGER.submit_log(log_type=LogType.DEBUG, message="Entering 'DateLang' main-loop...")
+	# _date_lang_main(debug_mode=True)
+	# _SCRATCH_PARSER_RUNTIME_LOGGER.submit_log(log_type=LogType.DEBUG, message="Exiting 'DateLang' main-loop")
+
 
 	# _test_pattern = f"{str(DateFormat.YYYY)}-{str(DateFormat.M)}-{str(DateFormat.DD)}"
 	# _test_input = "2003-7-11"
@@ -1240,6 +1293,45 @@ def date_lang_main():
 	# _input_valid_output_txt = bold_text(apply_color(10, f"TRUE")) if _pattern_matcher.match(_test_input) else bold_text(apply_color(9, f"FALSE"))
 	# print(f"INPUT VALID ---> {_input_valid_output_txt}")
 	# print()
+
+	from datetime import date
+
+
+	@profile_callable(sort_by=SortBy.CUMULATIVE)
+	def custom_date_implementation():
+		# @NOTE: Function took .176 seconds to run 100,000 times
+		print()
+		print(bold_text(apply_color(226, f"RUNNING CUSTOM 'Date' IMPLEMENTATION")))
+		print()
+		for _ in range(100000):
+			_date1 = Date(month=12, day=22, year=1989, delim="/")
+			_date2 = Date(month=12, day=22, year=2001, delim="/")
+			assert _date1 <= _date2
+
+
+	@profile_callable(sort_by=SortBy.CUMULATIVE)
+	def built_in_date_implementation():
+		# @NOTE: Funtion took .031 seconds to run 100,000 times
+		print()
+		print(bold_text(apply_color(226, f"RUNNING built-in 'date' IMPLEMENTATION")))
+		print()
+		for _ in range(100000):
+			_date1 = date(1989, 12, 22)
+			_date2 = date(2001, 12, 22)
+			assert _date1 <= _date2
+
+
+	# @NOTE: So far, the built-in 'date' implementation is 5.68 times faster when
+	# 		 compared with the custom 'Date' implementation after running 100,000
+	# 		 times each
+	custom_date_implementation()
+	print()
+	print()
+	print()
+	built_in_date_implementation()
+	print()
+	RESULT_MSG = f"BUILT-IN 'date' IMPLEMENTATION RUN'S 5.68 TIMES FASTER COMPARED TO CUSTOM ONE, AFTER RUNNING 100,000 TIMES"
+	print(center_text(underline_text(bold_text(apply_color(226, RESULT_MSG)))))
 
 
 if __name__ == "__main__":

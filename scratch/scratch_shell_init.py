@@ -42,7 +42,7 @@ def _set_logging_level(callback_list, logger=_shell_init_logger):
 
 
 def _set_logging_dir(callback_list, logger=_shell_init_logger):
-    _DEFAULT_LOGGING_FILENAME = PyParseFileSystemPath.ROOT
+    _DEFAULT_LOGGING_FILENAME = PyParseFileSystemPath.LOGGING
     DEFAULT_PARSER.register_argument(
         "-logging_dir",
         default=_DEFAULT_LOGGING_FILENAME,
